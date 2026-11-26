@@ -1,16 +1,62 @@
 package chrome
 
 import (
-	"github.com/egoist/mygo/ui"
 	"math"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/renderpolicy"
 )
 
+const ambientFrameInterval = time.Second / 12
+
+type ambientAnimationClock struct {
+	mu        sync.Mutex
+	last      time.Time
+	elapsed   time.Duration
+	wasFrozen bool
+}
+
+func (c *ambientAnimationClock) reset() {
+	c.mu.Lock()
+	c.last = time.Time{}
+	c.elapsed = 0
+	c.wasFrozen = false
+	c.mu.Unlock()
+}
+
+func (c *ambientAnimationClock) step(now time.Time, reduced, frozen bool) float64 {
+	if reduced {
+		return 0
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if now.IsZero() {
+		return c.elapsed.Seconds()
+	}
+	if c.last.IsZero() || now.Before(c.last) {
+		c.last = now
+		c.wasFrozen = frozen
+		return c.elapsed.Seconds()
+	}
+	if !frozen && !c.wasFrozen {
+		c.elapsed += now.Sub(c.last)
+	}
+	c.last = now
+	c.wasFrozen = frozen
+	return c.elapsed.Seconds()
+}
+
+var mainAmbientClock ambientAnimationClock
+
 var backgroundState struct {
-	prefs     wallpapers.Preferences
-	active    bool
-	wallpaper string
+	prefs      wallpapers.Preferences
+	active     bool
+	wallpaper  string
+	paletteKey gradientPaletteKey
 	// colors is the prepared wallpaper's color map the surfaces sample; box is
 	// where the wallpaper was drawn and dark the scheme that chose its dim
 	// mask. version changes whenever a sampled color could go stale.
@@ -53,6 +99,7 @@ func ConfigureBackdrop(path string, p wallpapers.Preferences) {
 	if !gradient {
 		clearGradientBackdrop()
 		ambientGradientFrames.reset()
+		mainAmbientClock.reset()
 	}
 	// The preference writer performs the one-shot readability nudge when the
 	// transparent theme becomes effective. Rendering must honor later explicit
@@ -65,6 +112,7 @@ func ConfigureBackdrop(path string, p wallpapers.Preferences) {
 	if !backgroundState.active || path == "" {
 		// No wallpaper: nothing of one stays referenced.
 		backgroundState.colors, backgroundState.hasBox = nil, false
+		backgroundState.paletteKey = gradientPaletteKey{}
 		backgroundState.version++
 	}
 }
@@ -136,9 +184,33 @@ func BackdropSurface(c ui.Color) ui.Color {
 }
 func BackdropTerminal(c ui.Color) ui.Color {
 	if !backgroundState.active {
+		prefs := effectivePrefs(backgroundState.prefs)
+		if ShowThroughAlpha(prefs, backgroundState.dark) < 1 {
+			return c.Alpha(MaterialAlpha(MaterialTerminal, prefs, backgroundState.dark))
+		}
 		return c
 	}
 	return c.Alpha(MaterialAlpha(MaterialTerminal, effectivePrefs(backgroundState.prefs), backgroundState.dark))
+}
+
+func publishGradientPalette(c gradientConfig, box ui.Rect) {
+	clearGradientBackdrop()
+	colors := gradientPaletteColors(c)
+	s := &backgroundState
+	key := gradientPaletteKey{
+		colors:  c.colors,
+		variant: c.variant,
+		count:   c.count,
+		dark:    c.dark,
+	}
+	if s.colors != colors || s.paletteKey != key || s.box != box || !s.hasBox || s.dark != c.dark {
+		s.version++
+	}
+	s.colors = colors
+	s.paletteKey = key
+	s.box = box
+	s.hasBox = true
+	s.dark = c.dark
 }
 
 // The caller captures the desktop preference during view construction.
@@ -169,18 +241,24 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 				s.colors = colors
 				s.version++
 			}
-			if bw, bh := pic.Bitmap.Size(); strings.HasPrefix(wallpaperKind(p), "wallpaper/pixelate") {
-				// Pixelated at screen pixels already: draw at its own size,
-				// centred, so the blocks stay exact.
-				painter.Clip(r, 0, func() {
-					painter.Image(pic.Bitmap, ui.Rect{X: r.X + (r.W-float32(bw))/2, Y: r.Y + (r.H-float32(bh))/2, W: float32(bw), H: float32(bh)}, ui.FillBox)
-				})
-			} else {
-				painter.Image(pic.Bitmap, r, ui.Cover)
-			}
-			if radius := wallpaperBlurRadius(p.Blur); radius > 0 {
-				wallpaperBlurMaterial(radius).PaintMaterial(painter, r, [4]float32{})
-			}
+			painter.Clip(r, 0, func() {
+				if bw, bh := pic.Bitmap.Size(); strings.HasPrefix(wallpaperKind(p), "wallpaper/pixelate") {
+					if bw < int(math.Ceil(float64(r.W))) || bh < int(math.Ceil(float64(r.H))) {
+						painter.Image(pic.Bitmap, r, ui.Cover)
+					} else {
+						// Pixelated at screen pixels already: draw at its own size,
+						// snapped to whole pixels so the blocks stay exact.
+						x := r.X + float32(math.Round(float64(r.W-float32(bw))/2))
+						y := r.Y + float32(math.Round(float64(r.H-float32(bh))/2))
+						painter.Image(pic.Bitmap, ui.Rect{X: x, Y: y, W: float32(bw), H: float32(bh)}, ui.FillBox)
+					}
+				} else {
+					painter.Image(pic.Bitmap, r, ui.Cover)
+				}
+				if radius := wallpaperBlurRadius(p.Blur); radius > 0 {
+					wallpaperBlurMaterial(radius).PaintMaterial(painter, r, [4]float32{})
+				}
+			})
 			s.box, s.hasBox, s.dark = r, true, painter.Theme().Dark
 			if p.Transparent {
 				return
@@ -195,17 +273,20 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 			backgroundState.dark = painter.Theme().Dark
 		}
 	}
+	var startedAt time.Time
 	return func(painter *ui.Painter, r ui.Rect) {
 		backgroundState.dark = painter.Theme().Dark
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}
-		// The ambient gradient is baked once per configuration (size, colors,
-		// scheme) into a static texture: no phase ticker, no repaint loop.
+		now := painter.Now()
+		freeze := shouldFreezeAmbientAnimation(reduced, &startedAt, now) || renderpolicy.NoBackdrop()
+		elapsed := mainAmbientClock.step(now, reduced, freeze)
 		config := gradientConfiguration(p, float64(r.W), float64(r.H), painter.Theme().Dark, reduced)
-		if frame := ambientGradientFrames.frozen(config, painter.Now()); frame != nil {
-			painter.Image(frame.bitmap, r, ui.FillBox)
-			publishGradientBackdrop(frame, r)
+		publishGradientPalette(config, r)
+		config.ambientBackdrop(elapsed).PaintMaterial(painter, r, [4]float32{})
+		if !reduced && !freeze {
+			painter.After(ambientFrameInterval)
 		}
 	}
 }

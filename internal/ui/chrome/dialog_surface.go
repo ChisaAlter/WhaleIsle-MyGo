@@ -39,23 +39,44 @@ func DialogSurfaceSized(c *ui.Context, backdrop, panel ui.Element, t *ui.Theme, 
 	return dialogSurface(c, backdrop, panel, t.Background, t.Border, box)
 }
 
-func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Color, box DialogSurfaceBox) ui.Element {
-	progress := Reveal(c, backdrop, OverlayDuration)
-	mask := ui.RGBA(0, 0, 0, .24)
+func dialogMaskColor(bg ui.Color) ui.Color {
 	luminance := (0.2126*float32(bg.R) + 0.7152*float32(bg.G) + 0.0722*float32(bg.B)) / 255
 	if luminance < .5 {
-		mask = ui.RGBA(0, 0, 0, .5)
+		return ui.RGBA(0, 0, 0, .5)
 	}
-	RevealMask(backdrop, mask, progress)
-	panel.Width(box.Width).MaxWidthPercent(94).Padding(box.Padding).Radius(box.Radius).Clip().Opacity(progress)
+	return ui.RGBA(0, 0, 0, .24)
+}
+
+func applyDialogGlassSurface(c *ui.Context, panel ui.Element, bg, border ui.Color, radius float32) ui.Element {
+	dark := c.Theme().Dark
 	if backgroundState.active {
-		// Raised dialogs frost like the shell's menus over a live backdrop;
-		// the colors are only consulted for the flat dark token, which the
-		// active path never reaches.
-		panel.Background(ui.Transparent).Draw(Glass(MenuBaseFill(theme.Colors{}, c.Theme().Dark), MaterialMenu, box.Radius))
+		fillBase := MenuBaseFill(theme.Colors{}, dark)
+		panel.Background(ui.Transparent).Material(menuPanelGlass{}).Draw(func(p *ui.Painter, r ui.Rect) {
+			drawGlass(p, r, fillBase, MaterialMenu, radius, false)
+		})
+		modalElevationFor(panel, dark)
 	} else {
-		panel.Background(bg).Draw(Glass(bg, MaterialPanel, box.Radius))
+		panel.Background(bg).Draw(Glass(bg, MaterialPanel, radius))
+		menuElevationFor(panel, dark)
 	}
+	panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if r.W <= 0 || r.H <= 0 {
+			return
+		}
+		if backgroundState.active {
+			drawGlassRim(p, r, radius)
+		}
+		if border.A != 0 {
+			p.Stroke(r, border, radius, 0.5)
+		}
+	})
+	return panel
+}
+
+func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Color, box DialogSurfaceBox) ui.Element {
+	progress := Reveal(c, backdrop, OverlayDuration)
+	RevealMask(backdrop, dialogMaskColor(bg), progress)
+	panel.Width(box.Width).MaxWidthPercent(94).Padding(box.Padding).Radius(box.Radius).Clip().Opacity(progress)
 	if box.Height > 0 {
 		panel.Height(box.Height).MaxHeightPercent(94)
 	}
@@ -64,11 +85,5 @@ func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Colo
 	if box.OffsetY != 0 {
 		panel.Margin(2*box.OffsetY, 0, 0, 0)
 	}
-	MenuElevation(panel)
-	panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if border.A != 0 && r.W > 0 && r.H > 0 {
-			p.Stroke(r, border, box.Radius, 0.5)
-		}
-	})
-	return panel
+	return applyDialogGlassSurface(c, panel, bg, border, box.Radius)
 }

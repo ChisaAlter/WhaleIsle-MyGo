@@ -5,13 +5,14 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/renderpolicy"
 )
 
-// BackgroundEffectPreview owns a separate frame cache. Editing a scheme must
-// not replace the window's backdrop or the glass surface sampling state.
-type BackgroundEffectPreview struct{ frames gradientFrameCache }
+// BackgroundEffectPreview owns an independent animation clock so editing a
+// scheme does not alter or reset the main window's backdrop phase.
+type BackgroundEffectPreview struct{ clock ambientAnimationClock }
 
-func (p *BackgroundEffectPreview) Close() { p.frames.reset() }
+func (p *BackgroundEffectPreview) Close() { p.clock.reset() }
 
 func (p *BackgroundEffectPreview) Draw(settings wallpapers.Preferences, reduced bool) func(*ui.Painter, ui.Rect) {
 	var startedAt time.Time
@@ -20,19 +21,12 @@ func (p *BackgroundEffectPreview) Draw(settings wallpapers.Preferences, reduced 
 			return
 		}
 		now := painter.Now()
+		freeze := shouldFreezeAmbientAnimation(reduced, &startedAt, now) || renderpolicy.NoBackdrop()
+		elapsed := p.clock.step(now, reduced, freeze)
 		config := gradientConfiguration(settings, float64(bounds.W), float64(bounds.H), painter.Theme().Dark, reduced)
-		freeze := shouldFreezeAmbientAnimation(reduced, &startedAt, now)
-		var frame *gradientFrame
-		if freeze {
-			frame = p.frames.frozen(config, now)
-		} else {
-			frame = p.frames.latest(config, now)
-		}
-		if frame != nil {
-			painter.Image(frame.bitmap, bounds, ui.FillBox)
-		}
+		config.ambientBackdrop(elapsed).PaintMaterial(painter, bounds, [4]float32{})
 		if !reduced && !freeze {
-			painter.After(gradientFrameInterval)
+			painter.After(ambientFrameInterval)
 		}
 	}
 }

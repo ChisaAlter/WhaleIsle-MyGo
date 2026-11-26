@@ -8,10 +8,6 @@ import (
 	"whaleisle/internal/desktop/wallpapers"
 )
 
-// The old test pinned green to a captured lower-left quadrant. The installed
-// CSS instead moves blooms through the viewport, so that observation was not a
-// source contract. Keep full-bleed/softness checks and verify the actual painted
-// generation is also what material sampling reads, without masking it twice.
 func TestDefaultGradientIsASoftFullBleedWash(t *testing.T) {
 	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
 	prefs := wallpapers.Defaults()
@@ -23,15 +19,14 @@ func TestDefaultGradientIsASoftFullBleedWash(t *testing.T) {
 		ui.Box(c).Fill().Draw(paint)
 	}, 320, 220)
 	image := tt.Image()
-	if gradientBackdrop.frame == nil || backgroundState.colors == nil || backgroundState.colors != gradientBackdrop.frame.colors {
-		t.Fatal("paint and sampler do not share a generation")
+	if gradientBackdrop.frame != nil || ambientGradientFrames.frame != nil {
+		t.Fatal("GPU ambient gradient triggered legacy CPU frame cache")
+	}
+	if backgroundState.colors == nil {
+		t.Fatal("paint did not populate representative backdrop color map")
 	}
 	if _, ok := SampleBackdrop(ui.Rect{W: 40, H: 40}); !ok || backgroundState.box.W != 320 || backgroundState.box.H != 220 {
 		t.Fatalf("sample box=%v valid=%v", backgroundState.box, ok)
-	}
-	pixels := gradientBackdrop.frame.pixels
-	if gradientBackdrop.frame.tick != -1 || !gradientBackdrop.frame.config.reduced {
-		t.Fatal("reduced motion did not remove transforms")
 	}
 	for _, pt := range [][2]int{{2, 2}, {317, 2}, {2, 217}, {317, 217}} {
 		c := image.RGBAAt(pt[0], pt[1])
@@ -51,9 +46,9 @@ func TestDefaultGradientIsASoftFullBleedWash(t *testing.T) {
 	if worst > 12 {
 		t.Fatalf("soft source backdrop contains %d-level step", worst)
 	}
-	before := bytes.Clone(pixels.Pix)
+	before := bytes.Clone(image.Pix)
 	tt.Frame()
-	if !bytes.Equal(before, gradientBackdrop.frame.pixels.Pix) {
+	if !bytes.Equal(before, tt.Image().Pix) {
 		t.Fatal("reduced source changed across repaint")
 	}
 	ConfigureBackdrop("", wallpapers.Defaults())
@@ -61,6 +56,7 @@ func TestDefaultGradientIsASoftFullBleedWash(t *testing.T) {
 		t.Fatal("closed gradient retained stale bitmap/cache")
 	}
 }
+
 func absInt(v int) int {
 	if v < 0 {
 		return -v

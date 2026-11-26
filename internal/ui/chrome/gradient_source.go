@@ -6,7 +6,9 @@ package chrome
 import (
 	"math"
 	"strings"
+	"sync"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 )
@@ -276,4 +278,131 @@ func (c gradientConfig) blur() float64 {
 		return 18
 	}
 	return 64
+}
+
+func (c gradientConfig) ambientVariant() glass.AmbientVariant {
+	switch c.variant {
+	case "aurora":
+		return glass.AmbientAurora
+	case "chaos":
+		return glass.AmbientChaos
+	case "rays":
+		return glass.AmbientRays
+	default:
+		return glass.AmbientOrbs
+	}
+}
+
+func (c gradientConfig) uiColor(i int) ui.Color {
+	gc := c.colors[i]
+	clampByte := func(v float64) uint8 {
+		if v <= 0 {
+			return 0
+		}
+		if v >= 1 {
+			return 255
+		}
+		return uint8(math.Round(v * 255))
+	}
+	return ui.RGB(clampByte(gc.r), clampByte(gc.g), clampByte(gc.b))
+}
+
+func (c gradientConfig) ambientBackdrop(elapsedSec float64) glass.AmbientBackdrop {
+	t := float32(0)
+	if !c.reduced && elapsedSec > 0 {
+		t = float32(elapsedSec * c.speed / 100)
+	}
+	return glass.AmbientBackdrop{
+		Variant:  c.ambientVariant(),
+		BaseFrom: c.uiColor(0),
+		BaseTo:   c.uiColor(1),
+		Colors: [5]ui.Color{
+			c.uiColor(2),
+			c.uiColor(3),
+			c.uiColor(4),
+			c.uiColor(5),
+			c.uiColor(6),
+		},
+		Count:   c.count,
+		Time:    t,
+		Dark:    c.dark,
+		Opacity: 1,
+	}
+}
+
+type gradientPaletteKey struct {
+	colors  [7]gradientColor
+	variant string
+	count   int
+	dark    bool
+}
+
+var gradientPaletteCache struct {
+	mu     sync.Mutex
+	valid  bool
+	key    gradientPaletteKey
+	colors *wallpaperColors
+}
+
+// gradientPaletteColors builds a lightweight spatial color map from the
+// resolved 7-color palette and variant so SampleBackdrop and MaterialAlphaFor
+// stay accurate without running the 224px CPU Gaussian renderer.
+func gradientPaletteColors(c gradientConfig) *wallpaperColors {
+	key := gradientPaletteKey{
+		colors:  c.colors,
+		variant: c.variant,
+		count:   c.count,
+		dark:    c.dark,
+	}
+	gradientPaletteCache.mu.Lock()
+	if gradientPaletteCache.valid && gradientPaletteCache.key == key && gradientPaletteCache.colors != nil {
+		res := gradientPaletteCache.colors
+		gradientPaletteCache.mu.Unlock()
+		return res
+	}
+	gradientPaletteCache.mu.Unlock()
+
+	const cols, rows = 16, 10
+	ref := c
+	ref.width, ref.height = 1280, 800
+	blobs := ref.blobs(0)
+	rgb := make([]uint8, 3*cols*rows)
+	clampByte := func(v float64) uint8 {
+		if v <= 0 {
+			return 0
+		}
+		if v >= 1 {
+			return 255
+		}
+		return uint8(math.Round(v * 255))
+	}
+	for y := 0; y < rows; y++ {
+		py := (float64(y) + 0.5) * ref.height / rows
+		for x := 0; x < cols; x++ {
+			px := (float64(x) + 0.5) * ref.width / cols
+			base := ref.baseline(px, py)
+			pix := [3]float64{base.r, base.g, base.b}
+			for i := 0; i < ref.count; i++ {
+				src := blobs[i].at(px, py)
+				if src.a <= 0 {
+					continue
+				}
+				for ch, s := range [3]float64{src.r, src.g, src.b} {
+					hl := gradientHardLight(pix[ch], s)
+					pix[ch] += (hl - pix[ch]) * src.a
+				}
+			}
+			idx := 3 * (y*cols + x)
+			rgb[idx] = clampByte(pix[0])
+			rgb[idx+1] = clampByte(pix[1])
+			rgb[idx+2] = clampByte(pix[2])
+		}
+	}
+	wc := &wallpaperColors{cols: cols, rows: rows, rgb: rgb}
+	gradientPaletteCache.mu.Lock()
+	gradientPaletteCache.valid = true
+	gradientPaletteCache.key = key
+	gradientPaletteCache.colors = wc
+	gradientPaletteCache.mu.Unlock()
+	return wc
 }

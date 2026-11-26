@@ -234,14 +234,19 @@ func gradientPanelPixels(frame *gradientFrame, canvas ui.Color, prefs wallpapers
 
 	out := image.NewRGBA(image.Rect(0, 0, w, h))
 	pix := out.Pix
-	for i, j := 0, 0; i < len(pix); i, j = i+4, j+3 {
-		r := satOff0 + scale255*float64(satBlur[j])
-		g := satOff1 + scale255*float64(satBlur[j+1])
-		b := satOff2 + scale255*float64(satBlur[j+2])
-		pix[i] = clampRoundByte(r)
-		pix[i+1] = clampRoundByte(g)
-		pix[i+2] = clampRoundByte(b)
-		pix[i+3] = 255
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			i := (y*w + x) * 4
+			j := (y*w + x) * 3
+			dither := gradientPanelDither(x, y)
+			r := satOff0 + scale255*float64(satBlur[j]) + dither
+			g := satOff1 + scale255*float64(satBlur[j+1]) + dither
+			b := satOff2 + scale255*float64(satBlur[j+2]) + dither
+			pix[i] = clampRoundByte(r)
+			pix[i+1] = clampRoundByte(g)
+			pix[i+2] = clampRoundByte(b)
+			pix[i+3] = 255
+		}
 	}
 
 	gradientPanelFrames.mu.Lock()
@@ -250,6 +255,19 @@ func gradientPanelPixels(frame *gradientFrame, canvas ui.Color, prefs wallpapers
 	gradientPanelFrames.rgba = out
 	gradientPanelFrames.mu.Unlock()
 	return out
+}
+
+func gradientPanelDither(x, y int) float64 {
+	dot := float64(x)*0.06711056 + float64(y)*0.00583715
+	inner := dot - math.Floor(dot)
+	prod := 52.9829189 * inner
+	n := prod - math.Floor(prod)
+	r := n*2 - 1
+	signR := 1.0
+	if r < 0 {
+		signR = -1.0
+	}
+	return signR * (1 - math.Sqrt(math.Max(0, 1-math.Abs(r)))) * 0.5
 }
 
 func clampRoundByte(v float64) uint8 {

@@ -104,7 +104,7 @@ func capImage(img image.Image, limit int) image.Image {
 // does not depend on the source image's size.
 func pixelateCover(img image.Image, w, h, block int) image.Image {
 	b := img.Bounds()
-	sw, sh := max(1, w/block), max(1, h/block)
+	sw, sh := max(1, (w+block-1)/block), max(1, (h+block-1)/block)
 	scale := math.Max(float64(sw)/float64(b.Dx()), float64(sh)/float64(b.Dy()))
 	cw, ch := float64(sw)/scale, float64(sh)/scale
 	crop := image.Rect(int(float64(b.Min.X)+(float64(b.Dx())-cw)/2), int(float64(b.Min.Y)+(float64(b.Dy())-ch)/2), 0, 0)
@@ -185,5 +185,5 @@ func wallpaperBlurMaterial(radius int) glass.Blur {
 	if radius > 0 {
 		sat = min(float32(0.35), float32(radius)/40*0.35)
 	}
-	return glass.Blur{Radius: float32(radius) / 2, Saturation: sat}
+	return glass.Blur{Radius: float32(radius) / 2, Saturation: sat, Dither: true}
 }
