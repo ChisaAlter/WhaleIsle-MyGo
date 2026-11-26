@@ -91,6 +91,7 @@ type Store struct {
 	modelCatalogLoading       bool
 	modelCatalogLoaded        bool
 	modelCatalogRequest       uint64
+	describeRequest           uint64
 	visionRoutes              []VisionRoute
 	visionLoading             bool
 	visionErr                 string
@@ -144,6 +145,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.modelCatalogLoading = false
 	s.modelCatalogLoaded = false
 	s.modelCatalogRequest++
+	s.describeRequest++
 	s.visionRoutes = nil
 	s.visionLoading = false
 	s.visionErr = ""
@@ -210,6 +212,7 @@ func (s *Store) Detach() {
 	s.modelCatalogLoading = false
 	s.modelCatalogLoaded = false
 	s.modelCatalogRequest++
+	s.describeRequest++
 	s.visionRoutes = nil
 	s.visionLoading = false
 	s.visionErr = ""
@@ -433,6 +436,8 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		return
 	}
 	s.loading = true
+	s.describeRequest++
+	req := s.describeRequest
 	if s.describedClient != client {
 		s.describedClient = nil
 	}
@@ -449,7 +454,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		}
 
 		s.mu.Lock()
-		if s.generation != generation {
+		if s.generation != generation || s.describeRequest != req {
 			s.unlockPublish()
 			return
 		}

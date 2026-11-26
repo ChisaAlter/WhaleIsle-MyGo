@@ -3,13 +3,17 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 	"time"
 
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/dsh/events"
+	"whaleisle/internal/errcopy"
+	"whaleisle/internal/store/storelocale"
 )
 
 // AgentPresetOption is one row in the composer agent preset picker.
@@ -225,9 +229,15 @@ func (s *Store) selectAgentPresetIDForSession(ctx context.Context, targetID, pre
 	p.introduceSession = ""
 	p.error = ""
 	if !s.blankPresetTargetLocked(sessionID) || opt.Broken != "" {
-		p.error = opt.Label + ": presets can only be applied to a blank session"
 		if opt.Broken != "" {
-			p.error = opt.Label + ": " + opt.Broken
+			log.Printf("[session] agentPresets.select: preset %q broken: %s", opt.ID, opt.Broken)
+			reason := errcopy.SentenceText(opt.Broken)
+			if errcopy.Classify(errors.New(opt.Broken)) == errcopy.CauseUnknown {
+				reason = storelocale.Pick("该预设配置无效，无法使用", "This preset configuration is invalid and cannot be used")
+			}
+			p.error = opt.Label + ": " + reason
+		} else {
+			p.error = opt.Label + ": " + storelocale.Pick("预设仅可应用于空白会话", "Presets can only be applied to a blank session")
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -251,7 +261,7 @@ func (s *Store) selectAgentPresetIDForSession(ctx context.Context, targetID, pre
 		if !current {
 			if s.client == client && s.presetDraft.session == sessionID && s.presetDraft.generation == generation {
 				s.presetDraft.busy = false
-				s.presetDraft.error = label + ": session changed; select again"
+				s.presetDraft.error = label + ": " + storelocale.Pick("会话已变更，请重新选择", "Session changed; please select again")
 			}
 			s.mu.Unlock()
 			s.fire()

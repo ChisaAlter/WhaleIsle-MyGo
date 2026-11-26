@@ -163,7 +163,7 @@ func TestDiffMockRunner(t *testing.T) {
 	if !strings.Contains(out, "+++ b") {
 		t.Fatalf("out = %q", out)
 	}
-	if len(seenArgs) < 3 || seenArgs[0] != "diff" || seenArgs[1] != "--" || seenArgs[2] != "foo.go" {
+	if len(seenArgs) < 7 || seenArgs[0] != "--literal-pathspecs" || seenArgs[1] != "diff" || seenArgs[2] != "--no-color" || seenArgs[3] != "--no-ext-diff" || seenArgs[4] != "--no-textconv" || seenArgs[5] != "--" || seenArgs[6] != "foo.go" {
 		t.Fatalf("args = %v", seenArgs)
 	}
 }

@@ -294,6 +294,25 @@ func Sentence(err error) string {
 	if err == nil {
 		return ""
 	}
+	var rpcErr *dsh.Error
+	if errors.As(err, &rpcErr) {
+		if cause, ok := codeCauses[strings.ToUpper(strings.TrimSpace(rpcErr.Code))]; ok {
+			return sentenceFor(cause, err.Error())
+		}
+		if status, ok := HTTPStatus(rpcErr.Code, ""); ok {
+			return rejectedSentence(status)
+		}
+	}
+	var httpErr *dsh.HTTPError
+	if errors.As(err, &httpErr) && httpErr.Status >= 400 && httpErr.Status < 600 {
+		return rejectedSentence(fmt.Sprintf("%d", httpErr.Status))
+	}
+	if cause := Classify(err); cause != CauseUnknown {
+		return sentenceFor(cause, err.Error())
+	}
+	if status, ok := HTTPStatus("", err.Error()); ok {
+		return rejectedSentence(status)
+	}
 	return SentenceText(err.Error())
 }
 
@@ -385,6 +404,27 @@ func rejectedSentenceIn(locale, status string) string {
 	}
 }
 
+func hasKnownCause(err error) bool {
+	if err == nil {
+		return false
+	}
+	if Classify(err) != CauseUnknown {
+		return true
+	}
+	var httpErr *dsh.HTTPError
+	if errors.As(err, &httpErr) && httpErr.Status >= 400 && httpErr.Status < 600 {
+		return true
+	}
+	var rpcErr *dsh.Error
+	if errors.As(err, &rpcErr) {
+		if _, ok := HTTPStatus(rpcErr.Code, ""); ok {
+			return true
+		}
+	}
+	_, ok := HTTPStatus("", err.Error())
+	return ok
+}
+
 // Under puts the caller's own description of what stopped in front of the
 // cause, so a person sees which action failed as well as why.
 func Under(lead string, err error) string {
@@ -394,7 +434,7 @@ func Under(lead string, err error) string {
 	}
 	// An unclassified failure has nothing to name, so the caller's action is the
 	// subject of the sentence rather than a prefix on "an operation failed".
-	if classifyText(err.Error()) == CauseUnknown {
+	if !hasKnownCause(err) {
 		return underUnknown(lead, err)
 	}
 	sentence := Sentence(err)

@@ -159,8 +159,18 @@ func (s *Files) mutate(operation, path, name string) error {
 			}
 		}
 		s.mu.Lock()
-		if s.attachL != attachL || s.key != key || s.client != c || owner != nil && !owner() {
+		if s.attachL != attachL || s.key != key || s.client != c {
 			s.mu.Unlock()
+			return
+		}
+		if owner != nil && !owner() {
+			v = s.states[key]
+			v.Busy, v.Operation = false, ""
+			s.publishLocked()
+			s.mu.Unlock()
+			if n != nil {
+				n()
+			}
 			return
 		}
 		v = s.states[key]

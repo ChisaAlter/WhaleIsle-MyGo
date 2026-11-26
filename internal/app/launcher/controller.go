@@ -2,13 +2,13 @@ package launcherctl
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"whaleisle/internal/app/updater"
 	"whaleisle/internal/config"
 	desktopcomponents "whaleisle/internal/desktop/components"
 	"whaleisle/internal/harness"
-	"whaleisle/internal/startuprec"
 )
 
 // Drafts captures editable launcher preferences with generation protection so
@@ -129,7 +129,7 @@ func (c *Controller) lifecycleContext() context.Context {
 func (c *Controller) PanelState(cfg *config.Config, fallbackWorkspace string) PanelSnapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if stringsTrim(c.workspaceDraft) == "" {
+	if strings.TrimSpace(c.workspaceDraft) == "" {
 		seed := fallbackWorkspace
 		if seed == "" && cfg != nil {
 			seed = cfg.Workspace
@@ -325,7 +325,7 @@ func (c *Controller) TryBeginStart() (workspaceDraft string, draftGen uint64, ok
 	c.triedStart = true
 	c.startBusy = true
 	c.startErr = ""
-	return stringsTrim(c.workspaceDraft), c.workspaceGen, true
+	return strings.TrimSpace(c.workspaceDraft), c.workspaceGen, true
 }
 
 // FinishStartPreparation clears startPreparing and applies updated start flags safely.
@@ -508,20 +508,3 @@ func (c *Controller) ResetWorkspaceDraft(ws string) {
 	c.workspaceGen++
 	c.mu.Unlock()
 }
-
-func stringsTrim(s string) string {
-	for len(s) > 0 && (s[0] == ' ' || s[0] == '\t' || s[0] == '\r' || s[0] == '\n') {
-		s = s[1:]
-	}
-	for len(s) > 0 {
-		ch := s[len(s)-1]
-		if ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' {
-			s = s[:len(s)-1]
-		} else {
-			break
-		}
-	}
-	return s
-}
-
-var _ = startuprec.UpdateAttentionScope{}

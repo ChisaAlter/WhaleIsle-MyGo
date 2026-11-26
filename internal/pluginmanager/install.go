@@ -27,7 +27,9 @@ func (a Actions) Update(name string) {
 		if p.Name == name && UpdateAvailable(p) {
 			c := a.c
 			c.mu.Lock()
-			if c.state.Owner != a.owner || c.client == nil || c.state.ActionBusy(p.Name) {
+			if c.state.Owner != a.owner || c.client == nil || c.state.ActionBusy(p.Name) ||
+				c.state.Busy || (c.state.Install.RequestID != "" && c.state.Install.Phase != "reviewed") ||
+				c.state.Install.Phase == "checking" || installPending(c.state.Install.Phase) || c.state.Install.Phase == "unknown" {
 				c.unlockPublish()
 				return
 			}
@@ -36,22 +38,28 @@ func (a Actions) Update(name string) {
 				c.state.BusyKeys = map[string]bool{}
 			}
 			c.state.BusyKeys[p.Name] = true
+			c.state.Busy = true
 			c.unlockPublish()
 			c.fire()
 			go func() {
 				result, err := client.Remove(ctx, p.Name)
 				accepted := err == nil && (result.Application != "failed" || result.Error != nil && result.Error.Code == "stop-profile")
+				handoffInstall := false
 				if !c.patch(a.owner, func(s *State) {
 					delete(s.BusyKeys, p.Name)
+					s.Busy = false
 					if err != nil {
 						s.Notice = err.Error()
 					} else {
 						s.Notice = changeMessage(result)
 					}
+					if accepted && p.InstallTarget != nil && !(s.Install.RequestID != "" && s.Install.Phase != "reviewed") {
+						handoffInstall = true
+					}
 				}) {
 					return
 				}
-				if accepted {
+				if handoffInstall {
 					c.openCatalogInstall(a.owner, p, p.Enabled)
 				}
 				_ = c.Load(ctx)
@@ -63,7 +71,7 @@ func (a Actions) Update(name string) {
 }
 func (c *Controller) openInstall(owner uint64, spec, registry string, enabled *bool, exact bool) bool {
 	c.mu.Lock()
-	if c.state.Owner != owner || c.client == nil {
+	if c.state.Owner != owner || c.client == nil || c.state.Busy {
 		c.unlockPublish()
 		return false
 	}

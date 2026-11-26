@@ -65,8 +65,6 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
-	// ContextWaking is a drawing fact derived from the loaded Inbox claims.
-	ContextWaking       bool
 	AutomaticCompaction *ManualCompactionView
 	Retry               *RetryStatus
 	TurnDelivery        *TurnDelivery
@@ -76,35 +74,38 @@ type Message struct {
 	// Tool is populated only by the read-only chat lifecycle projection.
 	Tool    *ToolCallView
 	Command *CommandView
-	ID      string
-	// SourceMessageID is the durable identity shared by projected assistant rows.
-	SourceMessageID string
-	// Conversation coordinates are retained for process-local Assistant rows,
-	// whose raw durable event does not exist until settlement.
-	ConversationTurn *float64 `json:",omitempty"`
-	ConversationStep *float64 `json:",omitempty"`
-	ImageRef         string
-	ContentBlock     json.RawMessage
-	Kind             MessageKind
-	Role             string
-	Body             string
-	Seq              float64         // persistence seq when known (editMessageSeq)
-	EventType        string          // persistence type when Kind is tool / deliverables
-	Raw              json.RawMessage // full persistence event JSON
-	TurnSeq          float64         // owning turn/start seq for edit projection
-	TurnOpening      bool
-	Streaming        bool
-	Files            []string // deliverables/presented paths
-	// Model is the assistant source model when known (trajectory 模型 column).
-	Model string
-	// Args is tool-call arguments / structured payload for the inspector 参数 tab.
-	Args string
 	// Web is the typed presentation metadata carried by a web tool/result.
 	// The persistence schema keeps tool metadata opaque; this projection is
 	// populated only for the protocol-defined web search/fetch shapes.
 	Web *WebResult
+	// Conversation coordinates are retained for process-local Assistant rows,
+	// whose raw durable event does not exist until settlement.
+	ConversationTurn *float64 `json:",omitempty"`
+	ConversationStep *float64 `json:",omitempty"`
+	ID               string
+	// SourceMessageID is the durable identity shared by projected assistant rows.
+	SourceMessageID string
+	ImageRef        string
+	ContentBlock    json.RawMessage
+	Kind            MessageKind
+	Role            string
+	Body            string
+	EventType       string          // persistence type when Kind is tool / deliverables
+	Raw             json.RawMessage // full persistence event JSON
+	Files           []string        // deliverables/presented paths
+	// Model is the assistant source model when known (trajectory 模型 column).
+	Model string
+	// Args is tool-call arguments / structured payload for the inspector 参数 tab.
+	Args string
+	// Non-pointer scalar fields packed at the tail to minimize GC pointer scanning.
+	Seq     float64 // persistence seq when known (editMessageSeq)
+	TurnSeq float64 // owning turn/start seq for edit projection
 	// EventTime is harness event time (unix ms) when present.
 	EventTime float64
+	// ContextWaking is a drawing fact derived from the loaded Inbox claims.
+	ContextWaking bool
+	TurnOpening   bool
+	Streaming     bool
 }
 
 // SubagentCatalogEntry is one projected subagent entry for a parent session.
@@ -121,8 +122,10 @@ type ViewState struct {
 	TrajectoryRequests       []TrajectoryRequest
 	TrajectoryRequestHeaders []TrajectoryRequestHeader
 	// Independent loaded journal: retain records hidden by later chat edits.
-	TrajectoryMessages []Message
-	ContextOccupancy   *ContextOccupancy
+	TrajectoryMessages        []Message
+	DurableTrajectoryMessages []Message
+	StreamingTrajectoryTail   []Message
+	ContextOccupancy          *ContextOccupancy
 
 	StopSequenceMS int64
 	// Stop identity is the existing live turn and selected follow binding.
@@ -170,6 +173,8 @@ type ViewState struct {
 	Items            []Item
 	SelectedID       string
 	Messages         []Message
+	DurableMessages  []Message
+	StreamingTail    []Message
 	// HistoryReady records an authoritative opening snapshot for this selection.
 	// Reopening the same selection retains that baseline while HistoryLoading.
 	HistoryLoading      bool
@@ -249,6 +254,47 @@ type ViewState struct {
 	ControlNote string
 }
 
+// MessageCount returns the total number of projected chat messages, reading
+// across DurableMessages + StreamingTail when split streaming mode is active.
+func (v ViewState) MessageCount() int {
+	if len(v.DurableMessages) > 0 || len(v.StreamingTail) > 0 {
+		return len(v.DurableMessages) + len(v.StreamingTail)
+	}
+	return len(v.Messages)
+}
+
+// MessageAt returns the i-th projected chat message in O(1) without copying
+// the durable prefix when split streaming mode is active.
+func (v ViewState) MessageAt(i int) Message {
+	if len(v.DurableMessages) > 0 || len(v.StreamingTail) > 0 {
+		if i < len(v.DurableMessages) {
+			return v.DurableMessages[i]
+		}
+		return v.StreamingTail[i-len(v.DurableMessages)]
+	}
+	return v.Messages[i]
+}
+
+// TrajectoryMessageCount returns the total number of projected trajectory
+// messages across either split segments or TrajectoryMessages.
+func (v ViewState) TrajectoryMessageCount() int {
+	if len(v.DurableTrajectoryMessages) > 0 || len(v.StreamingTrajectoryTail) > 0 {
+		return len(v.DurableTrajectoryMessages) + len(v.StreamingTrajectoryTail)
+	}
+	return len(v.TrajectoryMessages)
+}
+
+// TrajectoryMessageAt returns the i-th projected trajectory message in O(1).
+func (v ViewState) TrajectoryMessageAt(i int) Message {
+	if len(v.DurableTrajectoryMessages) > 0 || len(v.StreamingTrajectoryTail) > 0 {
+		if i < len(v.DurableTrajectoryMessages) {
+			return v.DurableTrajectoryMessages[i]
+		}
+		return v.StreamingTrajectoryTail[i-len(v.DurableTrajectoryMessages)]
+	}
+	return v.TrajectoryMessages[i]
+}
+
 // Store tracks sessions for the active dsh client.
 type Store struct {
 	subagentCatalogs       map[string][]SubagentCatalogEntry
@@ -303,6 +349,8 @@ type Store struct {
 	durableStepIndices         map[string][]int
 	durableHasEdits            bool
 	durableCacheValid          bool
+	durableTrajMatchesChat     bool
+	streamingSplitOnly         bool
 	trajectoryMessageCache     *trajectoryMessageCache
 	historyRev                 uint64
 	boundaryRev                uint64
@@ -447,6 +495,7 @@ type Store struct {
 	historyErr                           error
 	historyFault                         *state.Fault
 	promptBusy                           bool
+	promptBusyToken                      uint64
 	historyBranchBusy                    bool
 	lastAction                           string
 	goalReadError                        goalReadErrorState
@@ -572,6 +621,8 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.sessionLRU.clear()
 		s.stopStreamNotifyTimerLocked()
 		s.invalidateFollowLocked()
+		s.promptBusy = false
+		s.promptBusyToken++
 		s.listGeneration++
 		s.listLoading = false
 		s.listMutations = nil
@@ -774,6 +825,8 @@ func (s *Store) Detach() {
 	s.sessionLRU.clear()
 	s.stopStreamNotifyTimerLocked()
 	s.invalidateFollowLocked()
+	s.promptBusy = false
+	s.promptBusyToken++
 	s.listGeneration++
 	s.listFollowGeneration = s.followGeneration
 	s.listMutations = nil
@@ -1097,36 +1150,177 @@ func (s *Store) rememberHistoryLocked() {
 	s.historyVerifiedRev = s.viewRev
 }
 
-func (s *Store) projectMessagesIncrementalLocked(durable, volatile []Message, rebuildDurable bool) ([]Message, bool, bool) {
-	durableTouched := rebuildDurable
+func isTrajectorySorted(rows []Message) bool {
+	seenZero := false
+	var prev float64
+	for i := range rows {
+		seq := rows[i].Seq
+		if seq == 0 {
+			seenZero = true
+			continue
+		}
+		if seenZero || (i > 0 && seq < prev) {
+			return false
+		}
+		prev = seq
+	}
+	return true
+}
+
+func messagesCommandChanged(before, after []Message) bool {
+	if len(before) != len(after) {
+		return true
+	}
+	for i := range after {
+		if after[i].Command != nil || after[i].Kind == MessageKindCompaction || after[i].ID != before[i].ID || after[i].Kind != before[i].Kind {
+			return true
+		}
+	}
+	return false
+}
+
+func messagesContextWakingChanged(before, after []Message) bool {
+	if len(before) != len(after) {
+		return true
+	}
+	for i := range after {
+		if after[i].ContextWaking != before[i].ContextWaking {
+			return true
+		}
+	}
+	return false
+}
+
+// SetStreamingSplitEnabled opts into zero-copy split streaming projections:
+// ViewState.DurableMessages holds the immutable durable prefix and
+// ViewState.StreamingTail holds only the small volatile suffix, avoiding an
+// O(N) durable-slice copy on every streaming chunk. Callers read via
+// ViewState.MessageCount() / ViewState.MessageAt(i). Defaults to false so
+// ViewState.Messages remains populated for legacy callers.
+func (s *Store) SetStreamingSplitEnabled(enabled bool) {
+	s.mu.Lock()
+	if s.streamingSplitOnly == enabled {
+		s.mu.Unlock()
+		return
+	}
+	s.streamingSplitOnly = enabled
+	s.invalidateViewLocked()
+	s.mu.Unlock()
+	s.fire()
+}
+
+// StreamingSplitEnabled reports whether split streaming projection is active.
+func (s *Store) StreamingSplitEnabled() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.streamingSplitOnly
+}
+
+func (s *Store) projectMessagesIncrementalLocked(durable, volatile []Message, rebuildDurable bool) (flat, durablePrefix, streamingTail []Message, ok bool, durableTouched bool) {
+	durableTouched = rebuildDurable
 	if rebuildDurable {
 		if hasMessageEdits(durable) {
 			s.durableHasEdits = true
 			s.durableCacheValid = false
-			return nil, false, true
+			s.durableTrajMatchesChat = false
+			return nil, nil, nil, false, true
 		}
 		s.durableHasEdits = false
-		base := projectCommandMessages(s.projectAssistantMessagesLocked(durable))
+		base0 := s.projectAssistantMessagesLocked(durable)
+		base := projectCommandMessages(base0)
 		timed, unmapped, stepIndices := s.projectDurableTimingLocked(base)
-		timed = s.projectContextTriggersLocked(timed)
-		s.durableTimedCache = cloneMessages(timed)
+		timedWithCtx := s.projectContextTriggersLocked(timed)
+		s.durableTimedCache = cloneMessages(timedWithCtx)
 		s.durableUnmappedCompactions = cloneMessages(unmapped)
 		s.durableStepIndices = stepIndices
 		s.durableCacheValid = true
+		if s.retryRowsCache == nil || !s.boundariesVerifiedLocked() {
+			s.retryRowsCache = cloneMessages(s.computeRetryRowsLocked())
+		}
+		if s.systemPromptRowsCache == nil || !s.boundariesVerifiedLocked() {
+			s.systemPromptRowsCache = s.computeSystemPromptRowsLocked()
+		}
+		s.durableTrajMatchesChat = len(unmapped) == 0 &&
+			len(s.retryRowsCache) == 0 &&
+			len(s.systemPromptRowsCache) == 0 &&
+			!messagesCommandChanged(base0, base) &&
+			!messagesContextWakingChanged(timed, timedWithCtx) &&
+			isTrajectorySorted(s.durableTimedCache)
+		if s.durableTrajMatchesChat {
+			s.trajectoryMessageCache = &trajectoryMessageCache{
+				rows:        s.durableTimedCache,
+				stepIndices: s.durableStepIndices,
+			}
+		}
 	} else if !s.durableCacheValid || s.durableHasEdits {
-		return nil, false, true
+		return nil, nil, nil, false, true
 	}
-	out := make([]Message, len(s.durableTimedCache), len(s.durableTimedCache)+len(volatile)+8)
-	copy(out, s.durableTimedCache)
+
 	_, ops, _ := s.ensureTrajectoryTimingCacheLocked()
 	liveOpID, liveOp, live := s.liveAttemptTimingLocked(ops)
-	if liveOpID != "" && liveOp != nil {
-		if idxs := s.durableStepIndices[liveOpID]; len(idxs) > 0 {
-			durableTouched = true
-			for _, idx := range idxs {
-				if idx >= 0 && idx < len(out) {
-					out[idx].TrajectoryTime = cloneTrajectoryTiming(liveOp)
+	livePatchIdxs := s.durableStepIndices[liveOpID]
+	hasLivePatch := liveOpID != "" && liveOp != nil && len(livePatchIdxs) > 0
+	if hasLivePatch {
+		durableTouched = true
+	}
+
+	hasExtraBoundaries := len(s.durableUnmappedCompactions) > 0 || len(s.retryRowsCache) > 0 || len(s.systemPromptRowsCache) > 0
+	attempt := s.assistantStream.active
+	if attempt == nil {
+		attempt = s.assistantStream.retained
+	}
+	hasPreparing := !s.assistantStream.rebaseline && attempt != nil && len(attempt.tools.order) > 0
+
+	// Split zero-copy path: share s.durableTimedCache directly and allocate only
+	// the tiny streaming tail (1-8 messages) when durable rows are unmodified.
+	if s.streamingSplitOnly && !hasLivePatch && !hasExtraBoundaries {
+		var tail []Message
+		if len(volatile) > 0 {
+			tail = make([]Message, 0, len(volatile)+4)
+			for _, vm := range volatile {
+				for _, pm := range projectAssistantMessage(vm) {
+					if t := live[pm.ID]; t != nil {
+						pm.TrajectoryTime = cloneTrajectoryTiming(t)
+					}
+					tail = append(tail, cloneMessage(pm))
 				}
+			}
+		}
+		if hasPreparing && !toolPreparingAttemptClosed(s.durableTimedCache, attempt) {
+			beforePrep := len(tail)
+			tail = appendToolPreparingMessages(tail, attempt.tools, s.editTurnSeq)
+			for i := beforePrep; i < len(tail); i++ {
+				tail[i] = cloneMessage(tail[i])
+			}
+		}
+		prefix := s.durableTimedCache
+		if len(prefix) > 0 {
+			prefix = prefix[:len(prefix):len(prefix)]
+		}
+		if len(tail) > 0 {
+			tail = tail[:len(tail):len(tail)]
+		}
+		return nil, prefix, tail, true, durableTouched
+	}
+
+	// Zero-copy fast path when nothing needs to be appended or patched onto the
+	// already-immutable durableTimedCache slice.
+	if len(volatile) == 0 && !hasLivePatch && !hasExtraBoundaries && !hasPreparing {
+		out := s.durableTimedCache
+		if len(out) > 0 {
+			out = out[:len(out):len(out)]
+		} else if out == nil {
+			out = []Message{}
+		}
+		return out, nil, nil, true, durableTouched
+	}
+
+	out := make([]Message, len(s.durableTimedCache), len(s.durableTimedCache)+len(volatile)+8)
+	copy(out, s.durableTimedCache)
+	if hasLivePatch {
+		for _, idx := range livePatchIdxs {
+			if idx >= 0 && idx < len(out) {
+				out[idx].TrajectoryTime = cloneTrajectoryTiming(liveOp)
 			}
 		}
 	}
@@ -1138,17 +1332,23 @@ func (s *Store) projectMessagesIncrementalLocked(durable, volatile []Message, re
 			out = append(out, cloneMessage(pm))
 		}
 	}
-	beforePrep := len(out)
-	out = s.projectPreparingToolsLocked(out)
-	for i := beforePrep; i < len(out); i++ {
-		out[i] = cloneMessage(out[i])
+	if hasPreparing {
+		beforePrep := len(out)
+		out = s.projectPreparingToolsLocked(out)
+		for i := beforePrep; i < len(out); i++ {
+			out[i] = cloneMessage(out[i])
+		}
 	}
 	if len(s.durableUnmappedCompactions) > 0 {
 		out = append(out, cloneMessages(s.durableUnmappedCompactions)...)
 	}
-	out = s.projectRetryMessagesLocked(out)
-	out = s.projectSystemPromptsLocked(out)
-	return out[:len(out):len(out)], true, durableTouched
+	if len(s.retryRowsCache) > 0 || s.retryRowsCache == nil || !s.boundariesVerifiedLocked() {
+		out = s.projectRetryMessagesLocked(out)
+	}
+	if len(s.systemPromptRowsCache) > 0 || s.systemPromptRowsCache == nil || !s.boundariesVerifiedLocked() {
+		out = s.projectSystemPromptsLocked(out)
+	}
+	return out[:len(out):len(out)], nil, nil, true, durableTouched
 }
 
 // TrajectoryView holds the lazily projected trajectory inspection slices for
@@ -1392,8 +1592,11 @@ func (s *Store) ensureViewCacheLocked() {
 	durableDerivedChanged := historyChanged || workflowsChanged || !s.viewCacheValid ||
 		s.selectedID != s.historySelectedID || s.editTurnSeq != s.historyEditTurnSeq ||
 		s.historyHasMore != s.historyHasMorePrev || hasRetained || s.historyHadRetained || inspDirty
+	var trajMatchesChat bool
 	if !msgProjChanged {
 		st.Messages = s.msgProjCache
+		st.DurableMessages = s.viewCache.DurableMessages
+		st.StreamingTail = s.viewCache.StreamingTail
 		st.WorkflowRuns = s.workflowRunsCache
 	} else {
 		durable, volatile, splitOK := s.splitVolatileTailFastLocked()
@@ -1401,14 +1604,19 @@ func (s *Store) ensureViewCacheLocked() {
 		var incrementalOK bool
 		var durableTouched bool
 		if splitOK && !hasRetained {
-			st.Messages, incrementalOK, durableTouched = s.projectMessagesIncrementalLocked(durable, volatile, durableProjChanged)
+			st.Messages, st.DurableMessages, st.StreamingTail, incrementalOK, durableTouched = s.projectMessagesIncrementalLocked(durable, volatile, durableProjChanged)
 			if durableTouched {
 				durableDerivedChanged = true
 			}
+			trajMatchesChat = incrementalOK && s.durableTrajMatchesChat && !s.durableHasEdits &&
+				len(s.retryRowsCache) == 0 && len(s.systemPromptRowsCache) == 0
 		}
 		if !incrementalOK {
 			durableDerivedChanged = true
 			s.durableCacheValid = false
+			s.durableTrajMatchesChat = false
+			st.DurableMessages = nil
+			st.StreamingTail = nil
 			st.Messages = projectCommandMessages(s.projectAssistantMessagesLocked(projectMessageEdits(s.messages)))
 			st.Messages = s.projectPreparingToolsLocked(st.Messages)
 			st.Messages = s.projectTrajectoryTimingLocked(st.Messages)
@@ -1425,7 +1633,11 @@ func (s *Store) ensureViewCacheLocked() {
 		if !workflowProjChanged {
 			st.WorkflowRuns = s.workflowRunsCache
 		} else {
-			st.WorkflowRuns = cloneWorkflowRuns(s.workflowRunsLocked(st.Messages))
+			wfMsgs := st.Messages
+			if len(wfMsgs) == 0 && len(st.DurableMessages) > 0 {
+				wfMsgs = st.DurableMessages
+			}
+			st.WorkflowRuns = cloneWorkflowRuns(s.workflowRunsLocked(wfMsgs))
 			s.workflowRunsCache = st.WorkflowRuns
 		}
 		s.msgProjCache = st.Messages
@@ -1439,16 +1651,30 @@ func (s *Store) ensureViewCacheLocked() {
 
 	if s.trajectoryDisabled {
 		st.TrajectoryMessages = nil
+		st.DurableTrajectoryMessages = nil
+		st.StreamingTrajectoryTail = nil
 		st.TrajectoryRequestHeaders = nil
 		st.TrajectoryRequests = nil
 		if msgProjChanged || boundariesChanged {
 			s.trajViewValid = false
 		}
 	} else {
-		needTrajMsg := msgProjChanged || boundariesChanged || !s.viewCacheValid || !s.trajViewValid || s.trajViewCache.Messages == nil
+		needTrajMsg := msgProjChanged || boundariesChanged || !s.viewCacheValid || !s.trajViewValid || (s.trajViewCache.Messages == nil && len(st.DurableMessages) == 0)
 		if !needTrajMsg {
 			st.TrajectoryMessages = s.trajViewCache.Messages
+			st.DurableTrajectoryMessages = s.viewCache.DurableTrajectoryMessages
+			st.StreamingTrajectoryTail = s.viewCache.StreamingTrajectoryTail
+		} else if trajMatchesChat {
+			// When chat and trajectory projections are provably identical (no edits,
+			// commands, context triggers, retries, unmapped compactions, or system
+			// prompts, and durable rows are seq-ordered), share the immutable slice
+			// directly instead of making a second O(N) full copy per streaming chunk.
+			st.TrajectoryMessages = st.Messages
+			st.DurableTrajectoryMessages = st.DurableMessages
+			st.StreamingTrajectoryTail = st.StreamingTail
 		} else {
+			st.DurableTrajectoryMessages = nil
+			st.StreamingTrajectoryTail = nil
 			st.TrajectoryMessages = s.trajectoryMessagesViewLocked(historyChanged)
 		}
 		if !boundariesChanged && s.viewCacheValid && s.trajHeadersCache != nil && s.trajViewValid {
@@ -1552,7 +1778,7 @@ func (s *Store) ensureViewCacheLocked() {
 	st.durableHistoryProjection = s.durableHistoryProjectionKeyLocked(durableDerivedChanged || inlinePendingChanged)
 	st.durableHistorySessionID = st.SelectedID
 	st.durableHistoryBinding = st.PlanHistoryBinding
-	st.durableHistoryMsgLen = len(st.Messages)
+	st.durableHistoryMsgLen = st.MessageCount()
 	st.rosterProjection = s.rosterProjectionKeyLocked(rosterChanged)
 	// A state-only revision can reuse the old message arrays. Its first frame
 	// must not claim them again while a handle from the old revision owns them.
@@ -1932,6 +2158,8 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 		return
 	}
 	s.promptBusy = true
+	s.promptBusyToken++
+	promptToken := s.promptBusyToken
 	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
@@ -1951,11 +2179,21 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 		err := client.Call(ctx, "session/prompt", map[string]any{"request": req}, &promptResult)
 
 		s.mu.Lock()
+		clearedBusy := false
+		if s.promptBusyToken == promptToken && s.promptBusy {
+			s.promptBusy = false
+			clearedBusy = true
+		}
 		if s.client != client || s.selectedID != sessionID || s.followGeneration != generation {
+			if clearedBusy {
+				s.invalidateViewLocked()
+			}
 			s.mu.Unlock()
+			if clearedBusy {
+				s.fire()
+			}
 			return
 		}
-		s.promptBusy = false
 		s.invalidateViewLocked()
 		if err != nil {
 			s.setLastActionFaultLocked("prompt", "", err)
@@ -2033,7 +2271,7 @@ func (s *Store) SetPresentation(ctx context.Context, sessionID, title string) {
 func (s *Store) OpenWorkspacePath(ctx context.Context, path, action, application string) {
 	path = strings.TrimSpace(path)
 	s.mu.Lock()
-	client := s.client
+	client, hostGeneration := s.client, s.eventsGeneration
 	s.mu.Unlock()
 	if client == nil || path == "" {
 		return
@@ -2042,6 +2280,10 @@ func (s *Store) OpenWorkspacePath(ctx context.Context, path, action, application
 		var can api.CanOpenWorkspacePathResult
 		if err := client.Call(ctx, "session/canOpenWorkspacePath", map[string]any{}, &can); err == nil && !can {
 			s.mu.Lock()
+			if s.client != client || s.eventsGeneration != hostGeneration {
+				s.mu.Unlock()
+				return
+			}
 			s.lastAction = "workspace path open unavailable"
 			s.invalidateViewLocked()
 			s.mu.Unlock()
@@ -2058,6 +2300,10 @@ func (s *Store) OpenWorkspacePath(ctx context.Context, path, action, application
 		var out api.SessionOpenWorkspacePathValue
 		err := client.Call(ctx, "session/openWorkspacePath", map[string]any{"request": req}, &out)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != hostGeneration {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.setLastActionFaultLocked("openWorkspacePath", "", err)
 		} else if out.Opened {
@@ -2156,7 +2402,7 @@ func (s *Store) InterruptChild(ctx context.Context, parentID, childID, mode stri
 		mode = "cancel"
 	}
 	s.mu.Lock()
-	client := s.client
+	client, hostGeneration := s.client, s.eventsGeneration
 	s.mu.Unlock()
 	if client == nil || parentID == "" || childID == "" {
 		return
@@ -2169,6 +2415,10 @@ func (s *Store) InterruptChild(ctx context.Context, parentID, childID, mode stri
 			"mode":            mode,
 		}, &out)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != hostGeneration {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.setLastActionFaultLocked("interruptChild", "", err)
 		} else {
@@ -2189,7 +2439,7 @@ func (s *Store) PromptChild(ctx context.Context, parentID, childID, text string)
 		return
 	}
 	s.mu.Lock()
-	client := s.client
+	client, hostGeneration := s.client, s.eventsGeneration
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -2204,6 +2454,10 @@ func (s *Store) PromptChild(ctx context.Context, parentID, childID, text string)
 		var out api.SubagentPromptReceipt
 		err := client.Call(ctx, "subagents/prompt", map[string]any{"request": req}, &out)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != hostGeneration {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.setLastActionFaultLocked("promptChild", "", err)
 		} else {

@@ -1,6 +1,7 @@
 package imgcache
 
 import (
+	"container/list"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +22,12 @@ import (
 
 // DefaultMaxBytes is the maximum accepted image body size (8 MiB).
 const DefaultMaxBytes int64 = 8 << 20
+
+// DefaultDiskBudget is the default on-disk cache size cap (128 MiB).
+const DefaultDiskBudget int64 = 128 << 20
+
+// DefaultMaxEntries is the default in-memory entry map LRU cap.
+const DefaultMaxEntries = 512
 
 // Dir returns userData/cache/images.
 func Dir(userData string) string {
@@ -42,27 +50,34 @@ const (
 
 // Cache stores remote images under Dir as sha256(URL) files.
 type Cache struct {
-	dir      string
-	maxBytes int64
-	client   *http.Client
+	dir        string
+	maxBytes   int64
+	diskBudget int64
+	maxEntries int
+	client     *http.Client
 
 	mu      sync.Mutex
 	entries map[string]*entry
+	lru     list.List
 }
 
 type entry struct {
-	status Status
-	path   string
-	err    error
+	key     string
+	status  Status
+	path    string
+	err     error
+	lruElem *list.Element
 }
 
 // New creates a Cache rooted at dir (typically Dir(userData)).
 func New(dir string) *Cache {
 	return &Cache{
-		dir:      dir,
-		maxBytes: DefaultMaxBytes,
-		client:   newSafeHTTPClient(),
-		entries:  make(map[string]*entry),
+		dir:        dir,
+		maxBytes:   DefaultMaxBytes,
+		diskBudget: DefaultDiskBudget,
+		maxEntries: DefaultMaxEntries,
+		client:     newSafeHTTPClient(),
+		entries:    make(map[string]*entry),
 	}
 }
 
@@ -163,6 +178,137 @@ func (c *Cache) SetMaxBytes(n int64) {
 	c.mu.Unlock()
 }
 
+// SetDiskBudget overrides DefaultDiskBudget when n > 0.
+func (c *Cache) SetDiskBudget(n int64) {
+	if n <= 0 {
+		return
+	}
+	c.mu.Lock()
+	c.diskBudget = n
+	c.mu.Unlock()
+}
+
+// SetMaxEntries overrides DefaultMaxEntries when n > 0.
+func (c *Cache) SetMaxEntries(n int) {
+	if n <= 0 {
+		return
+	}
+	c.mu.Lock()
+	c.maxEntries = n
+	c.evictEntriesLocked()
+	c.mu.Unlock()
+}
+
+func (c *Cache) putEntryLocked(rawURL string, e *entry) {
+	e.key = rawURL
+	if old := c.entries[rawURL]; old != nil && old.lruElem != nil {
+		c.lru.Remove(old.lruElem)
+		old.lruElem = nil
+	}
+	e.lruElem = c.lru.PushFront(e)
+	c.entries[rawURL] = e
+	c.evictEntriesLocked()
+}
+
+func (c *Cache) deleteEntryLocked(rawURL string) {
+	if old := c.entries[rawURL]; old != nil {
+		if old.lruElem != nil {
+			c.lru.Remove(old.lruElem)
+			old.lruElem = nil
+		}
+		delete(c.entries, rawURL)
+	}
+}
+
+func (c *Cache) evictEntriesLocked() {
+	limit := c.maxEntries
+	if limit <= 0 {
+		limit = DefaultMaxEntries
+	}
+	for len(c.entries) > limit && c.lru.Len() > 0 {
+		evicted := false
+		for el := c.lru.Back(); el != nil; el = el.Prev() {
+			e := el.Value.(*entry)
+			if e.status == StatusFetching {
+				continue
+			}
+			c.lru.Remove(el)
+			e.lruElem = nil
+			delete(c.entries, e.key)
+			evicted = true
+			break
+		}
+		if !evicted {
+			break
+		}
+	}
+}
+
+func (c *Cache) pruneDisk(keepPath string) {
+	c.mu.Lock()
+	budget := c.diskBudget
+	dir := c.dir
+	c.mu.Unlock()
+	if budget <= 0 {
+		budget = DefaultDiskBudget
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	type diskItem struct {
+		path    string
+		size    int64
+		modTime time.Time
+	}
+	var items []diskItem
+	var total int64
+	for _, de := range entries {
+		if de.IsDir() || strings.HasSuffix(de.Name(), ".tmp") {
+			continue
+		}
+		info, err := de.Info()
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		p := filepath.Join(dir, de.Name())
+		sz := info.Size()
+		total += sz
+		items = append(items, diskItem{path: p, size: sz, modTime: info.ModTime()})
+	}
+	if total <= budget {
+		return
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].modTime.Before(items[j].modTime)
+	})
+	var removed map[string]bool
+	for _, it := range items {
+		if total <= budget {
+			break
+		}
+		if keepPath != "" && it.path == keepPath {
+			continue
+		}
+		if os.Remove(it.path) == nil {
+			total -= it.size
+			if removed == nil {
+				removed = make(map[string]bool)
+			}
+			removed[it.path] = true
+		}
+	}
+	if len(removed) > 0 {
+		c.mu.Lock()
+		for k, e := range c.entries {
+			if e.status == StatusReady && removed[e.path] {
+				c.deleteEntryLocked(k)
+			}
+		}
+		c.mu.Unlock()
+	}
+}
+
 // FilePath is the on-disk path for rawURL (sha256 hex of the URL string).
 func (c *Cache) FilePath(rawURL string) string {
 	sum := sha256.Sum256([]byte(rawURL))
@@ -178,11 +324,14 @@ func (c *Cache) Lookup(rawURL string) (string, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if e, ok := c.entries[rawURL]; ok && e.status == StatusReady && e.path != "" {
+		if e.lruElem != nil {
+			c.lru.MoveToFront(e.lruElem)
+		}
 		return e.path, true
 	}
 	path := c.FilePath(rawURL)
 	if st, err := os.Stat(path); err == nil && !st.IsDir() && st.Size() > 0 {
-		c.entries[rawURL] = &entry{status: StatusReady, path: path}
+		c.putEntryLocked(rawURL, &entry{status: StatusReady, path: path})
 		return path, true
 	}
 	return "", false
@@ -222,14 +371,14 @@ func (c *Cache) Ensure(rawURL string, done func()) {
 			return
 		}
 	}
-	c.entries[rawURL] = &entry{status: StatusFetching}
+	c.putEntryLocked(rawURL, &entry{status: StatusFetching})
 	c.mu.Unlock()
 
 	go func() {
 		_, err := c.Fetch(context.Background(), rawURL)
 		c.mu.Lock()
 		if err != nil {
-			c.entries[rawURL] = &entry{status: StatusError, err: err}
+			c.putEntryLocked(rawURL, &entry{status: StatusError, err: err})
 		}
 		c.mu.Unlock()
 		if done != nil {
@@ -246,7 +395,7 @@ func (c *Cache) Retry(rawURL string, done func()) {
 	}
 	c.mu.Lock()
 	if e := c.entries[rawURL]; e != nil && e.status == StatusError {
-		delete(c.entries, rawURL)
+		c.deleteEntryLocked(rawURL)
 	}
 	c.mu.Unlock()
 	c.Ensure(rawURL, done)
@@ -338,8 +487,9 @@ func (c *Cache) Fetch(ctx context.Context, rawURL string) (string, error) {
 	cleanupTmp = false
 
 	c.mu.Lock()
-	c.entries[rawURL] = &entry{status: StatusReady, path: dest}
+	c.putEntryLocked(rawURL, &entry{status: StatusReady, path: dest})
 	c.mu.Unlock()
+	c.pruneDisk(dest)
 	return dest, nil
 }
 

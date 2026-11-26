@@ -121,6 +121,11 @@ func (f *Flow) current(o operation) bool {
 	defer f.mu.Unlock()
 	return f.epoch == o.epoch && f.client == o.client && o.ctx.Err() == nil
 }
+func (f *Flow) sameBinding(o operation) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.epoch == o.epoch && f.client == o.client
+}
 func (f *Flow) finish(o operation, state State) {
 	defer f.changed()
 	f.mu.Lock()
@@ -235,6 +240,11 @@ func (f *Flow) Confirm(ctx context.Context, meta any, reviewID uint64) {
 		return
 	}
 	if !f.current(o) {
+		if f.sameBinding(o) {
+			s := o.review
+			s.Error = ErrorFailed
+			f.finish(o, s)
+		}
 		return
 	}
 	var receipt accountView
@@ -260,6 +270,12 @@ func (f *Flow) Check(ctx context.Context, meta any, reviewID uint64) {
 }
 func (f *Flow) reconcile(o operation, meta any) {
 	if !f.current(o) {
+		if f.sameBinding(o) {
+			s := o.review
+			s.Unknown = true
+			s.Error = ErrorOutcomeUnknown
+			f.finish(o, s)
+		}
 		return
 	}
 	id, signedOut, err := identity(o, meta)

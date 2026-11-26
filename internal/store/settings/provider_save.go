@@ -64,11 +64,17 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 	var out api.SettingsNamespaceView
 	err = b.client.Call(ctx, method, args, &out)
 	s.mu.Lock()
-	if !b.currentLocked() {
+	if s.client != b.client || s.generation != b.generation {
 		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsNotReady
 	}
 	s.saving = false
+	current := s.findNamespaceLocked(ns.NS)
+	if current == nil {
+		s.unlockPublish()
+		s.fire()
+		return api.SettingsNamespaceView{}, ErrSettingsNotReady
+	}
 	if err != nil {
 		err = &writeRefusal{raw: fmt.Sprintf("%s %s: %v", method, ns.NS, err)}
 	} else if out.Ns != ns.NS || !namespaceWriteLanded(out, patch, ops) {
@@ -80,7 +86,6 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 		s.fire()
 		return api.SettingsNamespaceView{}, err
 	}
-	current := s.findNamespaceLocked(ns.NS)
 	current.Revision = out.Revision
 	current.Value = append(json.RawMessage(nil), out.Value...)
 	current.Base = append(json.RawMessage(nil), out.Base...)
