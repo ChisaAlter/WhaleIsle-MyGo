@@ -4,7 +4,6 @@ package sessioncost
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -29,11 +28,13 @@ var (
 	}
 	costCalcMemo struct {
 		sync.Mutex
-		key        session.ProjectionKey
-		selectedID string
-		billing    usage.BillingSettings
-		result     cost.Result
+		key             session.ProjectionKey
+		selectedID      string
+		settingsVersion uint64
+		billing         usage.BillingSettings
+		result          cost.Result
 	}
+	nowFunc = time.Now
 )
 
 type State struct {
@@ -88,35 +89,101 @@ func preferences(v settings.ViewState) (stats, show, official bool) {
 	return
 }
 
-func cachedCalculate(snap session.ViewState, billing usage.BillingSettings) cost.Result {
+func pricesEqual(a, b map[string]usage.ModelPrice) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, va := range a {
+		vb, ok := b[k]
+		if !ok || va.PriceRates != vb.PriceRates || va.Flat != vb.Flat {
+			return false
+		}
+		if (va.Idle == nil) != (vb.Idle == nil) {
+			return false
+		}
+		if va.Idle != nil && *va.Idle != *vb.Idle {
+			return false
+		}
+	}
+	return true
+}
+
+func cachedCalculate(snap session.ViewState, billingView usage.BillingView) cost.Result {
+	billing := billingView.Settings
 	projKey := snap.RosterProjectionKey()
 	if !projKey.Valid() {
 		return cost.Calculate(snap.SelectedID, snap.CostSources, billing)
 	}
 	costCalcMemo.Lock()
-	if costCalcMemo.key == projKey && costCalcMemo.selectedID == snap.SelectedID &&
-		costCalcMemo.billing.PeakValleyEnabled == billing.PeakValleyEnabled &&
-		reflect.DeepEqual(costCalcMemo.billing.Prices, billing.Prices) {
-		res := costCalcMemo.result
-		costCalcMemo.Unlock()
-		return res
+	if costCalcMemo.key == projKey && costCalcMemo.selectedID == snap.SelectedID {
+		if billingView.SettingsVersion != 0 {
+			if costCalcMemo.settingsVersion == billingView.SettingsVersion {
+				res := costCalcMemo.result
+				costCalcMemo.Unlock()
+				return res
+			}
+		} else if costCalcMemo.settingsVersion == 0 &&
+			costCalcMemo.billing.PeakValleyEnabled == billing.PeakValleyEnabled &&
+			pricesEqual(costCalcMemo.billing.Prices, billing.Prices) {
+			res := costCalcMemo.result
+			costCalcMemo.Unlock()
+			return res
+		}
 	}
 	costCalcMemo.Unlock()
 	res := cost.Calculate(snap.SelectedID, snap.CostSources, billing)
 	var pricesCopy map[string]usage.ModelPrice
-	if billing.Prices != nil {
+	if billingView.SettingsVersion == 0 && billing.Prices != nil {
 		pricesCopy = make(map[string]usage.ModelPrice, len(billing.Prices))
 		for k, v := range billing.Prices {
+			if v.Idle != nil {
+				idle := *v.Idle
+				v.Idle = &idle
+			}
 			pricesCopy[k] = v
 		}
 	}
 	costCalcMemo.Lock()
 	costCalcMemo.key = projKey
 	costCalcMemo.selectedID = snap.SelectedID
+	costCalcMemo.settingsVersion = billingView.SettingsVersion
 	costCalcMemo.billing = usage.BillingSettings{Prices: pricesCopy, PeakValleyEnabled: billing.PeakValleyEnabled}
 	costCalcMemo.result = res
 	costCalcMemo.Unlock()
 	return res
+}
+
+func phaseRefreshDelay(now, next time.Time) time.Duration {
+	rem := next.Sub(now)
+	if rem <= 0 {
+		return time.Second
+	}
+	if rem <= time.Minute {
+		d := rem % time.Second
+		if d <= 0 {
+			return time.Second
+		}
+		return d
+	}
+	d := rem % time.Minute
+	if d <= 0 {
+		d = time.Minute
+	}
+	if toFinalMinute := rem - time.Minute; toFinalMinute < d {
+		d = toFinalMinute
+	}
+	return d
+}
+
+func formatPhaseCountdown(seconds int) string {
+	if seconds < 0 {
+		seconds = 0
+	}
+	if seconds > 60 {
+		mins := (seconds + 59) / 60
+		return fmt.Sprintf("%02d:%02d", mins/60, mins%60)
+	}
+	return fmt.Sprintf("%02d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60)
 }
 
 // compactCount renders a token count the way the reference status line does:
@@ -301,7 +368,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		*m.State = State{SessionID: m.Snapshot.SelectedID}
 	}
 	stats, show, official := preferences(m.Preferences)
-	r := cachedCalculate(m.Snapshot, m.Billing.Settings)
+	r := cachedCalculate(m.Snapshot, m.Billing)
 	// .dock[data-composer-footer] keeps a 24 DIP floor even when every pill is
 	// hidden (the stats pills render invisible placeholders, never unmount),
 	// so the card always floats off the window edge; dropping the seat here
@@ -314,17 +381,12 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 			return
 		}
 		if official || strings.Contains(strings.ToLower(m.Snapshot.SelectedProvider), "deepseek") {
-			now := time.Now()
+			now := nowFunc()
 			peak, next := cost.Phase(now)
-			if !now.Before(m.State.NextTick) {
-				m.State.NextTick = now.Truncate(time.Second).Add(time.Second)
-				services := c.Services()
-				time.AfterFunc(time.Until(m.State.NextTick), services.Invalidate)
-			}
+			delay := phaseRefreshDelay(now, next)
+			m.State.NextTick = now.Add(delay)
+			c.After(delay)
 			seconds := int(next.Sub(now).Seconds())
-			if seconds < 0 {
-				seconds = 0
-			}
 			phase := i18n.T(i18n.KeyComposerDockOffPeak)
 			hint := costText("空闲时段（北京时间工作日 12:00–14:00、18:00–次日 9:00 及周末全天）", "Off-peak hours (everything outside the peak windows, weekends included)")
 			if peak {
@@ -332,7 +394,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 				hint = costText("高峰时段（北京时间工作日 9:00–12:00、14:00–18:00）", "Peak hours (Beijing 9:00–12:00 and 14:00–18:00 on weekdays)")
 			}
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerDockPeakSwitch), phase,
-				fmt.Sprintf("%02d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60))).
+				formatPhaseCountdown(seconds))).
 				FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Tooltip(hint)
 		}
 		label := i18n.T(i18n.KeyComposerCostEstimate) + "：" + money(r)

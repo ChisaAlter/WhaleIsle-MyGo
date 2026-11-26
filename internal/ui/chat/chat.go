@@ -106,6 +106,29 @@ type Model struct {
 	OnCloseVisualReply           func()
 }
 
+// JumpToLatestButton renders a compact circular floating button anchored near
+// the bottom of the transcript container to scroll back to the latest message.
+func JumpToLatestButton(c *ui.Context, list *ui.ListState) {
+	if list == nil || list.AtEnd() {
+		return
+	}
+	t := design.For(c)
+	label := i18n.Pick("回到底部", "Jump to latest")
+	ui.Row(c).Key("chat-jump-to-latest-seat").Absolute().Left(0).Right(0).Bottom(design.Sp(3)).
+		Justify(ui.Center).PassThrough().Children(func() {
+		btn := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonOutline,
+			Size:    coss.ButtonIconSM,
+			Icon:    coss.IconArrowDown,
+			Label:   label,
+			Key:     "chat-jump-to-latest",
+		}).Radius(design.RadiusFull).Background(t.Card).Tooltip(label)
+		if btn.Clicked() {
+			list.ScrollToEnd()
+		}
+	})
+}
+
 // View paints the message list with FollowEnd for future streaming.
 func View(c *ui.Context, m Model) {
 	renderAttachmentSnapshot(m.Snapshot, func() { conversationView(c, m) })
@@ -210,6 +233,9 @@ func conversationView(c *ui.Context, m Model) {
 		}
 		if inspector != nil {
 			inspectorChatPickerOverlay(c, m, colors, list, scroll)
+		}
+		if !m.FullColumnViewport && !list.AtEnd() {
+			JumpToLatestButton(c, list)
 		}
 		transcript.Rows(func(row ui.ListRow) {
 			if row.Index < historyRows {
@@ -745,8 +771,14 @@ type transcriptTurnPrefixViewMemo struct {
 	key                     transcriptViewMemoKey
 	prefixLastInput         float64
 	chunks                  []turnPrefixChunk
+	chunkMsgOffsets         []int
 	chunkRebuilds           int
 	chunkHits               int
+	canSpliceKeys           bool
+	canSpliceTargets        bool
+	seenSources             map[string]struct{}
+	lastTargetChunk         int
+	globalLastSeat          int
 	prefixMsgs              []session.Message
 	prefixKeys              []transcriptMessageKey
 	prefixKeySet            map[transcriptMessageKey]struct{}
@@ -942,14 +974,174 @@ func buildTurnPrefixChunk(spanMsgs []session.Message, start, end int, m Model, l
 	}
 }
 
+// spliceTurnPrefixTail updates tp in place when only the final chunk at
+// len(tp.chunks)-1 was replaced (same chunk count) and prior prefix chunks
+// remain unchanged. Returns false when a full splice is required (key or
+// target collision, non-flush boundary, or missing incremental metadata).
+func spliceTurnPrefixTail(tp *transcriptTurnPrefixViewMemo, oldTail turnPrefixChunk) bool {
+	lastIdx := len(tp.chunks) - 1
+	if lastIdx <= 0 || !tp.canSpliceKeys || !tp.canSpliceTargets || len(tp.chunkMsgOffsets) != len(tp.chunks) {
+		return false
+	}
+	ch := &tp.chunks[lastIdx]
+	prevChunk := &tp.chunks[lastIdx-1]
+	if !prevChunk.endsWithFlush && !ch.startsWithUser {
+		return false
+	}
+	// Verify no key collision between the new tail chunk and prior prefix chunks.
+	// Remove oldTail keys first so self-overlap doesn't falsely trigger collision.
+	for k := range oldTail.keySet {
+		delete(tp.prefixKeySet, k)
+	}
+	for k := range ch.keySet {
+		if _, dup := tp.prefixKeySet[k]; dup {
+			// Restore and fall back to full splice.
+			for ok := range oldTail.keySet {
+				tp.prefixKeySet[ok] = struct{}{}
+			}
+			return false
+		}
+	}
+	// Verify no copyableSource collision.
+	for src := range oldTail.copyableSources {
+		delete(tp.seenSources, src)
+	}
+	for src := range ch.copyableSources {
+		if _, dup := tp.seenSources[src]; dup {
+			for osrc := range oldTail.copyableSources {
+				tp.seenSources[osrc] = struct{}{}
+			}
+			for ok := range oldTail.keySet {
+				tp.prefixKeySet[ok] = struct{}{}
+			}
+			return false
+		}
+	}
+	// Commit keySet and seenSources updates.
+	for k := range ch.keySet {
+		tp.prefixKeySet[k] = struct{}{}
+	}
+	for src := range ch.copyableSources {
+		tp.seenSources[src] = struct{}{}
+	}
+
+	prefixOffset := tp.chunkMsgOffsets[lastIdx]
+	totalMsgs := prefixOffset + len(ch.msgs)
+
+	// Reuse tp.msgsBuf and tp.keysBuf backing arrays in place without copying [0:prefixOffset].
+	if cap(tp.msgsBuf) < totalMsgs {
+		next := make([]session.Message, totalMsgs, totalMsgs+32)
+		copy(next, tp.msgsBuf[:prefixOffset])
+		tp.msgsBuf = next
+	} else {
+		prevLen := len(tp.msgsBuf)
+		tp.msgsBuf = tp.msgsBuf[:totalMsgs]
+		if totalMsgs < prevLen {
+			clear(tp.msgsBuf[totalMsgs:prevLen])
+		}
+	}
+	copy(tp.msgsBuf[prefixOffset:], ch.msgs)
+	tp.prefixMsgs = tp.msgsBuf[:totalMsgs:totalMsgs]
+
+	if cap(tp.keysBuf) < totalMsgs {
+		next := make([]transcriptMessageKey, totalMsgs, totalMsgs+32)
+		copy(next, tp.keysBuf[:prefixOffset])
+		tp.keysBuf = next
+	} else {
+		tp.keysBuf = tp.keysBuf[:totalMsgs]
+	}
+	copy(tp.keysBuf[prefixOffset:], ch.keys)
+	tp.prefixKeys = tp.keysBuf[:totalMsgs:totalMsgs]
+
+	// Update workingControls only for oldTail -> newTail.
+	for _, k := range tp.lastTailControlKeys {
+		delete(tp.workingControls, k)
+	}
+	tp.lastTailControlKeys = tp.lastTailControlKeys[:0]
+	for k := range oldTail.controls {
+		delete(tp.workingControls, k)
+	}
+	for k, v := range ch.controls {
+		tp.workingControls[k] = v
+	}
+
+	// Update prefixControlStates tail slice in place.
+	oldStatesLen := len(tp.prefixControlStates) - len(oldTail.controlStates)
+	if oldStatesLen >= 0 {
+		tp.prefixControlStates = append(tp.prefixControlStates[:oldStatesLen], ch.controlStates...)
+	}
+
+	// Update actionTargetsLatest / actionTargetsHistorical for tail chunk.
+	if tp.actionTargetsLatest == nil {
+		tp.actionTargetsLatest = make(map[int]assistantActionTarget, len(tp.chunks))
+	}
+	// Reset prior globalLastSeat if it was marked latest.
+	if tp.globalLastSeat >= 0 {
+		if t, ok := tp.actionTargetsLatest[tp.globalLastSeat]; ok && t.latest {
+			t.latest = false
+			tp.actionTargetsLatest[tp.globalLastSeat] = t
+		}
+	}
+	for seat := range oldTail.localTargets {
+		delete(tp.actionTargetsLatest, prefixOffset+seat)
+	}
+	for seat, target := range ch.localTargets {
+		target.latest = false
+		tp.actionTargetsLatest[prefixOffset+seat] = target
+	}
+	// Recompute lastTargetChunk & globalLastSeat (only inspect backwards from end).
+	lastTargetChunk := -1
+	globalLastSeat := -1
+	for i := len(tp.chunks) - 1; i >= 0; i-- {
+		if len(tp.chunks[i].localTargets) > 0 && tp.chunks[i].lastSeat >= 0 {
+			lastTargetChunk = i
+			globalLastSeat = tp.chunkMsgOffsets[i] + tp.chunks[i].lastSeat
+			break
+		}
+	}
+	tp.lastTargetChunk = lastTargetChunk
+	tp.globalLastSeat = globalLastSeat
+
+	var historicalTargets map[int]assistantActionTarget
+	if lastTargetChunk >= 0 {
+		lch := &tp.chunks[lastTargetChunk]
+		isLatest := lch.lastSeatHadLatest
+		if isLatest {
+			for j := lastTargetChunk + 1; j < len(tp.chunks); j++ {
+				if tp.chunks[j].hasUserOrAssistant {
+					isLatest = false
+					break
+				}
+			}
+		}
+		if isLatest {
+			target := tp.actionTargetsLatest[globalLastSeat]
+			target.latest = true
+			tp.actionTargetsLatest[globalLastSeat] = target
+			historicalTargets = make(map[int]assistantActionTarget, len(tp.actionTargetsLatest))
+			for k, v := range tp.actionTargetsLatest {
+				historicalTargets[k] = v
+			}
+			target.latest = false
+			historicalTargets[globalLastSeat] = target
+		} else {
+			historicalTargets = tp.actionTargetsLatest
+		}
+	} else {
+		historicalTargets = tp.actionTargetsLatest
+	}
+	tp.actionTargetsHistorical = historicalTargets
+	return true
+}
+
 func spliceTurnPrefixChunks(tp *transcriptTurnPrefixViewMemo, m Model) {
 	totalMsgs := 0
 	totalControls := 0
 	totalStates := 0
 	canSpliceKeys := true
-	seenKeys := make(map[transcriptMessageKey]struct{}, 64)
+	seenKeys := make(map[transcriptMessageKey]struct{}, max(64, len(tp.prefixKeySet)))
 	canSpliceTargets := true
-	seenSources := make(map[string]struct{}, 16)
+	seenSources := make(map[string]struct{}, max(16, len(tp.seenSources)))
 
 	for i := range tp.chunks {
 		ch := &tp.chunks[i]
@@ -979,16 +1171,27 @@ func spliceTurnPrefixChunks(tp *transcriptTurnPrefixViewMemo, m Model) {
 		}
 	}
 
-	prefixMsgs := make([]session.Message, totalMsgs)
+	// Allocate a fresh backing buffer for full prefix splices (preserving slice
+	// identity for rebuild observers while sharing storage with msgsBuf/keysBuf
+	// for subsequent O(tail) in-place tail updates).
+	tp.msgsBuf = make([]session.Message, totalMsgs, totalMsgs+32)
+	prefixMsgs := tp.msgsBuf[:totalMsgs:totalMsgs]
+
 	controls := make(map[string]transcriptControl, totalControls)
 	states := make([]transcriptControlState, 0, totalStates)
 	var prefixKeys []transcriptMessageKey
 	if canSpliceKeys {
-		prefixKeys = make([]transcriptMessageKey, totalMsgs)
+		tp.keysBuf = make([]transcriptMessageKey, totalMsgs, totalMsgs+32)
+		prefixKeys = tp.keysBuf[:totalMsgs:totalMsgs]
 	}
 	var latestTargets map[int]assistantActionTarget
 	if canSpliceTargets {
 		latestTargets = make(map[int]assistantActionTarget, len(tp.chunks))
+	}
+	if cap(tp.chunkMsgOffsets) < len(tp.chunks) {
+		tp.chunkMsgOffsets = make([]int, len(tp.chunks))
+	} else {
+		tp.chunkMsgOffsets = tp.chunkMsgOffsets[:len(tp.chunks)]
 	}
 
 	offset := 0
@@ -996,6 +1199,7 @@ func spliceTurnPrefixChunks(tp *transcriptTurnPrefixViewMemo, m Model) {
 	globalLastSeat := -1
 	for i := range tp.chunks {
 		ch := &tp.chunks[i]
+		tp.chunkMsgOffsets[i] = offset
 		copy(prefixMsgs[offset:], ch.msgs)
 		if canSpliceKeys {
 			copy(prefixKeys[offset:], ch.keys)
@@ -1019,6 +1223,13 @@ func spliceTurnPrefixChunks(tp *transcriptTurnPrefixViewMemo, m Model) {
 
 	if !canSpliceKeys {
 		prefixKeys = transcriptMessageKeys(m, prefixMsgs)
+		if cap(tp.keysBuf) < len(prefixKeys) {
+			tp.keysBuf = make([]transcriptMessageKey, len(prefixKeys), len(prefixKeys)+32)
+		} else {
+			tp.keysBuf = tp.keysBuf[:len(prefixKeys)]
+		}
+		copy(tp.keysBuf, prefixKeys)
+		prefixKeys = tp.keysBuf[:len(prefixKeys):len(prefixKeys)]
 	}
 
 	var historicalTargets map[int]assistantActionTarget
@@ -1054,12 +1265,20 @@ func spliceTurnPrefixChunks(tp *transcriptTurnPrefixViewMemo, m Model) {
 		}
 	}
 
-	prefixKeySet := make(map[transcriptMessageKey]struct{}, len(prefixKeys))
-	for _, pk := range prefixKeys {
-		pk.Occurrence = 0
-		prefixKeySet[pk] = struct{}{}
+	prefixKeySet := seenKeys
+	if !canSpliceKeys {
+		prefixKeySet = make(map[transcriptMessageKey]struct{}, len(prefixKeys))
+		for _, pk := range prefixKeys {
+			pk.Occurrence = 0
+			prefixKeySet[pk] = struct{}{}
+		}
 	}
 
+	tp.canSpliceKeys = canSpliceKeys
+	tp.canSpliceTargets = canSpliceTargets
+	tp.seenSources = seenSources
+	tp.lastTargetChunk = lastTargetChunk
+	tp.globalLastSeat = globalLastSeat
 	tp.prefixMsgs = prefixMsgs
 	tp.prefixKeys = prefixKeys
 	tp.prefixKeySet = prefixKeySet
@@ -1068,10 +1287,6 @@ func spliceTurnPrefixChunks(tp *transcriptTurnPrefixViewMemo, m Model) {
 	tp.lastTailControlKeys = tp.lastTailControlKeys[:0]
 	tp.actionTargetsLatest = latestTargets
 	tp.actionTargetsHistorical = historicalTargets
-	tp.msgsBuf = make([]session.Message, len(prefixMsgs), len(prefixMsgs)+32)
-	copy(tp.msgsBuf, prefixMsgs)
-	tp.keysBuf = make([]transcriptMessageKey, len(prefixKeys), len(prefixKeys)+32)
-	copy(tp.keysBuf, prefixKeys)
 }
 
 func canReuseStreamingTranscriptTail(prev, curr session.Message) bool {
@@ -1183,18 +1398,30 @@ func (memo *transcriptViewMemo) resolve(m Model) ([]session.Message, map[string]
 				exp = *m.ThinkingExpanded
 			}
 			dirty := 0
+			dirtyIdx := -1
+			var oldTail turnPrefixChunk
 			for idx := range tp.chunks {
 				ch := &tp.chunks[idx]
 				if controlStatesMatch(ch.controlStates, exp) {
 					tp.chunkHits++
 					continue
 				}
+				if idx == len(tp.chunks)-1 {
+					oldTail = *ch
+				}
 				tp.chunks[idx] = buildTurnPrefixChunk(visPrefix[ch.start:ch.end], ch.start, ch.end, m, tp.prefixLastInput)
 				dirty++
+				dirtyIdx = idx
 			}
 			tp.chunkRebuilds += dirty
 			tp.key = key
-			spliceTurnPrefixChunks(tp, m)
+			if dirty == 1 && dirtyIdx == len(tp.chunks)-1 {
+				if !spliceTurnPrefixTail(tp, oldTail) {
+					spliceTurnPrefixChunks(tp, m)
+				}
+			} else {
+				spliceTurnPrefixChunks(tp, m)
+			}
 		} else {
 			tp.chunkHits += len(tp.chunks)
 		}

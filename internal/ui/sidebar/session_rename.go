@@ -43,6 +43,10 @@ func (k *sessionRenameKeys) handle(event ui.InputEvent, composing bool) bool {
 // The request belongs to the sidebar root rather than the row or its menu:
 // search, archive folding and collapsing the rail cannot unmount its editor.
 func sessionRenameDialog(c *ui.Context, m Model) {
+	sessionRenameDialogPtr(c, &m)
+}
+
+func sessionRenameDialogPtr(c *ui.Context, m *Model) {
 	if m.RenameSessionID == "" || m.RenameDraft == nil {
 		return
 	}

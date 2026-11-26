@@ -105,7 +105,6 @@ internal/ui/schedule/panel.go	snapshot	4
 internal/ui/schedule/schedule.go	snapshot	1
 internal/ui/schedule/system_zone_windows.go	import	1
 internal/ui/schedule/timing_picker.go	import	1
-internal/ui/sessioncost/view.go	timer	1
 internal/ui/settings/add_provider_editor.go	snapshot	3
 internal/ui/settings/agent_presets.go	go	1
 internal/ui/settings/agent_presets.go	snapshot	1
@@ -125,4 +124,3 @@ internal/ui/terminal/runtime.go	import	1
 internal/ui/theme/gallery.go	import	1
 internal/ui/usage/usage.go	snapshot	1
 internal/ui/widgets/markdown/math_view.go	go	1
-internal/ui/workspacepicker/picker.go	snapshot	1

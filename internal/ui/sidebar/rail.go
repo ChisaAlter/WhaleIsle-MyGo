@@ -36,7 +36,7 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color) {
 		return b
 	}
 	toggle := button("sidebar-rail-toggle", i18n.T(i18n.KeySidebarExpand), nil, m.OnToggle != nil, false, m.OnToggle).
-		Tooltip(i18n.T(i18n.KeySidebarExpand) + " (Ctrl+B)")
+		Tooltip(sidebarToggleTooltip(m, i18n.T(i18n.KeySidebarExpand)))
 	toggle.Children(func() {
 		if !toggle.Hovered() && !toggle.Focused() {
 			if mark := chrome.BrandAvatar(); mark != nil {

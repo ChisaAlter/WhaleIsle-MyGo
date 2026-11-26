@@ -27,6 +27,10 @@ func (w *WorkspacePanes) closeMainChild() {
 	w.conversation = nil
 }
 func (w *WorkspacePanes) currentMainChild(m Model) *WorkspacePane {
+	return w.currentMainChildPtr(&m)
+}
+
+func (w *WorkspacePanes) currentMainChildPtr(m *Model) *WorkspacePane {
 	if w == nil || w.conversation == nil {
 		return nil
 	}
@@ -91,11 +95,15 @@ func mainSubagentConversation(c *ui.Context, m Model) bool {
 // mainSubagentConversationHeader owns only the addressed child's row-1 chrome.
 // Its presence suppresses the hidden parent's title and view tabs.
 func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float32) bool {
+	return mainSubagentConversationHeaderPtr(c, &m, rightInset...)
+}
+
+func mainSubagentConversationHeaderPtr(c *ui.Context, m *Model, rightInset ...float32) bool {
 	if m.Sizes == nil || m.Sizes.Workspace == nil {
 		return false
 	}
 	w := m.Sizes.Workspace
-	n := w.currentMainChild(m)
+	n := w.currentMainChildPtr(m)
 	if n == nil {
 		return false
 	}
@@ -104,7 +112,7 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 	if len(rightInset) > 0 {
 		paddingRight = rightInset[0]
 	}
-	ui.Row(c).Key(n.ID+":header").FillWidth().MinHeight(workspaceCaptionContent).Padding(0, paddingRight, 0, design.Sp(5)).Gap(design.Sp(2)).DragWindow().Children(func() {
+	ui.Row(c).Key(n.ID+":header").FillWidth().MinHeight(workspaceCaptionContent).Padding(0, paddingRight, 0, m.Sizes.headerLeftInset()).Gap(design.Sp(2)).DragWindow().Children(func() {
 		if coss.Button(c, paneLabel("返回父会话", "Back to parent conversation"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 			w.closeMainChild()
 		}
@@ -124,7 +132,7 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 							label = ancestor.Address.ChildSessionID
 						}
 						if menu.Item(label).Chosen() {
-							subagentConversationOpener(m)(view.Token, ancestor.Address)
+							subagentConversationOpener(*m)(view.Token, ancestor.Address)
 						}
 					}
 				})
@@ -134,14 +142,14 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 					for _, sibling := range siblings {
 						sibling := sibling
 						if menu.Item(sibling.Label).Disabled(sibling.Address == target.Address).Chosen() {
-							subagentConversationOpener(m)(view.Token, sibling.Address)
+							subagentConversationOpener(*m)(view.Token, sibling.Address)
 						}
 					}
 				})
 			}
 		}
 		ui.Text(c, target.Root+" → "+target.Address.ChildSessionID).Grow(1).MinWidth(0).NoWrap().Ellipsis("…")
-		conversationTeamAction(c, m, renderSnapshot(m), m.Sizes.Center-20-paddingRight <= 560, tk(c).MutedForeground)
+		conversationTeamAction(c, *m, renderSnapshot(*m), m.Sizes.Center-20-paddingRight <= 560, tk(c).MutedForeground)
 	})
 	return true
 }
@@ -149,15 +157,19 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 // mainSubagentConversationBody builds the addressed child exactly once in the
 // shared content row, without rebuilding either the child or parent header.
 func mainSubagentConversationBody(c *ui.Context, m Model) bool {
+	return mainSubagentConversationBodyPtr(c, &m)
+}
+
+func mainSubagentConversationBodyPtr(c *ui.Context, m *Model) bool {
 	if m.Sizes == nil || m.Sizes.Workspace == nil {
 		return false
 	}
 	w := m.Sizes.Workspace
-	n := w.currentMainChild(m)
+	n := w.currentMainChildPtr(m)
 	if n == nil {
 		return false
 	}
-	local := w.agentPaneModel(m, n)
+	local := w.agentPaneModel(*m, n)
 	// The main occurrence is outside the resource tree; opening its documents
 	// must not make an unknown ID the active resource-dock tab.
 	if open := m.OnOpenAgentPaneDocument; open != nil {
@@ -184,7 +196,7 @@ func mainSubagentConversationBody(c *ui.Context, m Model) bool {
 			return
 		}
 		agents.View(c, agents.Model{
-			ChatPreferences: m.ChatPreferences, Store: navigation, Snapshot: renderSnapshot(m), ChatOnly: true, MainConversation: true,
+			ChatPreferences: m.ChatPreferences, Store: navigation, Snapshot: renderSnapshot(*m), ChatOnly: true, MainConversation: true,
 			ChildDraft: m.ChildDraft,
 			BusyEnter:  m.ChildBusyEnter,
 			ComposerOverride: func(ctx *ui.Context, address session.AgentSessionAddress) bool {

@@ -14,31 +14,41 @@ type pendingToolCall struct {
 }
 
 func (p *pendingToolCall) request(m Model, snapshot session.ViewState, callID string) {
-	if strings.TrimSpace(callID) == "" || m.ChatPaneTab == nil || m.TrajSelectedID == nil {
+	p.requestTarget(toolCallNavTargetOf(&m), snapshot, callID)
+}
+
+func (p *pendingToolCall) requestTarget(t toolCallNavTarget, snapshot session.ViewState, callID string) {
+	if strings.TrimSpace(callID) == "" || t.chatPaneTab == nil || t.trajSelectedID == nil {
 		return
 	}
 	*p = pendingToolCall{sessionID: snapshot.SelectedID, hostGeneration: snapshot.ComposerHostGeneration, callID: callID}
-	*m.ChatPaneTab = "trajectory"
-	*m.TrajSelectedID = ""
-	p.apply(m, snapshot)
+	*t.chatPaneTab = "trajectory"
+	*t.trajSelectedID = ""
+	p.applyTarget(t, snapshot)
 }
 
 func (p *pendingToolCall) apply(m Model, snapshot session.ViewState) {
+	p.applyTarget(toolCallNavTargetOf(&m), snapshot)
+}
+
+func (p *pendingToolCall) applyTarget(t toolCallNavTarget, snapshot session.ViewState) {
 	if p.callID == "" {
 		return
 	}
-	if p.sessionID != snapshot.SelectedID || p.hostGeneration != snapshot.ComposerHostGeneration || m.DisableDeveloperTools || m.HideChatViewTabs ||
-		m.ChatPaneTab == nil || *m.ChatPaneTab != "trajectory" {
+	if p.sessionID != snapshot.SelectedID || p.hostGeneration != snapshot.ComposerHostGeneration || t.disableDeveloperTools || t.hideChatViewTabs ||
+		t.chatPaneTab == nil || *t.chatPaneTab != "trajectory" {
 		*p = pendingToolCall{}
 		return
 	}
-	if focusToolCallTrajectory(m, snapshot, p.callID) {
+	if focusToolCallTrajectoryTarget(t, snapshot, p.callID) {
 		*p = pendingToolCall{}
 	}
 }
 
-func toolCallNavigationFrame(c *ui.Context, m Model, snapshot session.ViewState) func(string) {
+func toolCallNavigationFrame(c *ui.Context, m *Model, snapshot session.ViewState) func(string) {
 	pending := ui.Local(c.Root(), "trajectory-inspect-call", func() pendingToolCall { return pendingToolCall{} })
-	pending.apply(m, snapshot)
-	return inspectToolCallNavigation(m, snapshot, pending)
+	if pending.callID != "" {
+		pending.applyTarget(toolCallNavTargetOf(m), snapshot)
+	}
+	return inspectToolCallNavigationPtr(m, snapshot, pending)
 }

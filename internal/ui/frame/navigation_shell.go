@@ -31,7 +31,7 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 	m.Sizes.observeSidebarGeometry(c, viewport, height)
 	m.Sizes.ObserveSidebarSessionSelection(renderSnapshot(m))
 	m.Sizes.resolveColumnsWithReserve(viewport, m.RightOverlayReserve, m.RightPaneOpen)
-	registerPageCommands(c, m)
+	registerPageCommandsPtr(c, &m)
 	// The production frame lives inside this shell with ExternalNavigation.
 	// A phone rightbar covers the viewport rather than the rail's clipped main
 	// column. Global workspace pages keep their own navigation and caption.
@@ -42,23 +42,24 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 		})
 		return
 	}
+	mp := &m
 	ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinHeight(0).Background(canvas).Children(func() {
-		sidebarColumns(c, m.Sizes, func() { navigationFileDropRail(c, m, func() { navigationView(c, m, renderSnapshot(m)) }) }, func() {
-			if !m.WorkspacePage {
+		sidebarColumns(c, mp.Sizes, func() { navigationFileDropRail(c, *mp, func() { navigationViewPtr(c, mp, renderSnapshot(*mp)) }) }, func() {
+			if !mp.WorkspacePage {
 				content()
 				return
 			}
-			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+			colors := theme.Resolve(mp.ThemeID).Active(mp.SystemDark)
 			ui.Column(c.Key("global-workspace-rows")).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
-				workspaceHeaderBand(c, func() { workspaceSharedCaption(c, m, renderSnapshot(m), colors, true) })
+				workspaceHeaderBand(c, func() { workspaceSharedCaptionPtr(c, mp, renderSnapshot(*mp), colors, true) })
 				ui.Box(c.Key("global-workspace-body")).Grow(1).MinWidth(0).MinHeight(0).
-					Padding(0, maxf(0, m.RightOverlayReserve), 0, 0).Children(func() {
-					centerTerminalColumn(c, m, content, func() {
+					Padding(0, maxf(0, mp.RightOverlayReserve), 0, 0).Children(func() {
+					centerTerminalColumnPtr(c, mp, content, func() {
 						termui.View(c, termui.Model{
-							Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
-							ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal, OnClose: m.OnCloseTerminal,
-							OnAddToChat: m.OnAddSelectionToChat, CanAddToChat: m.CanAddSelectionToChat,
-							TargetBinding: m.FileBindingID, OnOpenTarget: m.OnOpenTerminalTarget,
+							Panel: mp.Terminal, ThemeID: mp.ThemeID, SystemDark: mp.SystemDark,
+							ShellsNote: mp.TerminalShellsNote, OnRestart: mp.OnRestartTerminal, OnClose: mp.OnCloseTerminal,
+							OnAddToChat: mp.OnAddSelectionToChat, CanAddToChat: mp.CanAddSelectionToChat,
+							TargetBinding: mp.FileBindingID, OnOpenTarget: mp.OnOpenTerminalTarget,
 						})
 					})
 				})

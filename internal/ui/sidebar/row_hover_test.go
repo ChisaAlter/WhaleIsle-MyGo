@@ -110,7 +110,10 @@ func TestSessionRowHoverSwapsTimeForActions(t *testing.T) {
 	more, _ := tt.Find(sessionActionsLabel("row", "A session title"))
 	archive, _ := tt.Find(i18n.T(i18n.KeySidebarArchive))
 	pin, _ := tt.Find(i18n.T(i18n.KeySidebarPin))
-	if more.X+more.W+15 != archive.X || archive.X+archive.W+15 != pin.X {
+	if more.W < 24 || more.H < 24 || archive.W < 24 || archive.H < 24 || pin.W < 24 || pin.H < 24 {
+		t.Fatalf("hover action hit targets too small: more=%+v archive=%+v pin=%+v", more, archive, pin)
+	}
+	if more.X+more.W+2 != archive.X || archive.X+archive.W+2 != pin.X {
 		t.Fatalf("hover action order/gaps: more=%+v archive=%+v pin=%+v", more, archive, pin)
 	}
 

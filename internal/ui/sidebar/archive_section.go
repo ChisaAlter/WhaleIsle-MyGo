@@ -17,6 +17,10 @@ const archiveSessionPageBase = 30
 // here nor changing the surrounding browser may reuse a workspace disclosure.
 // Expansion remains local to the sidebar; it never writes workspace preferences.
 func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui.Color) {
+	archivedSectionPtr(c, &m, items, ink, muted)
+}
+
+func archivedSectionPtr(c *ui.Context, m *Model, items []session.Item, ink, muted ui.Color) {
 	t := tok(c)
 	section := ui.Column(c.Key("workspace-archive-section")).FillWidth().Gap(design.Sp(0.5)).Margin(design.Sp(0.5), 0, 0, 0).Shrink(0)
 	limit := ui.Local(section, "archive-visible-limit", func() int { return archiveSessionPageBase })
@@ -75,7 +79,7 @@ func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui
 			list := ui.List(c.Key("workspace-archive-list"), listState, len(visible)).
 				ItemKey(func(i int) any { return visible[i].SessionID }).
 				FillWidth().MinWidth(0).MinHeight(0).
-				MaxHeight(sidebarListMaxHeight(m, c, capRatio)).
+				MaxHeight(sidebarListMaxHeight(*m, c, capRatio)).
 				Gap(design.Sp(0.5)).
 				ScrollbarsVisible(m.scrollbarsVisible)
 			list.Rows(func(lr ui.ListRow) {
@@ -87,7 +91,7 @@ func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui
 				if rowLabel == "" {
 					rowLabel = i18n.T(i18n.KeySidebarNewSessionFallback)
 				}
-				rowArchivedSession(lr.Context, item.SessionID, rowLabel, 0, m, muted)
+				rowArchivedSession(lr.Context, item.SessionID, rowLabel, 0, *m, muted)
 			})
 		}
 		if hidden > 0 || (len(items) > archiveSessionPageBase && *limit > archiveSessionPageBase) {

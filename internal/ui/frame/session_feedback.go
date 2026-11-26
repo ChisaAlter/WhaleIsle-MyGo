@@ -5,6 +5,6 @@ import (
 	"whaleisle/internal/ui/chat"
 )
 
-func sessionFeedbackDialog(c *ui.Context, m Model) {
+func sessionFeedbackDialog(c *ui.Context, m *Model) {
 	chat.SessionFeedbackDialog(c, m.Store, m.ThemeID, m.SystemDark)
 }

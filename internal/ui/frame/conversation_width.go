@@ -60,10 +60,15 @@ func conversationWidthRails(column, content float32) (left, right, width float32
 	return max(float32(0), margin-24-width), min(column, margin+content+24), width
 }
 func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, content float32, active bool, scroll *ui.ScrollState) {
+	paintConversationWidthControlsPtr(c, &m, body, content, active, scroll)
+}
+
+func paintConversationWidthControlsPtr(c *ui.Context, m *Model, body ui.Element, content float32, active bool, scroll *ui.ScrollState) {
 	if m.Sizes == nil {
 		return
 	}
 	s := m.Sizes
+	chatList := m.ChatList
 	g := &s.transcriptGesture
 	if g.binding != m.FileBindingID || !active {
 		g.side = ""
@@ -119,7 +124,7 @@ func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, con
 					return true
 				}
 			case ui.InputScroll:
-				if ev.Mods&ui.Ctrl != 0 || ev.DY == 0 || m.ChatList == nil || scroll == nil {
+				if ev.Mods&ui.Ctrl != 0 || ev.DY == 0 || chatList == nil || scroll == nil {
 					return false
 				}
 				scroll.Y += ev.DY

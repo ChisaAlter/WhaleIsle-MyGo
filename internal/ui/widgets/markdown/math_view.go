@@ -2,7 +2,6 @@ package markdown
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -28,10 +27,89 @@ type mathViewState struct {
 	images       map[mathFormula]mathImage
 	revision     uint64
 	layout       mathLayout
+	layoutReady  bool
 	lastRevision uint64
-	lastKey      string
+	lastHash     uint64
 	lastWidth    float32
+	lastLabel    string
 	width        float32
+}
+
+const (
+	mathFNVOffset64 uint64 = 14695981039346656037
+	mathFNVPrime64  uint64 = 1099511628211
+)
+
+func mathHashU64(h, v uint64) uint64 {
+	for i := 0; i < 8; i++ {
+		h ^= uint64(byte(v))
+		h *= mathFNVPrime64
+		v >>= 8
+	}
+	return h
+}
+
+func mathHashStr(h uint64, s string) uint64 {
+	h = mathHashU64(h, uint64(len(s)))
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= mathFNVPrime64
+	}
+	return h
+}
+
+func mathHashBool(h uint64, b bool) uint64 {
+	if b {
+		h ^= 1
+	}
+	return h * mathFNVPrime64
+}
+
+func mathHashColor(h uint64, col ui.Color) uint64 {
+	return mathHashU64(h, uint64(col.R)|uint64(col.G)<<8|uint64(col.B)<<16|uint64(col.A)<<24)
+}
+
+func mathSpansHash(spans []ui.Span, st Style, targets map[int]string, offset int) uint64 {
+	h := mathFNVOffset64
+	h = mathHashU64(h, uint64(offset))
+	h = mathHashU64(h, uint64(math.Float32bits(st.FontSize)))
+	h = mathHashU64(h, uint64(math.Float32bits(st.lineHeight)))
+	h = mathHashStr(h, proseFont(st))
+	h = mathHashColor(h, st.FG)
+	h = mathHashU64(h, uint64(len(spans)))
+	for i, sp := range spans {
+		h = mathHashStr(h, sp.Text)
+		h = mathHashStr(h, sp.Font)
+		h = mathHashU64(h, uint64(math.Float32bits(sp.Size)))
+		h = mathHashU64(h, uint64(sp.Weight))
+		h = mathHashBool(h, sp.Italic)
+		h = mathHashStr(h, sp.Features)
+		h = mathHashColor(h, sp.Color)
+		h = mathHashBool(h, sp.Underline)
+		h = mathHashBool(h, sp.Strikethrough)
+		h = mathHashColor(h, sp.Background)
+		if t, ok := targets[offset+i]; ok {
+			h = mathHashBool(h, true)
+			h = mathHashStr(h, t)
+		} else {
+			h = mathHashBool(h, false)
+		}
+		if u, ok := st.urlTargets[offset+i]; ok {
+			h = mathHashBool(h, true)
+			h = mathHashStr(h, u)
+		} else {
+			h = mathHashBool(h, false)
+		}
+		if f, ok := st.maths[offset+i]; ok {
+			h = mathHashBool(h, true)
+			h = mathHashStr(h, f.TeX)
+			h = mathHashStr(h, f.Raw)
+			h = mathHashBool(h, f.Display)
+		} else {
+			h = mathHashBool(h, false)
+		}
+	}
+	return h
 }
 
 func (s *mathViewState) request(formula mathFormula, services ui.Services) {
@@ -83,32 +161,37 @@ func viewMathSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]str
 		}
 	}
 	state.mu.Lock()
-	images := make(map[mathFormula]mathImage, len(state.images))
-	for key, image := range state.images {
-		images[key] = image
-	}
 	revision := state.revision
 	state.mu.Unlock()
 	width := state.width
 	if previous := root.Bounds().W; previous > 0 {
 		width = previous
 	}
-	key := fmt.Sprint(spans, st.FontSize, st.lineHeight, proseFont(st), offset, targets, st.urlTargets)
-	if state.lastKey != key || state.lastWidth != width || state.lastRevision != revision {
+	hash := mathSpansHash(spans, st, targets, offset)
+	if !state.layoutReady || state.lastHash != hash || state.lastWidth != width || state.lastRevision != revision {
+		state.mu.Lock()
+		images := make(map[mathFormula]mathImage, len(state.images))
+		for key, image := range state.images {
+			images[key] = image
+		}
+		revision = state.revision
+		state.mu.Unlock()
 		atoms := mathAtoms(spans, st, targets, offset, images, width)
 		lineHeight := st.FontSize * 1.25
 		if st.lineHeight > 0 {
 			lineHeight = st.lineHeight
 		}
 		state.layout = layoutMathAtoms(atoms, width, lineHeight)
-		state.lastKey, state.lastWidth, state.lastRevision = key, width, revision
+		var label strings.Builder
+		for _, span := range spans {
+			label.WriteString(span.Text)
+		}
+		state.lastLabel = label.String()
+		state.layoutReady = true
+		state.lastHash, state.lastWidth, state.lastRevision = hash, width, revision
 	}
 	layout := state.layout
-	var label strings.Builder
-	for _, span := range spans {
-		label.WriteString(span.Text)
-	}
-	root.Height(layout.height).Role(ui.RoleText).Label(label.String()).Draw(func(p *ui.Painter, bounds ui.Rect) {
+	root.Height(layout.height).Role(ui.RoleText).Label(state.lastLabel).Draw(func(p *ui.Painter, bounds ui.Rect) {
 		if math.Abs(float64(bounds.W-state.width)) > .5 && bounds.W > 0 {
 			state.width = bounds.W
 			services.Invalidate()

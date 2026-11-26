@@ -3,6 +3,8 @@ package diff
 import (
 	"strings"
 	"testing"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestIsUnifiedPatch(t *testing.T) {
@@ -38,5 +40,33 @@ func TestLineDiffHelper(t *testing.T) {
 	out := LineDiff("alpha\nbeta", "alpha\ngamma")
 	if out == "" {
 		t.Fatal("empty diff")
+	}
+}
+
+func BenchmarkDiffViewSteady(b *testing.B) {
+	var sb strings.Builder
+	sb.WriteString("--- a/file.go\n+++ b/file.go\n@@ -1,60 +1,60 @@\n")
+	for i := 0; i < 60; i++ {
+		sb.WriteString(" context line unchanged\n")
+		sb.WriteString("-old removed line with payload\n")
+		sb.WriteString("+new added line with payload\n")
+	}
+	src := sb.String()
+	st := Style{
+		FontSize: 12,
+		FG:       ui.RGB(20, 20, 20),
+		Add:      ui.RGB(0, 140, 60),
+		Del:      ui.RGB(180, 30, 30),
+		Hunk:     ui.RGB(40, 80, 180),
+		Muted:    ui.RGB(120, 120, 120),
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		View(c, src, st)
+	}, 720, 480)
+	tt.Frame()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tt.Frame()
 	}
 }

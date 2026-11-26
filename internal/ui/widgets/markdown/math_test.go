@@ -3,6 +3,8 @@ package markdown
 import (
 	"strings"
 	"testing"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestMathParsingPreservesTeX(t *testing.T) {
@@ -72,5 +74,24 @@ func TestMathDisplayLayout(t *testing.T) {
 	layout := layoutMathAtoms([]mathAtom{{width: 20, ascent: 10, descent: 3}, {width: 40, ascent: 30, descent: 15, display: true}, {width: 20, ascent: 10, descent: 3}}, 100, 16)
 	if layout.items[1].rect.X != 30 || layout.items[1].rect.Y < 16 || layout.items[2].rect.Y < 61 {
 		t.Fatalf("display placement=%#v", layout)
+	}
+}
+
+func BenchmarkViewMathSpansSteady(b *testing.B) {
+	formulas := map[int]mathFormula{}
+	st := Style{
+		FontSize: 14,
+		FG:       ui.RGB(20, 20, 20),
+		maths:    formulas,
+	}
+	spans := Spans(`Consider $x_{i+1}^{n^2} + \frac{a}{b} = c$ in a steady frame.`, st)
+	tt := ui.NewTester(func(c *ui.Context) {
+		viewMathSpans(c, st, spans, nil, 0)
+	}, 640, 200)
+	tt.Frame()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tt.Frame()
 	}
 }

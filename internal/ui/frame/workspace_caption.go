@@ -92,11 +92,15 @@ const (
 // AppFrame owns one auto-sized title row across conversation and details.
 // The right dock begins in row two; native caption controls remain an overlay.
 func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, hero bool) float32 {
+	return workspaceSharedCaptionPtr(c, &m, snap, colors, hero)
+}
+
+func workspaceSharedCaptionPtr(c *ui.Context, m *Model, snap session.ViewState, colors theme.Colors, hero bool) float32 {
 	row := ui.Row(c.Key("workspace-shared-caption")).FillWidth().MinHeight(workspaceCaptionHeight).
 		Padding(workspaceCaptionInsetTop, 0, workspaceCaptionInsetBottom, 0).
 		Shrink(0).DragWindow()
 	observeConversationTabInput(row, "caption", m.ChatPaneTab)
-	conversationFileDrop(c, m, row, snap.SelectedID)
+	conversationFileDropPtr(c, m, row, snap.SelectedID)
 	measure := ui.Local(row, "trailing-measure", func() workspaceCaptionMeasure { return workspaceCaptionMeasure{} })
 	controls := max(float32(112), c.TitleBar().Right+8)
 	if runtime.GOOS == "darwin" {
@@ -109,6 +113,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	trailingInset := float32(math.Ceil(float64(measure.trailing + controls)))
 	m.captionRightInset = max(float32(28), max(float32(0), trailingInset-details)+24)
 	var trailing ui.Element
+	hasTrailing := m.WorkspaceTrailing != nil
 	row.Children(func() {
 		convCol := ui.Column(c.Key("workspace-caption-conversation")).Width(m.Sizes.Center + max(float32(0), m.RightOverlayReserve)).Shrink(0).MinWidth(0)
 		if swap := conversationHeaderSwapOpacity(c, convCol, conversationEnterOwner(snap), hero, snap.PromptAttempted); swap < 1 {
@@ -119,14 +124,14 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 				ui.Box(c).Height(workspaceCaptionContent)
 				return
 			}
-			if mainSubagentConversationHeader(c, m, m.captionRightInset) {
+			if mainSubagentConversationHeaderPtr(c, m, m.captionRightInset) {
 				return
 			}
 			if (hero && snap.SelectedID == "") || conversationHeaderHidden(snap, hasPendingStopInteraction(m.Interactions, snap.SelectedID)) {
-				conversationBlankHeader(c, m, snap)
+				conversationBlankHeaderPtr(c, m, snap)
 				return
 			}
-			conversationHeaderTitleRow(c, m, snap, colors)
+			conversationHeaderTitleRow(c, *m, snap, colors)
 		})
 		// Installed AppFrame keeps clusterVisible true for native desktop
 		// platforms, including narrow windows; label density concedes instead.
@@ -163,7 +168,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	// Request another frame only when that geometry changes, never on a timer.
 	row.DrawOver(func(_ *ui.Painter, bounds ui.Rect) {
 		width := float32(0)
-		if m.WorkspaceTrailing != nil {
+		if hasTrailing {
 			width = trailing.Bounds().W
 		}
 		if measure.trailing != width || measure.height != bounds.H {
@@ -187,7 +192,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	// The header's one hairline sits under the view tabs, not between the title
 	// row and them (ConversationRoot.module.css .header::after vs .tabs), and a
 	// blank header carries none at all (.headerBlank::after).
-	if hero || conversationTabsShown(m, snap) || conversationHeaderHidden(snap, hasPendingStopInteraction(m.Interactions, snap.SelectedID)) {
+	if hero || conversationTabsShownPtr(m, snap) || conversationHeaderHidden(snap, hasPendingStopInteraction(m.Interactions, snap.SelectedID)) {
 		stroke = 0
 	}
 	if layout.Skin == theme.SkinClaude {
@@ -205,18 +210,26 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 // strip under the band — the same gate frame.go's chat column applies — so the
 // caption knows its bottom edge is not the header's hairline.
 func conversationTabsShown(m Model, snap session.ViewState) bool {
+	return conversationTabsShownPtr(&m, snap)
+}
+
+func conversationTabsShownPtr(m *Model, snap session.ViewState) bool {
 	if snap.SelectedID == "" || m.HideChatViewTabs || conversationIsManaged(snap) ||
-		MainConversationChildActive(m) ||
+		(m.Sizes != nil && m.Sizes.Workspace != nil && m.Sizes.Workspace.currentMainChildPtr(m) != nil) ||
 		conversationHeaderHidden(snap, hasSessionInteractions(m.Interactions, snap.SelectedID)) {
 		return false
 	}
-	ids, _ := conversationViewOptions(m)
+	ids, _ := conversationViewOptionsPtr(m)
 	return m.ChatPaneTab != nil && len(ids) > 1
 }
 
 // conversationViewTabs keeps pointer, arrow-key and accessibility navigation
 // together. Compact title actions must never remove the view switcher.
 func conversationViewOptions(m Model) (ids, labels []string) {
+	return conversationViewOptionsPtr(&m)
+}
+
+func conversationViewOptionsPtr(m *Model) (ids, labels []string) {
 	ids = []string{"chat"}
 	labels = []string{i18n.T(i18n.KeyChatPaneTabChat)}
 	if !m.DisableDeveloperTools {

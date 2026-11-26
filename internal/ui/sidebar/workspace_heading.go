@@ -110,13 +110,17 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 			options.Children(func() {
 				ui.Icon(c, workspaceViewOptionsArtwork).Size(design.IconSM, design.IconSM).TextColor(optionsInk)
 			})
-			items, run := workspaceViewOptionsItems(m)
+			var items []coss.MenuItem
+			var run func(string)
+			if *menuOpen || options.Clicked() {
+				items, run = workspaceViewOptionsItems(m)
+			}
 			if chosen := coss.Menu(c, options, menuOpen, items, coss.MenuOptions{
 				Side:     coss.SideBottom,
 				Align:    coss.AlignEnd,
 				MinWidth: 200,
 				Label:    label,
-			}); chosen != "" {
+			}); chosen != "" && run != nil {
 				run(chosen)
 			}
 			if m.OnBrowseWorkspace != nil {

@@ -113,7 +113,7 @@ func paintVoiceControls(c *ui.Context, m Model, height float32) {
 			button(coss.IconNone, "microphone", i18n.T(i18n.KeyComposerVoiceInput), locked, m.OnStartVoice)
 		}
 	}
-	paintVoiceSetup(c, m)
+	paintVoiceSetup(c, &m)
 	if m.Voice.Phase == "recording" {
 		button(coss.IconPause, "■", i18n.T(i18n.KeyComposerVoiceStop), false, m.OnStopVoice)
 		paintVoiceClock(c, m, fg, muted)

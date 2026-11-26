@@ -38,7 +38,7 @@ func TestArchivedRowRestTimeHoverCardAndExplicitMenuActions(t *testing.T) {
 				t.Fatal("hover retained archived time under the menu button")
 			}
 			more, found := tt.Find(sessionActionsLabel(item.SessionID, item.Title))
-			if !found || more.W != 16 || more.H != 16 || more.X+more.W > float32(width-16) {
+			if !found || more.W != 24 || more.H != 24 || more.X+more.W > float32(width-16) {
 				t.Fatalf("hover action=%+v found%v", more, found)
 			}
 			tt.SetTime(start.Add(time.Second))

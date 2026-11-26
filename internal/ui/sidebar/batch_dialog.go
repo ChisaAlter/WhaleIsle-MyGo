@@ -13,15 +13,21 @@ import (
 // Batch confirmation belongs to the root, independent of the folded tree or
 // narrow rail. Targets are the Store's frozen request, never current choices.
 func batchDialog(c *ui.Context, m Model) {
+	batchDialogPtr(c, &m)
+}
+
+func batchDialogPtr(c *ui.Context, m *Model) {
 	b := m.Batch
 	if !b.Confirming && !b.Busy {
 		return
 	}
+	onCancel := m.OnBatchCancel
+	onConfirm := m.OnBatchConfirm
 	t := tok(c)
 	open := true
 	cancel := func() {
-		if !b.Busy && m.OnBatchCancel != nil {
-			m.OnBatchCancel(b.Token)
+		if !b.Busy && onCancel != nil {
+			onCancel(b.Token)
 		}
 	}
 	countStr := strconv.Itoa(len(b.Targets))
@@ -59,11 +65,11 @@ func batchDialog(c *ui.Context, m Model) {
 			if coss.Button(c, workspaceText("确认批量操作", "Confirm batch"), coss.ButtonOptions{
 				Variant:  confirmVariant,
 				Size:     coss.ButtonMD,
-				Disabled: b.Busy || !b.Confirming || m.OnBatchConfirm == nil,
+				Disabled: b.Busy || !b.Confirming || onConfirm == nil,
 				Loading:  b.Busy,
 				Key:      "batch-dialog-confirm",
-			}).Tooltip(actionTip).MinWidth(88).Clicked() && !b.Busy && b.Confirming && m.OnBatchConfirm != nil {
-				m.OnBatchConfirm(b.Token)
+			}).Tooltip(actionTip).MinWidth(88).Clicked() && !b.Busy && b.Confirming && onConfirm != nil {
+				onConfirm(b.Token)
 			}
 		},
 	}, func() {

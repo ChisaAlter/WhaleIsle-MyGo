@@ -7,24 +7,37 @@ import (
 	"whaleisle/internal/ui/composer"
 )
 
-func cancelCapturedResponse(m Model, snap session.ViewState) {
-	live := m.Store.Published().Value
+func cancelCapturedResponseStore(store *session.Store, snap session.ViewState) {
+	if store == nil {
+		return
+	}
+	live := store.Published().Value
 	// Bind both keyboard regions and the button to their captured session. A
 	// replacement turn, follow or Host must not inherit the previous gesture.
 	if live.SelectedID != snap.SelectedID || live.ComposerHostGeneration != snap.ComposerHostGeneration || live.StopGeneration != snap.StopGeneration || live.StopTurnSeq != snap.StopTurnSeq {
 		return
 	}
-	m.Store.CancelSession(context.Background(), snap.SelectedID)
+	store.CancelSession(context.Background(), snap.SelectedID)
 }
 
-func bindChatStopRegion(area ui.Element, m Model, snap session.ViewState) {
+func cancelCapturedResponse(m Model, snap session.ViewState) {
+	cancelCapturedResponseStore(m.Store, snap)
+}
+
+func bindChatStopRegion(area ui.Element, m *Model, snap session.ViewState) {
 	client := m.ComposerTextInput
 	if client == nil && m.ComposerState != nil {
 		client = m.ComposerState.Client
 	}
-	composer.BindStopRegion(area, client, composer.Model{Snapshot: snap, StopBlocked: hasPendingStopInteraction(m.Interactions, snap.SelectedID), OnStop: func() {
-		if !hasPendingStopInteraction(m.Interactions, snap.SelectedID) {
-			cancelCapturedResponse(m, snap)
+	if client == nil {
+		return
+	}
+	store := m.Store
+	interactions := m.Interactions
+	selectedID := snap.SelectedID
+	composer.BindStopRegion(area, client, composer.Model{Snapshot: snap, StopBlocked: hasPendingStopInteraction(interactions, selectedID), OnStop: func() {
+		if !hasPendingStopInteraction(interactions, selectedID) {
+			cancelCapturedResponseStore(store, snap)
 		}
 	}}, true)
 }

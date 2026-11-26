@@ -16,8 +16,12 @@ func archiveText(zh, en string) string {
 	return i18n.Pick(zh, en)
 }
 
-func archiveConfirmation(c *ui.Context, m Model) {
-	request := m.Store.ArchiveConfirmation()
+func archiveConfirmation(c *ui.Context, m *Model) {
+	if m.Store == nil {
+		return
+	}
+	store := m.Store
+	request := store.ArchiveConfirmation()
 	if request == nil {
 		return
 	}
@@ -29,24 +33,26 @@ func archiveConfirmation(c *ui.Context, m Model) {
 	if request.Busy {
 		confirmLabel = archiveText("正在停止并归档…", "Stopping and archiving…")
 	}
+	token := request.Token
+	busy := request.Busy
 	coss.AlertDialog(c, &open, coss.DialogOptions{
 		Title:           title,
 		Description:     desc,
 		MaxWidth:        480,
-		DismissDisabled: request.Busy,
+		DismissDisabled: busy,
 		FooterVariant:   coss.FooterBare,
 		Footer: func() {
 			if coss.Button(c, archiveText("取消", "Cancel"), coss.ButtonOptions{
 				Variant:  coss.ButtonOutline,
-				Disabled: request.Busy,
+				Disabled: busy,
 			}).Clicked() {
-				m.Store.CancelArchive(request.Token)
+				store.CancelArchive(token)
 			}
 			if coss.Button(c, confirmLabel, coss.ButtonOptions{
 				Variant:  coss.ButtonDestructive,
-				Disabled: request.Busy,
+				Disabled: busy,
 			}).Clicked() {
-				m.Store.ConfirmArchive(context.Background(), request.Token)
+				store.ConfirmArchive(context.Background(), token)
 			}
 		},
 	}, func() {
@@ -60,8 +66,8 @@ func archiveConfirmation(c *ui.Context, m Model) {
 			}
 		})
 	})
-	if !open && !request.Busy {
-		m.Store.CancelArchive(request.Token)
+	if !open && !busy {
+		store.CancelArchive(token)
 	}
 }
 

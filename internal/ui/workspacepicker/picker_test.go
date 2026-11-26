@@ -1,15 +1,22 @@
 package workspacepicker
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -228,9 +235,116 @@ func TestDeleteWorkspaceModalParity(t *testing.T) {
 	if tt.HasText("移除工作区注册？") || tt.HasText("移除注册") {
 		t.Fatal("delete workspace modal retained legacy non-parity strings")
 	}
-	cancelBtn, ok := tt.Find("取消")
-	if !ok || cancelBtn.H != 36 {
+	if cancelBtn, ok := tt.Find("取消"); !ok || cancelBtn.H != 36 {
 		t.Fatalf("cancel button geometry=%+v ok=%v (want height 36)", cancelBtn, ok)
+	}
+}
+
+func TestPickerAndManagementErrorsLocalizedNeverRaw(t *testing.T) {
+	rawErr := "Workspace is no longer registered: backend 500 ECONNREFUSED"
+	for _, locale := range []string{i18n.LocaleZH, i18n.LocaleEN} {
+		i18n.SetLocale(locale)
+		store := session.New()
+		snap := session.ViewState{
+			WorkspaceReady: true,
+			Workspaces:     []session.WorkspaceRow{{WorkspaceID: "one", Title: "Alpha", Path: "/host/one"}},
+		}
+		// pickMenu must not paint raw Host error
+		ttPick := ui.NewTester(func(c *ui.Context) {
+			anchor := ui.Button(c, "Chip").Height(32)
+			pickMenu(c, Model{Store: store, Anchor: anchor}, snap, &session.WorkspaceNavigationState{Token: 1, Mode: "pick", Error: rawErr}, theme.Resolve("system").Light)
+		}, 500, 360)
+		if ttPick.HasText(rawErr) || ttPick.HasText("ECONNREFUSED") {
+			t.Fatalf("locale=%s pickMenu leaked raw error: %v", locale, ttPick.Texts())
+		}
+		// managementDialog (rename & remove) must not paint raw Host error
+		for _, mode := range []string{"rename", "remove"} {
+			ttMgmt := ui.NewTester(func(c *ui.Context) {
+				managementDialog(c, Model{Store: store}, snap, &session.WorkspaceNavigationState{Token: 2, Mode: mode, TargetID: "one", TargetTitle: "Alpha", Draft: "Alpha", Error: rawErr}, theme.Resolve("system").Dark)
+			}, 500, 360)
+			if ttMgmt.HasText(rawErr) || ttMgmt.HasText("ECONNREFUSED") {
+				t.Fatalf("locale=%s managementDialog(%s) leaked raw error: %v", locale, mode, ttMgmt.Texts())
+			}
+		}
+	}
+	i18n.SetLocale(i18n.DefaultLocale)
+}
+
+func BenchmarkWorkspacePicker8000Messages(b *testing.B) {
+	var events strings.Builder
+	events.WriteString(`{"type":"snapshot","records":[`)
+	for i := 1; i <= 8000; i++ {
+		if i > 1 {
+			events.WriteByte(',')
+		}
+		fmt.Fprintf(&events, `{"type":"event","event":{"seq":%d,"time":%d,"type":"assistant/message","data":{"turn":%d,"step":1,"message":{"id":"msg-%d","content":[{"type":"text","text":"Representative assistant message %d"}]}}}}`, i, 1700000000000+i, i, i, i)
+	}
+	events.WriteString(`]}`)
+	sessionBaseline := json.RawMessage(events.String())
+	wsBaseline := json.RawMessage(`{"type":"baseline","value":{"items":[{"workspaceId":"a","path":"/host/a","title":"Workspace A","sessionIds":["sess-bench"]},{"workspaceId":"b","path":"/host/b","title":"Workspace B","sessionIds":[]}],"scratchCwd":"/host/scratch","pinnedSessionIds":[],"archivedSessionIds":[]}}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == dsh.MuxPath {
+			conn, err := websocket.Accept(w, r, nil)
+			if err != nil {
+				return
+			}
+			defer conn.CloseNow()
+			for {
+				var frame dsh.ClientFrame
+				if wsjson.Read(r.Context(), conn, &frame) != nil {
+					return
+				}
+				if frame.Type != dsh.FrameOpen {
+					continue
+				}
+				switch frame.Endpoint {
+				case "workspace/follow":
+					_ = wsjson.Write(r.Context(), conn, dsh.ServerFrame{Type: dsh.FrameItem, StreamID: frame.StreamID, Value: wsBaseline})
+				case "session/follow":
+					_ = wsjson.Write(r.Context(), conn, dsh.ServerFrame{Type: dsh.FrameItem, StreamID: frame.StreamID, Value: sessionBaseline})
+				}
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"type":"server-response","rpcId":"1","result":{"ok":true,"value":{"items":[]}}}`))
+	}))
+	store := session.New()
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: server.URL}, HTTP: server.Client()}
+	mux := &dsh.Mux{Endpoint: client.Endpoint}
+	ctx, cancel := context.WithCancel(context.Background())
+	b.Cleanup(func() {
+		cancel()
+		store.Detach()
+		_ = mux.Close()
+		server.Close()
+	})
+	store.Select("sess-bench")
+	store.Attach(client, nil)
+	store.AttachMux(mux)
+	store.FollowWorkspace(ctx)
+	store.FollowSelected(ctx)
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		v := store.Published().Value
+		if v.WorkspaceReady && len(v.Messages) >= 8000 {
+			break
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	if got := len(store.Published().Value.Messages); got < 8000 {
+		b.Fatalf("expected >=8000 messages loaded, got %d", got)
+	}
+	store.OpenWorkspacePicker()
+	tt := ui.NewTester(func(c *ui.Context) {
+		anchor := ui.Button(c, "Chip").Height(32)
+		View(c, Model{Store: store, Anchor: anchor})
+	}, 640, 480)
+	tt.Frame()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tt.Frame()
 	}
 }
 

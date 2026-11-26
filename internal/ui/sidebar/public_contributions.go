@@ -20,7 +20,7 @@ func sidebarPanelRows(m Model) []nativePanelRow {
 	if m.OnOpenAssistant != nil {
 		rows = append(rows, nativePanelRow{id: "whale", active: "assistant", label: whaleAssistantNavLabel(m), run: m.OnOpenAssistant})
 	}
-	if m.OnOpenPlugin != nil {
+	if onOpen := m.OnOpenPlugin; onOpen != nil {
 		for _, plugin := range m.PluginEntries {
 			id, label := plugin.ID, plugin.Label
 			if id == "" || label == "" {
@@ -30,7 +30,7 @@ func sidebarPanelRows(m Model) []nativePanelRow {
 				id:     "plugin:" + id,
 				active: "plugin:" + id,
 				label:  label,
-				run:    func() { m.OnOpenPlugin(id) },
+				run:    func() { onOpen(id) },
 			})
 		}
 	}

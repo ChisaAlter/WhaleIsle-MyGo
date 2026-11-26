@@ -87,11 +87,15 @@ type groupedVirtualRow struct {
 }
 
 func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, border ui.Color) {
+	workspaceRowsViewPtr(c, &m, items, fg, muted, border)
+}
+
+func workspaceRowsViewPtr(c *ui.Context, m *Model, items []session.Item, fg, muted, border ui.Color) {
 	if m.schedulesBySession == nil && len(m.Schedules.Rows) > 0 {
 		m.schedulesBySession = buildActiveScheduleMap(m.Schedules)
 	}
-	groups := visibleWorkspaceGroups(m, items)
-	highlights := workspaceGroupHighlights(m, groups)
+	groups := visibleWorkspaceGroups(*m, items)
+	highlights := workspaceGroupHighlights(*m, groups)
 	layout := m.Snapshot.WorkspaceLayout
 	owners := session.WorkspaceSessionOwnersForView(m.Snapshot, items)
 	workspaceTitles := make(map[string]string, len(m.Snapshot.Workspaces))
@@ -99,7 +103,8 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 		workspaceTitles[workspace.WorkspaceID] = session.WorkspaceDisplayTitle(workspace.Title, workspace.Path)
 	}
 	var prevByWorkspace map[string]map[string]string
-	if m.OnMoveWorkspaceSessionBefore != nil {
+	onMoveWorkspaceSessionBefore := m.OnMoveWorkspaceSessionBefore
+	if onMoveWorkspaceSessionBefore != nil {
 		prevByWorkspace = make(map[string]map[string]string, len(m.Snapshot.Workspaces))
 		for _, ws := range m.Snapshot.Workspaces {
 			if len(ws.SessionIDs) <= 1 {
@@ -112,7 +117,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			prevByWorkspace[ws.WorkspaceID] = mPrev
 		}
 	}
-	workspaceRowsStatus(c, m, fg)
+	workspaceRowsStatus(c, *m, fg)
 	flatHost := len(groups) == 1 && groups[0].Kind == "flat"
 	list := ui.Column(c.Key("workspace-drop-list")).FillWidth().Gap(design.Sp(0.5))
 	if m.sidebarBodyFill {
@@ -120,13 +125,13 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 	} else {
 		list.Shrink(0)
 	}
-	m = workspaceDragModel(list, m)
-	hoverState := workspaceHoverGroup(c, list, m)
+	*m = workspaceDragModel(list, *m)
+	hoverState := workspaceHoverGroup(c, list, *m)
 	hoverAnchors := make([]workspaceHoverAnchor, 0, len(groups))
 
 	renderSessionRow := func(rc *ui.Context, g session.WorkspaceGroup, rows []session.WorkspaceSessionRow, r session.WorkspaceSessionRow) ui.Element {
 		local := g.Kind == "flat" || g.Kind == "scratch" || g.Kind == "other"
-		rowModel := m
+		rowModel := *m
 		rowModel.OnMoveSessionBefore = nil
 		rowModel.sessionDrag = nil
 		rowModel.pinnedSection = g.Kind == "pinned"
@@ -136,7 +141,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				rowModel.sessionContext = workspaceText("无工作目录", "No working directory")
 			}
 		}
-		if g.Kind == "workspace" && !m.Batch.Enabled && m.OnMoveWorkspaceSessionBefore != nil {
+		if g.Kind == "workspace" && !m.Batch.Enabled && onMoveWorkspaceSessionBefore != nil {
 			rowModel.sessionDrag = &sessionDragContext{Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
 		}
 		if local && !m.Batch.Enabled && m.OnMoveLocalSessionBefore != nil {
@@ -147,7 +152,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 		owner := owners[r.Item.SessionID]
 		if !local && g.Kind != "pinned" && owner != "" && prevByWorkspace != nil {
 			if previous, ok := prevByWorkspace[owner][r.Item.SessionID]; ok && previous != "" {
-				rowModel.OnMoveSessionBefore = func(id, _ string) { m.OnMoveWorkspaceSessionBefore(owner, id, previous) }
+				rowModel.OnMoveSessionBefore = func(id, _ string) { onMoveWorkspaceSessionBefore(owner, id, previous) }
 			}
 		}
 		depth := r.Depth
@@ -179,7 +184,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				block.Shrink(0)
 			}
 			block.Children(func() {
-				visible := visibleWorkspaceSessionRows(m, g)
+				visible := visibleWorkspaceSessionRows(*m, g)
 				rows := visible.Rows
 				flatLimit := ui.Local(block, workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "flat-limit"}, func() int { return flatSessionPageBase })
 				if *flatLimit < flatSessionPageBase {
@@ -220,7 +225,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 					if m.archiveExpanded != nil && *m.archiveExpanded {
 						capRatio = 0.52
 					}
-					capH := sidebarListMaxHeight(m, c, capRatio)
+					capH := sidebarListMaxHeight(*m, c, capRatio)
 					flatList := ui.List(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "flat-list"}), &flatState.list, len(rows)).
 						ItemKey(func(i int) any { return sessionRowKey{layout.HostGeneration, g.Key, rows[i].Item.SessionID} }).
 						FillWidth().MinWidth(0).Gap(design.Sp(0.5)).
@@ -258,7 +263,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				}
 			})
 		})
-		registerWorkspaceHover(c, m, list, hoverState, hoverAnchors)
+		registerWorkspaceHover(c, *m, list, hoverState, hoverAnchors)
 		return
 	}
 
@@ -299,12 +304,12 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			intrinsicH += 2
 		}
 		if collapsed {
-			resetWorkspaceWatermark(m, g.Key, groups)
+			resetWorkspaceWatermark(*m, g.Key, groups)
 			hiddenParents[g.Key] = true
 			continue
 		}
-		visible := visibleWorkspaceSessionRows(m, g)
-		retainWorkspaceWatermark(m, g.Key, visible.Watermark)
+		visible := visibleWorkspaceSessionRows(*m, g)
+		retainWorkspaceWatermark(*m, g.Key, visible.Watermark)
 		for _, r := range visible.Rows {
 			if revealID != "" && revealIdx < 0 && r.Item.SessionID == revealID {
 				revealIdx = len(vrows)
@@ -414,7 +419,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 							Label(workspaceText("工作区文件夹 ", "Workspace folder ") + g.Key)
 					})
 					if lead.Clicked() && m.OnToggleWorkspaceGroup != nil {
-						resetWorkspaceWatermark(m, g.Key, groups)
+						resetWorkspaceWatermark(*m, g.Key, groups)
 						m.OnToggleWorkspaceGroup(g.Key)
 					}
 					titleButton := coss.Button(rc, "", coss.ButtonOptions{
@@ -430,22 +435,22 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						}
 					})
 					if g.Kind == "workspace" && !layout.Reordering {
-						workspaceDragSource(titleButton, m, g.Key)
+						workspaceDragSource(titleButton, *m, g.Key)
 					}
 					if titleButton.Clicked() && m.OnToggleWorkspaceGroup != nil {
-						resetWorkspaceWatermark(m, g.Key, groups)
+						resetWorkspaceWatermark(*m, g.Key, groups)
 						m.OnToggleWorkspaceGroup(g.Key)
 					}
 					anchor.pressed = anchor.pressed || lead.Pressed() || titleButton.Pressed()
 					if g.Kind != "pinned" {
-						workspaceRowActions(rc, m, header, g, muted)
+						workspaceRowActions(rc, *m, header, g, muted)
 					}
 				})
 				if g.Kind == "workspace" && g.Workspace.CreatedAt != "" {
 					hoverAnchors = append(hoverAnchors, anchor)
 				}
 				if header.Clicked() && m.OnToggleWorkspaceGroup != nil {
-					resetWorkspaceWatermark(m, g.Key, groups)
+					resetWorkspaceWatermark(*m, g.Key, groups)
 					m.OnToggleWorkspaceGroup(g.Key)
 				}
 				spans[vr.spanIndex].include(header)
@@ -470,9 +475,9 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				slot.Children(func() {
 					if sidebarPaginationToggle(rc, "workspace-overflow/"+g.Key, label, accessible, muted) {
 						if vr.hidden == 0 {
-							resetWorkspaceWatermark(m, g.Key, nil)
+							resetWorkspaceWatermark(*m, g.Key, nil)
 						} else {
-							retainWorkspaceWatermark(m, g.Key, vr.watermark+workspaceWatermarkBase)
+							retainWorkspaceWatermark(*m, g.Key, vr.watermark+workspaceWatermarkBase)
 						}
 					}
 				})
@@ -498,7 +503,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if m.archiveExpanded != nil && *m.archiveExpanded {
 				capRatio = 0.52
 			}
-			capH := sidebarListMaxHeight(m, c, capRatio)
+			capH := sidebarListMaxHeight(*m, c, capRatio)
 			vlist := ui.List(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "workspace-vlist"}), &vstate.list, len(vrows)).
 				ItemKey(func(i int) any {
 					vr := vrows[i]
@@ -522,7 +527,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				renderVirtualRow(c, i)
 			}
 		}
-		workspaceDropVirtualGroupsTarget(list, m, spans, fg)
+		workspaceDropVirtualGroupsTarget(list, *m, spans, fg)
 	})
-	registerWorkspaceHover(c, m, list, hoverState, hoverAnchors)
+	registerWorkspaceHover(c, *m, list, hoverState, hoverAnchors)
 }

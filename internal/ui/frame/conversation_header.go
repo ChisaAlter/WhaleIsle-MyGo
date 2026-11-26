@@ -36,10 +36,7 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 	managed := conversationIsManaged(snap)
 	// The phone band floats the drawer's menu button over the band's leading
 	// edge (AppFrame .phoneMenu at 10,10 36x36), so the title clears it.
-	leftInset := design.Sp(5)
-	if m.Sizes != nil && m.Sizes.drawerMode() {
-		leftInset = design.Sp(12)
-	}
+	leftInset := m.Sizes.headerLeftInset()
 	// The caption owns the title and actions. View tabs are a separate,
 	// non-draggable row, independent of compact title actions.
 	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionContent).Padding(0, rightInset, 0, leftInset).AlignItems(ui.Center).DragWindow().Children(func() {

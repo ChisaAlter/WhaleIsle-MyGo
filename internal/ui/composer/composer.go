@@ -394,9 +394,12 @@ func View(c *ui.Context, m Model) {
 		composerCardElevation(card, t, focused, inputDisabled)
 		collapsedPill := m.Collapsed && !m.Hero && !inputDisabled
 		collapseP := CollapseProgress(c, card, collapsedPill)
+		prevFocused := ui.Local(card, "composer-collapse-prev-focused", func() bool { return false })
+		newlyFocused := focused && !*prevFocused
+		*prevFocused = focused
 		if collapsedPill {
 			card = card.Padding(design.Sp(0.5), 0, design.Sp(0.5), 0)
-			if (focused || card.Clicked()) && m.OnExpandCollapsed != nil {
+			if (newlyFocused || card.Clicked()) && m.OnExpandCollapsed != nil {
 				m.OnExpandCollapsed()
 			}
 		}
@@ -520,6 +523,9 @@ func View(c *ui.Context, m Model) {
 				fileDrag = area.FileDragOver() && strings.TrimSpace(m.WorkspaceRoot) != ""
 				if m.UseTextInputClient && m.TextInput != nil {
 					m.TextInput.syncFont(theme.FontForSkin(theme.RenderPreferences(), theme.ResolvedSkin(m.ThemeID, m.SystemDark), theme.SkinComposerFont))
+				}
+				if collapsedPill && (area.Pressed() || area.Clicked()) && m.OnExpandCollapsed != nil {
+					m.OnExpandCollapsed()
 				}
 			}
 			if collapsedPill {
@@ -664,7 +670,7 @@ func View(c *ui.Context, m Model) {
 					})
 				})
 			}
-			paintNativeCommandPopup(c, m, card)
+			paintNativeCommandPopup(c, &m, card)
 		})
 	})
 }
