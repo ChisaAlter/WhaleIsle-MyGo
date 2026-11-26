@@ -108,6 +108,7 @@ func (s *mainState) closeDirectoryPicker(win *mygo.Window) {
 	s.dirPickOpen = false
 	s.dirPickNewName, s.dirPickErr = "", ""
 	s.dirPickBrowser.PathDraft, s.dirPickBrowser.FolderDraft = nil, nil
+	s.dirPickBrowser.Creating = false
 	s.dirPickBrowser.CreateError = ""
 	s.dirPickBrowser.NativeBusy = false
 	remote := s.remoteMachines
@@ -138,6 +139,10 @@ type directoryScan struct {
 }
 
 func (s *mainState) beginDirectoryScan(sessions *session.Store, win *mygo.Window) *directoryScan {
+	return s.beginDirectoryScanIf(sessions, win, nil)
+}
+
+func (s *mainState) beginDirectoryScanIf(sessions *session.Store, win *mygo.Window, prepare func(*dirpick.BrowserState) bool) *directoryScan {
 	if sessions == nil {
 		return nil
 	}
@@ -150,9 +155,15 @@ func (s *mainState) beginDirectoryScan(sessions *session.Store, win *mygo.Window
 	if !s.dirPickOpen || s.dirPickHostGeneration != host {
 		return nil
 	}
+	if prepare != nil && !prepare(&s.dirPickBrowser) {
+		return nil
+	}
 	s.cancelDirectoryScanLocked()
 	ctx, cancel := context.WithCancel(s.lifecycleContextLocked())
 	s.dirPickCancel = cancel
+	if prepare != nil {
+		s.dirPickBrowser.Revision++
+	}
 	return &directoryScan{s, sessions, win, client, ctx, cancel, s.dirPickRequest, host, s.bootStatus.Generation}
 }
 
@@ -397,12 +408,20 @@ func (s *mainState) editDirectoryPath(sessions *session.Store, win *mygo.Window,
 	s.cancelDirectoryScanLocked()
 	s.dirPickBrowser.PathDraft = &draft
 	s.dirPickBrowser.PreviewSuspended = false
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(s.lifecycleContextLocked())
 	s.dirPickCancel = cancel
 	request, host := s.dirPickRequest, s.dirPickHostGeneration
 	s.mu.Unlock()
 	updateDirectoryWindow(win)
 	go func() {
+		defer func() {
+			s.mu.Lock()
+			if s.dirPickRequest == request {
+				s.dirPickCancel = nil
+			}
+			s.mu.Unlock()
+			cancel()
+		}()
 		timer := time.NewTimer(250 * time.Millisecond)
 		defer timer.Stop()
 		select {
@@ -451,21 +470,19 @@ func (s *mainState) createDirectoryPicker(sessions *session.Store, win *mygo.Win
 	if !directorypicker.SelectablePath(parent) || strings.TrimSpace(name) == "" {
 		return
 	}
-	s.mu.Lock()
-	creating := s.dirPickBrowser.Creating
-	s.mu.Unlock()
-	if creating {
-		return
-	}
-	op := s.beginDirectoryScan(sessions, win)
-	if op == nil {
-		return
-	}
-	op.commit(func(b *dirpick.BrowserState) {
+	op := s.beginDirectoryScanIf(sessions, win, func(b *dirpick.BrowserState) bool {
+		if b.Creating {
+			return false
+		}
 		b.Creating = true
 		b.CreateError = ""
 		b.FolderDraft = &name
+		return true
 	})
+	if op == nil {
+		return
+	}
+	updateDirectoryWindow(win)
 	go func() {
 		defer op.finish()
 		var created api.CreateDirectoryResult

@@ -7,7 +7,6 @@ import (
 	"log"
 	"sort"
 	"strings"
-	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -25,8 +24,8 @@ func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
 	// else (an OS error, a transport failure) goes to the log and the row keeps
 	// the catalogue's own sentence.
 	var shown *localizedError
-	if errors.As(err, &shown) {
-		s.notifyUser(win, errcopy.Sentence(shown))
+	if errors.As(err, &shown) && shown != nil {
+		s.notifyUser(win, shown.message)
 		return
 	}
 	log.Printf("task protection: %v", err)

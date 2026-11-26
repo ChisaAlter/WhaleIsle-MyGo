@@ -2,11 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"whaleisle/internal/desktop/sshremote"
 	"whaleisle/internal/ui/i18n"
@@ -191,5 +197,107 @@ func TestSSHConnectOperationOwnerReplacementAndQuit(t *testing.T) {
 			t.Fatal("lost owner still current")
 		}
 		op.run(sshConnectEffects{connect: func(context.Context) error { t.Fatal("stale operation connected"); return nil }})
+	}
+}
+
+func startLoopbackSSHServerForTest(t *testing.T) (host string, port int, password string) {
+	t.Helper()
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := ssh.NewSignerFromKey(priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const wantPass = "test-secret"
+	cfg := &ssh.ServerConfig{
+		PasswordCallback: func(_ ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
+			if string(pass) == wantPass {
+				return &ssh.Permissions{}, nil
+			}
+			return nil, errors.New("denied")
+		},
+	}
+	cfg.AddHostKey(signer)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			raw, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				sc, chans, reqs, err := ssh.NewServerConn(c, cfg)
+				if err != nil {
+					return
+				}
+				defer sc.Close()
+				go ssh.DiscardRequests(reqs)
+				for ch := range chans {
+					_ = ch.Reject(ssh.UnknownChannelType, "unused")
+				}
+			}(raw)
+		}
+	}()
+	h, pStr, err := net.SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := strconv.Atoi(pStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return h, p, wantPass
+}
+
+func TestFinalizeQuitCancelsSSHConnectAndDisconnectsTunnel(t *testing.T) {
+	host, port, pass := startLoopbackSSHServerForTest(t)
+	tunnel := sshremote.NewTunnelSession()
+	tunnel.SetKnownHostsFile(filepath.Join(t.TempDir(), "known_hosts"))
+	tunnel.SetHostKeyMode(sshremote.HostKeyOff)
+	tunnel.SetConfig(sshremote.TunnelConfig{
+		Host:     host,
+		Port:     port,
+		User:     "tester",
+		Password: pass,
+	})
+	if err := tunnel.Connect(context.Background()); err != nil {
+		t.Fatalf("connect test SSH tunnel: %v", err)
+	}
+	t.Cleanup(tunnel.Disconnect)
+
+	if _, st, _ := tunnel.Snapshot(); st != sshremote.TunnelConnected {
+		t.Fatalf("tunnel state before quit = %q, want %q", st, sshremote.TunnelConnected)
+	}
+
+	opCtx, opCancel := context.WithCancel(context.Background())
+	defer opCancel()
+	s := &mainState{
+		sshTunnel:        tunnel,
+		sshConnectEpoch:  1,
+		sshConnectCancel: opCancel,
+	}
+
+	s.finalizeQuit(nil)
+
+	if !errors.Is(opCtx.Err(), context.Canceled) {
+		t.Fatalf("finalizeQuit did not cancel in-flight SSH connect context: %v", opCtx.Err())
+	}
+	s.mu.Lock()
+	epoch := s.sshConnectEpoch
+	cancelFn := s.sshConnectCancel
+	s.mu.Unlock()
+	if epoch != 2 || cancelFn != nil {
+		t.Fatalf("finalizeQuit did not invalidate SSH connect state: epoch=%d cancel=%v", epoch, cancelFn != nil)
+	}
+	if _, st, _ := tunnel.Snapshot(); st != sshremote.TunnelIdle {
+		t.Fatalf("tunnel state after finalizeQuit = %q, want %q", st, sshremote.TunnelIdle)
 	}
 }

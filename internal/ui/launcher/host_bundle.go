@@ -1,7 +1,5 @@
 package launcher
 
-// 功能优先；全部功能完成前不运行测试、不做独立审查、不新增防御性扩展
-
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/components"

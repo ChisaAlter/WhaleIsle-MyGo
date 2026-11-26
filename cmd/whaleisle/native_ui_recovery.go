@@ -331,6 +331,7 @@ func handleNativeRecoveryProcess() bool {
 										stopErr = process.stopTree(os.Getpid())
 									}
 									if stopErr != nil {
+										log.Printf("native recovery: stop tree: %v", stopErr)
 										mu.Lock()
 										failure = errcopy.Sentence(stopErr)
 										recovering = false
@@ -351,8 +352,9 @@ func handleNativeRecoveryProcess() bool {
 									cmd := exec.Command(hello.Executable)
 									processutil.Background(cmd)
 									if err := cmd.Start(); err != nil {
+										log.Printf("native recovery: restart %q: %v", hello.Executable, err)
 										mu.Lock()
-										failure = fmt.Sprintf("Restart failed: %v", err)
+										failure = nativeRecoveryRestartFailure(err)
 										recovering = false
 										restarting = false
 										mu.Unlock()
@@ -608,6 +610,10 @@ func (s *mainState) startNativeUIRecovery(win *mygo.Window) {
 			}
 		}
 	}()
+}
+
+func nativeRecoveryRestartFailure(err error) string {
+	return errcopy.Under(lifecycleText("重启桌面", "Restarting the desktop"), err)
 }
 
 func nativeRecoveryExecutable() string { executable, _ := os.Executable(); return executable }

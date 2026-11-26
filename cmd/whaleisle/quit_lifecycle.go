@@ -102,7 +102,14 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	win := s.win
 	cancelPreparation := s.launcherStartCancel
 	cancelLifecycle := s.lifecycleCancel
+	s.invalidateSSHConnectLocked()
+	sshTunnel := s.sshTunnel
+	hasPet := s.desktopPet != nil
+	hasBrowser := s.browserController != nil
 	s.mu.Unlock()
+	if sshTunnel != nil {
+		sshTunnel.Disconnect()
+	}
 	if cancelLifecycle != nil {
 		cancelLifecycle()
 	}
@@ -126,20 +133,24 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	if err := desktopcomponents.ShutdownGeneric(paths.UserDataDir()); err != nil {
 		log.Println("Components shutdown:", err)
 	}
-	mygo.RunOnMain(func() {
-		if s.desktopPet != nil {
-			s.desktopPet.Close()
-		}
-	})
+	if hasPet {
+		mygo.RunOnMain(func() {
+			if s.desktopPet != nil {
+				s.desktopPet.Close()
+			}
+		})
+	}
 	s.stopPhoneRuntime()
 	s.closeWebViewHost()
 	s.stopDSH()
 	s.closeTerminal()
-	mygo.RunOnMain(func() {
-		if s.browserController != nil {
-			s.browserController.Close()
-		}
-	})
+	if hasBrowser {
+		mygo.RunOnMain(func() {
+			if s.browserController != nil {
+				s.browserController.Close()
+			}
+		})
+	}
 	// Native order (index.js:1434-1437): the window shows the closing layer
 	// before the local Harness service stops, and the paint can never hold the
 	// quit.
