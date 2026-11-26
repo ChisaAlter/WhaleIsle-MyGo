@@ -975,3 +975,64 @@ func TestWallpaperPrecedenceAndTransparentThemeContract(t *testing.T) {
 		t.Fatalf("expected glass theme off to enforce NoBackdrop and disable design glass: noBackdrop=%v glass=%v", renderpolicy.NoBackdrop(), design.GlassEnabled())
 	}
 }
+
+func TestLightGlassScrollbarTranslucentContract(t *testing.T) {
+	resetAppearanceGlobalsForTest(t)
+	applyMinimalMode(false)
+	applyGlassTheme(true)
+
+	cfg := minimalModeStore(t)
+	if err := cfg.Update(func(c *config.Config) {
+		c.Theme = theme.IDDeepseekLight
+		c.WallpaperPath = ""
+		on := true
+		c.GlassTheme = &on
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	if err := cfg.SaveWallpaperBackground(prefs); err != nil {
+		t.Fatal(err)
+	}
+	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekLight}
+
+	var gotRest, gotHover ui.Color
+	tt := ui.NewTester(func(c *ui.Context) {
+		s.beginAppearanceFrame(c)
+		defer s.endAppearanceFrame()
+		gotRest = c.Theme().Scrollbar
+		gotHover = c.Theme().ScrollbarHover
+	}, 200, 120)
+	tt.Frame()
+
+	wantRest := ui.RGBA(15, 17, 21, 0.18)
+	wantHover := ui.RGBA(15, 17, 21, 0.30)
+	if gotRest != wantRest || gotHover != wantHover {
+		t.Fatalf("light glass scrollbars = (%+v, %+v), want (%+v, %+v)", gotRest, gotHover, wantRest, wantHover)
+	}
+
+	// Dark glass keeps dark scrollbar colors instead of light neutral-bluish-1000.
+	s.themeID = theme.IDDeepseekDark
+	_ = cfg.Update(func(c *config.Config) { c.Theme = theme.IDDeepseekDark })
+	tt.Frame()
+	darkRest, darkHover := theme.ScrollbarColors(true)
+	if gotRest != chrome.Color(darkRest) || gotHover != chrome.Color(darkHover) {
+		t.Fatalf("dark glass scrollbars = (%+v, %+v), want (%+v, %+v)", gotRest, gotHover, chrome.Color(darkRest), chrome.Color(darkHover))
+	}
+
+	// Glass theme off under light scheme restores solid ScrollbarColors(false).
+	s.themeID = theme.IDDeepseekLight
+	_ = cfg.Update(func(c *config.Config) {
+		c.Theme = theme.IDDeepseekLight
+		off := false
+		c.GlassTheme = &off
+	})
+	applyGlassTheme(false)
+	tt.Frame()
+	lightRest, lightHover := theme.ScrollbarColors(false)
+	if gotRest != chrome.Color(lightRest) || gotHover != chrome.Color(lightHover) {
+		t.Fatalf("non-glass light scrollbars = (%+v, %+v), want (%+v, %+v)", gotRest, gotHover, chrome.Color(lightRest), chrome.Color(lightHover))
+	}
+}

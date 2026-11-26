@@ -177,6 +177,10 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	t.ScrollbarAlways = false
 	rest, hover := theme.ScrollbarColors(dark)
 	t.Scrollbar, t.ScrollbarHover = chrome.Color(rest), chrome.Color(hover)
+	if !dark && (design.GlassEnabled() || chrome.BackdropActive()) {
+		t.Scrollbar = ui.RGBA(15, 17, 21, 0.18)
+		t.ScrollbarHover = ui.RGBA(15, 17, 21, 0.30)
+	}
 	// Menus, select popups and popovers take the chrome's menu look: the
 	// raised fill at its material share over the wallpaper frost, the
 	// border-l1 hairline and the menu's inks (chrome.MenuStyle).
