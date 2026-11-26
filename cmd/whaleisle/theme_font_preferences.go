@@ -90,11 +90,15 @@ func (s *mainState) syncHostAppearance() {
 	}
 	s.mu.Lock()
 	previousScheme := s.themeID
-	// Only a Host document that carries wallpaperImage can override the local
-	// wallpaper; a seeded empty/default value keeps the flat base.
+	// Only a Host document that carries a wallpaperImage, or explicitly clears
+	// an earlier Host-provided wallpaper, overrides the local wallpaper; a
+	// seeded empty default preserves an existing local goWallpaperPath.
 	if h.WallpaperImageExplicit {
+		prevHostWallpaper := s.hostWallpaperImage
 		s.hostWallpaperImage = h.WallpaperImage
-		s.desktopDraft.wallpaperPath = h.WallpaperImage
+		if h.WallpaperImage != "" || prevHostWallpaper != "" {
+			s.desktopDraft.wallpaperPath = h.WallpaperImage
+		}
 	}
 	// The Host always reports a scheme (default "system"), so it cannot tell an
 	// explicit choice from its default: the configured theme wins until the user

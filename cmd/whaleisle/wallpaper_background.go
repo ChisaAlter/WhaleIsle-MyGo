@@ -48,7 +48,21 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 			}
 			// Host owns the image and its optimistic revision. Do not publish
 			// a local config mirror before that write is accepted.
-			return s.hostAppearance.ApplyWallpaper(path)
+			if err := s.hostAppearance.ApplyWallpaper(path); err != nil {
+				return err
+			}
+			if path == "" {
+				if s.cfgStore != nil {
+					if err := s.cfgStore.Update(func(cfg *config.Config) { cfg.WallpaperPath = "" }); err != nil {
+						return err
+					}
+				}
+				s.mu.Lock()
+				s.hostWallpaperImage = ""
+				s.desktopDraft.wallpaperPath = ""
+				s.mu.Unlock()
+			}
+			return nil
 		}
 		if err := s.cfgStore.Update(func(cfg *config.Config) { cfg.WallpaperPath = path }); err != nil {
 			return err
@@ -131,11 +145,7 @@ func (s *mainState) resolvedWallpaperPath(path string) string {
 }
 
 func (s *mainState) resolvedWallpaperPathFor(path string, prefs wallpapers.Preferences) string {
-	if s.hostAppearanceAccepted && s.hostAppearance != nil && s.hostAppearance.Snapshot().WallpaperImageExplicit {
-		path = s.hostWallpaperImage
-	} else {
-		path = wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
-	}
+	path = wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
 	if strings.TrimSpace(path) == "" {
 		p := theme.RenderPreferences()
 		// Theme.IsDark waits for the native app loop. Render-policy callers can
