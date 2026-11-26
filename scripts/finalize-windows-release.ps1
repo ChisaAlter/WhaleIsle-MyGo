@@ -8,6 +8,106 @@ param(
     [switch]$Development
 )
 $ErrorActionPreference = 'Stop'
+
+function Unquote-RDNValue {
+    param([string]$Value)
+    $s = $Value.Trim()
+    if ($s.Length -ge 2 -and $s.StartsWith('"') -and $s.EndsWith('"')) {
+        $s = $s.Substring(1, $s.Length - 2)
+    }
+    $sb = New-Object System.Text.StringBuilder $s.Length
+    for ($i = 0; $i -lt $s.Length; $i++) {
+        if ($s[$i] -eq '\' -and ($i + 1) -lt $s.Length) {
+            $i++
+            [void]$sb.Append($s[$i])
+            continue
+        }
+        [void]$sb.Append($s[$i])
+    }
+    return $sb.ToString().Trim()
+}
+
+function Split-RDNToken {
+    param([string]$Token)
+    $eq = $Token.IndexOf('=')
+    if ($eq -le 0) {
+        return @{ HasKey = $false; Key = ''; Val = (Unquote-RDNValue $Token) }
+    }
+    $key = $Token.Substring(0, $eq).Trim()
+    if ($key -notmatch '^[A-Za-z0-9.]+$') {
+        return @{ HasKey = $false; Key = ''; Val = (Unquote-RDNValue $Token) }
+    }
+    $val = Unquote-RDNValue $Token.Substring($eq + 1)
+    return @{ HasKey = $true; Key = $key.ToUpperInvariant(); Val = $val }
+}
+
+function Parse-PublisherTokens {
+    param([string]$Raw)
+    $parts = New-Object System.Collections.Generic.List[string]
+    $sb = New-Object System.Text.StringBuilder
+    $inQuotes = $false
+    $escaped = $false
+    for ($i = 0; $i -lt $Raw.Length; $i++) {
+        $c = $Raw[$i]
+        if ($escaped) {
+            [void]$sb.Append('\')
+            [void]$sb.Append($c)
+            $escaped = $false
+            continue
+        }
+        if ($c -eq '\') {
+            $escaped = $true
+            continue
+        }
+        if ($c -eq '"') {
+            $inQuotes = -not $inQuotes
+            [void]$sb.Append($c)
+            continue
+        }
+        if (-not $inQuotes -and ($c -eq ',' -or $c -eq ';')) {
+            $parts.Add($sb.ToString())
+            $sb.Length = 0
+            continue
+        }
+        [void]$sb.Append($c)
+    }
+    if ($escaped) {
+        [void]$sb.Append('\')
+    }
+    $parts.Add($sb.ToString())
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($part in $parts) {
+        $trimmed = $part.Trim()
+        if ($trimmed -eq '') { continue }
+        $out.Add((Split-RDNToken $trimmed))
+    }
+    return ,$out.ToArray()
+}
+
+function Test-PublisherMatches {
+    param([string]$Publisher, [string]$Expected)
+    $pub = if ($null -eq $Publisher) { '' } else { $Publisher.Trim() }
+    $exp = if ($null -eq $Expected) { '' } else { $Expected.Trim() }
+    if ($pub -eq '' -or $exp -eq '') { return $false }
+    $tokens = Parse-PublisherTokens $pub
+    $expTok = Split-RDNToken $exp
+    if ($expTok.HasKey) {
+        foreach ($tok in $tokens) {
+            if ($tok.Key -eq $expTok.Key -and [string]::Equals($tok.Val, $expTok.Val, [StringComparison]::OrdinalIgnoreCase)) {
+                return $true
+            }
+        }
+        return $false
+    }
+    $allowedKeys = @('', 'CN', 'O', 'AUTHORITY', 'TEAMID')
+    foreach ($tok in $tokens) {
+        if ($allowedKeys -contains $tok.Key -and [string]::Equals($tok.Val, $exp, [StringComparison]::OrdinalIgnoreCase)) {
+            return $true
+        }
+    }
+    return $false
+}
+
 $installerPath = (Get-Item -LiteralPath $Installer -ErrorAction Stop).FullName
 if ($SigningScript) {
     $signer = (Get-Item -LiteralPath $SigningScript -ErrorAction Stop).FullName
@@ -23,7 +123,7 @@ if ($signatureRequired) {
     if ($signature.Status -ne 'Valid') {
         throw "Release finalization requires a valid Authenticode signature ($($signature.Status)). Supply WHALEISLE_SIGNING_SCRIPT or sign this retained installer, then rerun finalize-windows-release.ps1: $installerPath"
     }
-    if ($ExpectedPublisher -and $signature.SignerCertificate.Subject.IndexOf($ExpectedPublisher, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+    if ($ExpectedPublisher -and -not (Test-PublisherMatches -Publisher $signature.SignerCertificate.Subject -Expected $ExpectedPublisher)) {
         throw 'Installer publisher does not match WHALEISLE_UPDATE_PUBLISHER.'
     }
 }

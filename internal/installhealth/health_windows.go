@@ -348,6 +348,28 @@ func stopCandidate(job, process windows.Handle) error {
 	return errors.New("installation-health job still contains processes; synthetic profile retained")
 }
 
+func winLongPath(p string) string {
+	if p == "" {
+		return ""
+	}
+	if strings.HasPrefix(p, `\\?\`) || strings.HasPrefix(p, `\\.\`) {
+		return p
+	}
+	abs := filepath.Clean(p)
+	if !filepath.IsAbs(abs) {
+		if resolved, err := filepath.Abs(abs); err == nil {
+			abs = resolved
+		}
+	}
+	if strings.HasPrefix(abs, `\\`) {
+		return `\\?\UNC\` + strings.TrimPrefix(abs, `\\`)
+	}
+	if len(abs) >= 2 && abs[1] == ':' {
+		return `\\?\` + abs
+	}
+	return abs
+}
+
 func removeOwnedProfile(root string) error {
 	if filepath.Base(root) == "." || !strings.HasPrefix(filepath.Base(root), "whaleisle-install-health-") {
 		return errors.New("invalid owned health profile")
@@ -355,7 +377,7 @@ func removeOwnedProfile(root string) error {
 	// Explicit no-follow traversal: junctions are unlinked, never enumerated.
 	var remove func(string) error
 	remove = func(path string) error {
-		p, err := windows.UTF16PtrFromString(path)
+		p, err := windows.UTF16PtrFromString(winLongPath(path))
 		if err != nil {
 			return err
 		}

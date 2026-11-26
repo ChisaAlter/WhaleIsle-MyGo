@@ -29,10 +29,11 @@ const hostLogFlushEvery = 250 * time.Millisecond
 // accepts is offered to a bounded channel; a single goroutine owns the file
 // and the buffer so disk latency never reaches the supervisor.
 type hostLogSink struct {
-	path    string
-	queue   chan string
-	done    chan struct{}
-	dropped atomic.Int64
+	path         string
+	queue        chan string
+	done         chan struct{}
+	dropped      atomic.Int64
+	timerFlushes atomic.Int64
 }
 
 // newHostLogSink opens the log file for pid under dir and starts draining.
@@ -97,8 +98,32 @@ func (k *hostLogSink) drain(f *os.File, capBytes int64) {
 	defer close(k.done)
 	defer f.Close()
 	w := bufio.NewWriterSize(f, 64*1024)
-	flush := time.NewTicker(hostLogFlushEvery)
-	defer flush.Stop()
+	var flushTimer *time.Timer
+	var flushC <-chan time.Time
+	stopFlush := func() {
+		if flushTimer == nil {
+			return
+		}
+		if !flushTimer.Stop() {
+			select {
+			case <-flushTimer.C:
+			default:
+			}
+		}
+		flushC = nil
+	}
+	defer stopFlush()
+	armFlush := func() {
+		if flushC != nil {
+			return
+		}
+		if flushTimer == nil {
+			flushTimer = time.NewTimer(hostLogFlushEvery)
+		} else {
+			flushTimer.Reset(hostLogFlushEvery)
+		}
+		flushC = flushTimer.C
+	}
 	var written int64
 	truncated := false
 	write := func(line string) {
@@ -133,8 +158,11 @@ func (k *hostLogSink) drain(f *os.File, capBytes int64) {
 			}
 			write(line)
 			reportDrops()
-		case <-flush.C:
+			armFlush()
+		case <-flushC:
+			flushC = nil
 			w.Flush()
+			k.timerFlushes.Add(1)
 		}
 	}
 }

@@ -261,3 +261,22 @@ test('real HTTP shell rejects bootstrap and legacy bearer while the SPA stays av
     f.send({action:'stop'});await settle();
   }
 });
+
+test('idle snapshot ticks with unchanged state emit zero redundant events', async () => {
+  const f = fixture();
+  start(f); await settle(); f.ready(); await settle();
+  const countAfterReady = f.events.length;
+  assert.ok(countAfterReady >= 1);
+  // Repeated ticks with identical remote.snapshot() must not churn stdout.
+  f.tick(); f.tick(); f.tick();
+  assert.equal(f.events.length, countAfterReady, 'idle ticks emitted redundant unchanged snapshots');
+  // Changing the offer URL must immediately emit a fresh snapshot on the next tick.
+  const nextUrl = 'https://example.test/#offer=' + Buffer.from(JSON.stringify({
+    v: 2, authBootstrap: {expiresAtMs: Date.now() + 90_000, pairingToken: 'rotated'},
+  })).toString('base64url');
+  f.setPairingUrl(nextUrl);
+  f.tick();
+  assert.equal(f.events.length, countAfterReady + 1);
+  assert.equal(f.events.at(-1).url, nextUrl);
+  f.send({action: 'stop'}); await settle();
+});

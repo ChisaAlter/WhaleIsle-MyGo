@@ -9,7 +9,13 @@ import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const finalize=path.join(root,'scripts/finalize-windows-release.ps1');
 const psQuote=s=>"'"+s.replaceAll("'","''")+"'";
-function run(script){return spawnSync('pwsh',['-NoProfile','-Command',script],{cwd:root,encoding:'utf8',windowsHide:true});}
+function run(script){
+ const res=spawnSync('pwsh',['-NoProfile','-Command',script],{cwd:root,encoding:'utf8',windowsHide:true});
+ if(res.error&&res.error.code==='ENOENT'){
+  return spawnSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-Command',script],{cwd:root,encoding:'utf8',windowsHide:true});
+ }
+ return res;
+}
 
 test('explicit signature requirement retains unsigned candidate without metadata', {skip:process.platform!=='win32'},()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'whale-finalize-'));
@@ -53,4 +59,39 @@ test('final metadata describes bytes after signer and repeated finalization', {s
   }
   assert.deepEqual(fs.readdirSync(dir).sort(),['SHA256SUMS.txt','candidate.exe','candidate.exe.blockmap.json','signer.ps1']);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('RDN publisher matching rejects forged substrings/cross-RDN subjects and package.ps1 forwards ExpectedPublisher', {skip:process.platform!=='win32'},()=>{
+ const cases = [
+  ['CN=WhaleIsle, O=WhaleIsle Inc, C=US', 'WhaleIsle', true],
+  ['CN=WhaleIsle, O=WhaleIsle Inc, C=US', 'CN=WhaleIsle', true],
+  ['CN=WhaleIsle, O=WhaleIsle Inc, C=US', 'O=WhaleIsle Inc', true],
+  ['CN="WhaleIsle, Inc.", O=Test', 'WhaleIsle, Inc.', true],
+  ['OU=WhaleIsle, CN=Other Corp', 'WhaleIsle', false],
+  ['CN=NotWhaleIsleCorp, O=Other', 'WhaleIsle', false],
+  ['O=WhaleIsle, CN=Other', 'CN=WhaleIsle', false],
+  ['L=WhaleIsle, CN=Attacker', 'WhaleIsle', false],
+ ];
+ const loadAndRun = `
+$tokens = $null; $errs = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile(${psQuote(finalize)}, [ref]$tokens, [ref]$errs)
+if ($errs.Count -gt 0) { throw "Parse errors: $($errs -join '; ')" }
+$fns = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)
+foreach ($fn in $fns) { Invoke-Expression $fn.Extent.Text }
+$cases = ConvertFrom-Json ${psQuote(JSON.stringify(cases))}
+foreach ($c in $cases) {
+  $got = Test-PublisherMatches -Publisher $c[0] -Expected $c[1]
+  if ([bool]$got -ne [bool]$c[2]) {
+    throw "Mismatch for subject='$($c[0])' expected='$($c[1])': got=$got want=$($c[2])"
+  }
+}
+Write-Output 'RDN_OK'
+`;
+ const result = run(loadAndRun);
+ assert.equal(result.status, 0, result.stdout + result.stderr);
+ assert.match(result.stdout, /RDN_OK/);
+
+ const pkgSrc = fs.readFileSync(path.join(root, 'scripts/package.ps1'), 'utf8');
+ assert.match(pkgSrc, /\[string\]\$ExpectedPublisher\s*=\s*\$env:WHALEISLE_UPDATE_PUBLISHER/);
+ assert.match(pkgSrc, /finalize-windows-release\.ps1'.*-ExpectedPublisher\s+\$ExpectedPublisher/);
 });

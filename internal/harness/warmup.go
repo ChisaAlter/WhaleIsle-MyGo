@@ -61,23 +61,13 @@ type warmupRun struct {
 }
 
 // warmRuntimeTree starts the read-ahead for one runtime vendor directory and
-// returns nil when it is disabled, the tree is missing, or the tree answers from
-// the file cache already (every start after the first one).
+// returns nil when it is disabled or empty. The cold-cache probe runs inside
+// the background goroutine so it never blocks Host port selection or spawn.
 func warmRuntimeTree(vendorDir string) *warmupRun {
 	if vendorDir == "" || warmupDisabled() {
 		return nil
 	}
-	if st, err := os.Stat(vendorDir); err != nil || !st.IsDir() {
-		return nil
-	}
-	cold, probe := warmCacheCold(vendorDir)
-	startuptrace.Mark("runtime.warmup.gate", "cold="+strconv.FormatBool(cold)+
-		" probeUs="+strconv.FormatInt(probe.Microseconds(), 10))
-	if !cold {
-		return nil
-	}
 	w := &warmupRun{cancel: make(chan struct{}), done: make(chan struct{}), started: time.Now()}
-	startuptrace.Mark("runtime.warmup.started", vendorDir)
 	go w.run(vendorDir)
 	return w
 }
@@ -87,16 +77,30 @@ func warmRuntimeTree(vendorDir string) *warmupRun {
 // on-access scan); a cached tree answers in microseconds. Sampling keeps every
 // warm start free of the read-ahead's background I/O.
 func warmCacheCold(vendorDir string) (bool, time.Duration) {
+	return warmCacheColdCancel(vendorDir, nil)
+}
+
+func warmCacheColdCancel(vendorDir string, cancel <-chan struct{}) (bool, time.Duration) {
 	paths := warmSamplePaths(vendorDir)
 	if len(paths) < 4 {
 		return false, 0
 	}
 	buf := make([]byte, 64<<10)
 	start := time.Now()
+	read := 0
 	for _, path := range paths {
+		select {
+		case <-cancel:
+			return false, 0
+		default:
+		}
 		_, _ = readThrough(path, buf)
+		read++
 	}
-	per := time.Since(start) / time.Duration(len(paths))
+	if read == 0 {
+		return false, 0
+	}
+	per := time.Since(start) / time.Duration(read)
 	return per > 2*time.Millisecond, per
 }
 
@@ -161,6 +165,21 @@ func (w *warmupRun) Stop() {
 
 func (w *warmupRun) run(vendorDir string) {
 	defer close(w.done)
+	if st, err := os.Stat(vendorDir); err != nil || !st.IsDir() {
+		return
+	}
+	select {
+	case <-w.cancel:
+		return
+	default:
+	}
+	cold, probe := warmCacheColdCancel(vendorDir, w.cancel)
+	startuptrace.Mark("runtime.warmup.gate", "cold="+strconv.FormatBool(cold)+
+		" probeUs="+strconv.FormatInt(probe.Microseconds(), 10))
+	if !cold {
+		return
+	}
+	startuptrace.Mark("runtime.warmup.started", vendorDir)
 	paths := collectWarmPaths(vendorDir, w.cancel)
 	if len(paths) == 0 {
 		return

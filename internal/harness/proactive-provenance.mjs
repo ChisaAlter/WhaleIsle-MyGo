@@ -47,16 +47,22 @@ export function installRuntimeProvenance(proto){
 const root=process.env.DSH_HARNESS_ROOT;
 if(root){
   const load=target=>import(pathToFileURL(realpathSync(target)).href);
-  for(const [relative,source] of [
+  const targets=[
     ['packages/fs/tool-fs/lib/index.js','harness:fs'],
     ['packages/fs/tool-fs-search/lib/index.js','harness:fs-search'],
-  ]){
-    const module=await load(path.join(root,relative));registerKnownToolCallback(module.apply,source);
-  }
+  ];
   const acp=path.join(root,'..','dsh-acp','lib','index.js');
-  if(existsSync(acp))registerKnownToolCallback((await load(acp)).apply,'desktop:acp');
-  const {ToolRuntime}=await load(path.join(root,'packages/core/tools/lib/index.js'));
-  installRuntimeProvenance(ToolRuntime.prototype);
+  const hasAcp=existsSync(acp);
+  const [toolRuntimeMod,acpMod,...knownMods]=await Promise.all([
+    load(path.join(root,'packages/core/tools/lib/index.js')),
+    hasAcp?load(acp):Promise.resolve(null),
+    ...targets.map(([relative])=>load(path.join(root,relative))),
+  ]);
+  for(let i=0;i<targets.length;i++){
+    registerKnownToolCallback(knownMods[i].apply,targets[i][1]);
+  }
+  if(acpMod)registerKnownToolCallback(acpMod.apply,'desktop:acp');
+  installRuntimeProvenance(toolRuntimeMod.ToolRuntime.prototype);
 }
 
 export function toolSource(tools,exec){return origins.get(tools.get(exec.name,exec.agent))?.source??'plugin:unclassified';}

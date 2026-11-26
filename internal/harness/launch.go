@@ -267,7 +267,7 @@ func nativeTaskPreload(o LaunchOptions, root string) []string {
 				p = "/" + p
 			}
 			fileURL := (&url.URL{Scheme: "file", Path: p}).String()
-			if o.DesktopDefaults {
+			if o.DesktopDefaults && os.Getenv("WHALEISLE_FORCE_STARTUP_GC") == "1" {
 				return []string{"--expose-gc", "--import", fileURL}
 			}
 			return []string{"--import", fileURL}
@@ -388,7 +388,6 @@ func resolveNodeForVendor(configured, vendorDir string) (string, error) {
 	}
 	if runtime.GOOS == "windows" {
 		for _, dir := range []string{
-			`C:\AI\tools\node-v24.21.0-win-x64`,
 			`C:\Program Files\nodejs`,
 			`C:\Program Files (x86)\nodejs`,
 		} {

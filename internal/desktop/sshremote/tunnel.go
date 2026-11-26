@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -18,6 +19,11 @@ import (
 
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/paths"
+)
+
+const (
+	defaultTunnelKeepaliveInterval = 15 * time.Second
+	defaultTunnelKeepaliveTimeout  = 5 * time.Second
 )
 
 // TunnelConfig is the Go-only SSH session settings (userData/ssh-tunnel.json).
@@ -49,18 +55,20 @@ const (
 
 // TunnelSession manages one SSH client connection.
 type TunnelSession struct {
-	mu             sync.Mutex
-	cfg            TunnelConfig
-	state          TunnelState
-	err            string
-	client         *ssh.Client
-	cancel         context.CancelFunc
-	generation     uint64
-	knownHostsFile string // empty → KnownHostsPath(paths.UserDataDir())
-	tofu           bool   // Trust-On-First-Use for unknown hosts (default true)
-	hostKeyMode    HostKeyMode
-	forwards       map[string]*activeForward
-	onChange       func()
+	mu                sync.Mutex
+	cfg               TunnelConfig
+	state             TunnelState
+	err               string
+	client            *ssh.Client
+	cancel            context.CancelFunc
+	generation        uint64
+	knownHostsFile    string // empty → KnownHostsPath(paths.UserDataDir())
+	tofu              bool   // Trust-On-First-Use for unknown hosts (default true)
+	hostKeyMode       HostKeyMode
+	forwards          map[string]*activeForward
+	onChange          func()
+	keepaliveInterval time.Duration
+	keepaliveTimeout  time.Duration
 }
 
 // OnChange reports peer/forward failures after Connect has returned.
@@ -334,14 +342,20 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 	}
 	if cfg.Password != "" {
 		auth = append(auth, ssh.Password(cfg.Password))
+		if cfg.KeyboardInteractive {
+			password := cfg.Password
+			auth = append(auth, ssh.KeyboardInteractive(func(_ string, _ string, questions []string, _ []bool) ([]string, error) {
+				answers := make([]string, len(questions))
+				for i := range questions {
+					answers[i] = password
+				}
+				return answers, nil
+			}))
+		}
 	}
 	if cfg.UseAgent {
-		sock := strings.TrimSpace(os.Getenv("SSH_AUTH_SOCK"))
-		if sock == "" {
-			return fail(fmt.Errorf("SSH_AUTH_SOCK is not set"))
-		}
 		var err error
-		agentConn, err = net.DialTimeout("unix", sock, 2*time.Second)
+		agentConn, err = dialSSHAgent(2 * time.Second)
 		if err != nil {
 			return fail(fmt.Errorf("ssh agent: %w", err))
 		}
@@ -453,10 +467,78 @@ func (t *TunnelSession) Disconnect() {
 	}
 }
 
+func (t *TunnelSession) keepaliveTiming() (time.Duration, time.Duration) {
+	t.mu.Lock()
+	interval := t.keepaliveInterval
+	timeout := t.keepaliveTimeout
+	t.mu.Unlock()
+	if interval == 0 {
+		interval = defaultTunnelKeepaliveInterval
+	}
+	if timeout <= 0 {
+		timeout = defaultTunnelKeepaliveTimeout
+	}
+	return interval, timeout
+}
+
 func (t *TunnelSession) watch(ctx context.Context, cancel context.CancelFunc, client *ssh.Client) {
 	stop := context.AfterFunc(ctx, func() { _ = client.Close() })
+	interval, timeout := t.keepaliveTiming()
+	watchDone := make(chan struct{})
+	keepaliveDone := make(chan struct{})
+	var keepaliveErr atomic.Pointer[error]
+	if interval > 0 {
+		go func() {
+			defer close(keepaliveDone)
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-watchDone:
+					return
+				case <-ticker.C:
+					reqDone := make(chan error, 1)
+					go func() {
+						_, _, err := client.SendRequest("keepalive@openssh.com", true, nil)
+						reqDone <- err
+					}()
+					timer := time.NewTimer(timeout)
+					select {
+					case err := <-reqDone:
+						timer.Stop()
+						if err != nil {
+							e := fmt.Errorf("ssh keepalive failed: %w", err)
+							keepaliveErr.Store(&e)
+							_ = client.Close()
+							return
+						}
+					case <-timer.C:
+						e := fmt.Errorf("ssh keepalive timed out after %s", timeout)
+						keepaliveErr.Store(&e)
+						_ = client.Close()
+						return
+					case <-ctx.Done():
+						timer.Stop()
+						return
+					case <-watchDone:
+						timer.Stop()
+						return
+					}
+				}
+			}
+		}()
+	} else {
+		close(keepaliveDone)
+	}
 	err := client.Wait()
+	close(watchDone)
+	<-keepaliveDone
 	stop()
+	if ke := keepaliveErr.Load(); ke != nil {
+		err = *ke
+	}
 	canceled := ctx.Err() != nil
 	cancel() // Close forward listeners/channels on peer exit too.
 	t.mu.Lock()

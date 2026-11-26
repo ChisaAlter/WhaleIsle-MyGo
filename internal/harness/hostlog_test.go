@@ -124,3 +124,44 @@ func TestHostLogSinkNilOnBadDir(t *testing.T) {
 		t.Fatal("sink opened under a non-directory")
 	}
 }
+
+func TestHostLogSinkZeroIdleWakeups(t *testing.T) {
+	dir := t.TempDir()
+	sink := openHostLogSink(dir, 77, hostLogCapBytes)
+	if sink == nil {
+		t.Fatal("no sink")
+	}
+	defer sink.close()
+
+	// Stay idle past multiple flush intervals: zero timer wakeups should fire.
+	time.Sleep(hostLogFlushEvery*2 + 120*time.Millisecond)
+	if got := sink.timerFlushes.Load(); got != 0 {
+		t.Fatalf("idle hostLogSink fired %d timer flushes, want 0", got)
+	}
+
+	// One write arms a single one-shot flush timer.
+	sink.add("hello idle-free sink")
+	deadline := time.Now().Add(hostLogFlushEvery*4 + 200*time.Millisecond)
+	for time.Now().Before(deadline) {
+		if sink.timerFlushes.Load() >= 1 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if got := sink.timerFlushes.Load(); got != 1 {
+		t.Fatalf("expected 1 timer flush after write, got %d", got)
+	}
+	raw, err := os.ReadFile(sink.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != "hello idle-free sink\n" {
+		t.Fatalf("flushed contents = %q", raw)
+	}
+
+	// Subsequent idle period must remain at 1 flush (no repeating ticker).
+	time.Sleep(hostLogFlushEvery*2 + 120*time.Millisecond)
+	if got := sink.timerFlushes.Load(); got != 1 {
+		t.Fatalf("post-write idle fired extra flushes: got %d, want 1", got)
+	}
+}

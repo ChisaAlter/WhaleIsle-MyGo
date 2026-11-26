@@ -14,8 +14,30 @@ var kernel = syscall.NewLazyDLL("kernel32.dll")
 var removeDirectory = kernel.NewProc("RemoveDirectoryW")
 var finalPathName = kernel.NewProc("GetFinalPathNameByHandleW")
 
+func winLongPath(p string) string {
+	if p == "" {
+		return ""
+	}
+	if strings.HasPrefix(p, `\\?\`) || strings.HasPrefix(p, `\\.\`) {
+		return p
+	}
+	abs := filepath.Clean(p)
+	if !filepath.IsAbs(abs) {
+		if resolved, err := filepath.Abs(abs); err == nil {
+			abs = resolved
+		}
+	}
+	if strings.HasPrefix(abs, `\\`) {
+		return `\\?\UNC\` + strings.TrimPrefix(abs, `\\`)
+	}
+	if len(abs) >= 2 && abs[1] == ':' {
+		return `\\?\` + abs
+	}
+	return abs
+}
+
 func runtimeReparseTag(filename string) (uint32, bool, error) {
-	name, err := syscall.UTF16PtrFromString(filename)
+	name, err := syscall.UTF16PtrFromString(winLongPath(filename))
 	if err != nil {
 		return 0, false, err
 	}
@@ -40,7 +62,7 @@ func runtimeReparseTag(filename string) (uint32, bool, error) {
 }
 
 func resolveDirectoryLink(link string) (string, error) {
-	name, err := syscall.UTF16PtrFromString(link)
+	name, err := syscall.UTF16PtrFromString(winLongPath(link))
 	if err != nil {
 		return "", err
 	}
@@ -76,7 +98,12 @@ func createDirectoryLink(target, link string) error {
 		}
 	}()
 	printName := filepath.Clean(target)
-	substitute := `\??\` + strings.TrimPrefix(printName, `\\?\`)
+	if strings.HasPrefix(printName, `\\?\UNC\`) {
+		printName = `\\` + strings.TrimPrefix(printName, `\\?\UNC\`)
+	} else {
+		printName = strings.TrimPrefix(printName, `\\?\`)
+	}
+	substitute := `\??\` + printName
 	if strings.HasPrefix(printName, `\\`) {
 		substitute = `\??\UNC\` + strings.TrimPrefix(printName, `\\`)
 	}
@@ -95,7 +122,7 @@ func createDirectoryLink(target, link string) error {
 	for i, c := range printed {
 		binary.LittleEndian.PutUint16(data[16+(len(sub)+1+i)*2:], c)
 	}
-	name, err := syscall.UTF16PtrFromString(link)
+	name, err := syscall.UTF16PtrFromString(winLongPath(link))
 	if err != nil {
 		return err
 	}
@@ -112,7 +139,7 @@ func createDirectoryLink(target, link string) error {
 	return nil
 }
 func removeDirectoryLink(link string) error {
-	name, err := syscall.UTF16PtrFromString(link)
+	name, err := syscall.UTF16PtrFromString(winLongPath(link))
 	if err != nil {
 		return err
 	}
