@@ -809,3 +809,98 @@ func TestSettingsDunePresetSelectable(t *testing.T) {
 		t.Fatalf("saved.Colors = %+v, want PresetColors(\"dune\")", saved.Colors)
 	}
 }
+
+func TestSettingsBodyDialogFrameGlassBlurAndRim(t *testing.T) {
+	resetAppearanceGlobalsForTest(t)
+	applyMinimalMode(false)
+	applyGlassTheme(true)
+
+	// Enable glass tokens via an active wallpaper backdrop and verify that
+	// bodyDialogFrame (via settings.ConfirmDialog) blurs underlying sharp stripes
+	// instead of letting underlying UI details bleed through unblurred.
+	stripedURL := testStripedWallpaperURL(t, 300, 200)
+	cfg := minimalModeStore(t)
+	if err := cfg.Update(func(c *config.Config) {
+		c.Theme = theme.IDDeepseekLight
+		c.WallpaperPath = stripedURL
+		on := true
+		c.GlassTheme = &on
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	prefs.Glass = 80
+	if err := cfg.SaveWallpaperBackground(prefs); err != nil {
+		t.Fatal(err)
+	}
+	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekLight}
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		s.beginAppearanceFrame(c)
+		defer s.endAppearanceFrame()
+
+		// Paint crisp alternating 4px high-contrast stripes underneath the dialog.
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) {
+			c1, c2 := ui.RGB(20, 110, 240), ui.RGB(245, 130, 30)
+			for i, x := 0, float32(0); x < r.W; i, x = i+1, x+4 {
+				col := c1
+				if i%2 == 1 {
+					col = c2
+				}
+				p.Fill(ui.Rect{X: r.X + x, Y: r.Y, W: 4, H: r.H}, col, 0)
+			}
+		}).Children(func() {
+			settings.ConfirmDialog(c, settings.ConfirmOptions{
+				Title:        "Glass dialog",
+				ConfirmLabel: "OK",
+				CancelLabel:  "Cancel",
+				Width:        360,
+			})
+		})
+	}, 600, 420)
+	tt.Frame()
+	if !design.GlassEnabled() {
+		t.Fatal("expected design.GlassEnabled() == true")
+	}
+	img := tt.Image()
+
+	var dlg ui.Rect
+	for _, b := range tt.Interactives() {
+		if b.Role == ui.RoleDialog {
+			dlg = b.Rect
+			break
+		}
+	}
+	if dlg.W <= 0 || dlg.H <= 0 {
+		t.Fatal("ConfirmDialog not found in interactives")
+	}
+
+	// Inside the blurred dialog body, stripe contrast must be dramatically softened
+	// compared to the raw unblurred stripes outside the backdrop scrim.
+	midY := int(dlg.Y + dlg.H/2)
+	loR, hiR := 255, 0
+	loB, hiB := 255, 0
+	for x := int(dlg.X) + 32; x < int(dlg.X+dlg.W)-32; x++ {
+		px := img.RGBAAt(x, midY)
+		loR, hiR = min(loR, int(px.R)), max(hiR, int(px.R))
+		loB, hiB = min(loB, int(px.B)), max(hiB, int(px.B))
+	}
+	insideSpan := max(hiR-loR, hiB-loB)
+	if insideSpan > 20 {
+		t.Fatalf("bodyDialogFrame did not blur underlying stripes enough: insideSpan=%d", insideSpan)
+	}
+
+	// Turning GlassTheme off restores opaque Popover with zero stripe bleed.
+	applyGlassTheme(false)
+	tt.Frame()
+	offImg := tt.Image()
+	offLoR, offHiR := 255, 0
+	for x := int(dlg.X) + 32; x < int(dlg.X+dlg.W)-32; x++ {
+		px := offImg.RGBAAt(x, midY)
+		offLoR, offHiR = min(offLoR, int(px.R)), max(offHiR, int(px.R))
+	}
+	if offHiR-offLoR != 0 {
+		t.Fatalf("expected opaque bodyDialogFrame when glass is off, got R span=%d", offHiR-offLoR)
+	}
+}
