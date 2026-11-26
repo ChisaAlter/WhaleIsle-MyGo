@@ -333,7 +333,7 @@ func coreRadio[T comparable](c *context, selected *T, value T, label string) *no
 func coreSwitch(c *context, on *bool) *node {
 	t := c.theme
 	sw := coreSwitchBase(c, on).Size(t.Space(9), t.Space(5)).Radius(t.Space(2.5))
-	pos := sw.Animate("knob", b2f(*on), 140*time.Millisecond)
+	pos := sw.AnimateWith("knob", b2f(*on), 100*time.Millisecond, designEase)
 	off := t.Border.Mix(t.Text, 0.05)
 	sw.Background(off.Mix(t.Accent, pos))
 	sw.Draw(func(p *Painter, r Rect) {

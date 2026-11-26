@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -20,6 +19,7 @@ import (
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 	"whaleisle/internal/ui/widgets/diff"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -344,7 +344,7 @@ func conversationView(c *ui.Context, m Model) {
 									}, disclosureStyle{FG: fg, Muted: muted, Hover: hover, Accent: accent, Size: 12})
 									if open && detail != "" {
 										ui.Column(row.Context).Key("turn-end-detail").Padding(0, 0, design.Sp(0.5), design.Sp(5.5)).
-											Transition(ui.ElementTransition{Duration: 180 * time.Millisecond, Ease: contextFadeEase, Colors: true,
+											Transition(ui.ElementTransition{Duration: widgets.DefaultDuration, Ease: widgets.DesignEase, Colors: true,
 												Enter: &ui.Motion{Opacity: 0, Y: -4}, Exit: &ui.Motion{Opacity: 0, Y: -4}}).
 											Children(func() {
 												ui.Text(row.Context, detail).FontSize(12).TextColor(fg).Selectable()

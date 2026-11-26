@@ -62,7 +62,7 @@ func paintModelSeat(c *ui.Context, m Model) {
 	}
 	trigger := chip(c, *open, secondary).Label(label).Tooltip(tooltip + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).MaxWidthPercent(100).Disabled(m.Inert)
 	trigger.Children(func() {
-		ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(design.TextSM.Size).TextColor(secondary)
+		modelFlipText(c, "seat-name:"+modelSelectBinding(m.Snapshot), label, secondary, design.TextSM.Size).Grow(1)
 		if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
 			binding := modelSelectBinding(m.Snapshot)
 			modelFlipText(c, "retained-effort:"+binding, effortDisplay, muted, design.TextSM.Size).Shrink(1000)

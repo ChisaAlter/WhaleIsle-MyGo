@@ -31,7 +31,7 @@ func settingsToggle(c *ui.Context, title string, value *bool, disabled bool) ui.
 	if disabled {
 		toggle = toggle.Disabled(true).DisabledOpacity(design.OpacityDisabled)
 	}
-	x := toggle.AnimateWith("settings-toggle-thumb", b01(on)*(toggleKnob-4), design.DurationDefault, design.EaseInOut)
+	x := toggle.AnimateWith("settings-toggle-thumb", b01(on)*(toggleKnob-4), design.MotionFast, design.EaseInOut)
 	focus := toggle.FocusVisible() && !disabled
 	thumb, ring, gap := t.Background, t.Ring, t.Background
 	shadow := design.TW.Black.Alpha(0.05)

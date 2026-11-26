@@ -15,18 +15,18 @@ import (
 // motion, so a surface needs no switch of its own.
 const (
 	// OverlayDuration is how long a modal or a page takes to appear.
-	OverlayDuration = 200 * time.Millisecond
+	OverlayDuration = widgets.OverlayDuration
 	// OverlayExitDuration is how long one takes to go: the design system's
 	// overlay-out rides the fast token, 100 ms (ui-theme/src/styles/base.css:17
 	// --ds-motion-duration-overlay-out), half the enter.
-	OverlayExitDuration = 100 * time.Millisecond
+	OverlayExitDuration = widgets.OverlayExitDuration
 	// PopoverDuration is how long a menu or a floating card takes.
-	PopoverDuration = 160 * time.Millisecond
+	PopoverDuration = widgets.PopoverDuration
 	// SwapDuration is how long keyed content takes to fade in: the design
 	// system's swap token rides the fast 100 ms transition duration
 	// (--ds-motion-duration-swap = --ds-transition-duration-fast;
 	// ui-theme/src/styles/base.css:16,21).
-	SwapDuration = 100 * time.Millisecond
+	SwapDuration = widgets.SwapDuration
 	// SlowDuration is the slow layout track duration (0.3s,
 	// --ds-transition-duration-slow).
 	SlowDuration = widgets.SlowDuration

@@ -168,7 +168,7 @@ func Switch(c *ui.Context, on *bool, label string, o CheckOptions) ui.Element {
 	const thumb = 16
 	row.Children(func() {
 		track := ui.Box(c).Size(2*thumb-2, thumb+2).Padding(1).Radius(design.RadiusFull).Shrink(0).
-			Transition(ui.ElementTransition{Colors: true, Duration: design.DurationPanel, Ease: design.EaseInOut})
+			Transition(ui.ElementTransition{Colors: true, Duration: design.MotionFast, Ease: design.EaseInOut})
 		if *on {
 			track.Background(t.Primary)
 		} else {
@@ -184,7 +184,7 @@ func Switch(c *ui.Context, on *bool, label string, o CheckOptions) ui.Element {
 		}
 		x := b2f(*on) * (thumb - 4)
 		if forced == 0 {
-			x = track.AnimateWith("coss.thumb", x, 150*1e6, design.EaseInOut)
+			x = track.AnimateWith("coss.thumb", x, design.MotionFast, design.EaseInOut)
 		}
 		w := float32(thumb)
 		if s.Has(StatePressed) {

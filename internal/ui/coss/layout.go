@@ -114,7 +114,8 @@ type CardOptions struct {
 func Card(c *ui.Context, o CardOptions, panel func()) ui.Element {
 	t := tok(c)
 	withKey(c, o.Key)
-	card := ui.Column(c).Radius(design.RadiusXL2).Background(t.Card).Border(design.BorderWidth, t.Border).TextColor(t.CardForeground)
+	card := ui.Column(c).Radius(design.RadiusXL2).Background(t.Card).Border(design.BorderWidth, t.Border).TextColor(t.CardForeground).
+		Transition(ui.ElementTransition{Duration: design.MotionPopover, Ease: design.EaseInOut, Colors: true})
 	var sh shadowList
 	sh.scale(design.ShadowXs, black, 0.05)
 	d := deco{border: design.BorderWidth, radius: design.RadiusXL2}

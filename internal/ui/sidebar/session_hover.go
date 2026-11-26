@@ -10,7 +10,9 @@ import (
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 const (
@@ -328,8 +330,9 @@ func renderSessionHoverCard(c *ui.Context, m Model, root ui.Element, suppressSes
 			} else {
 				panel = ui.Box(c.Key("session-preview-body:" + s.shown))
 			}
+			panel = chrome.PopoverReveal(c, panel)
 			sbPopoverSurface(panel.Column().FillWidth().MinWidth(0).Padding(design.Sp(3), design.Sp(4)).Gap(design.Sp(2)).Clip().
-				AlignItems(ui.Start).Justify(ui.Start), t, design.RadiusXL)
+				AlignItems(ui.Start).Justify(ui.Start), t, theme.ContextRadii(c).MD)
 			if copying {
 				panel.MinHeight(s.panelHeight).Justify(ui.Center).AlignItems(ui.Center)
 				c.After(s.copiedUntil.Sub(now))
