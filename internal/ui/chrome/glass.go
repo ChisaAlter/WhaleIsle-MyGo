@@ -344,6 +344,53 @@ func MenuBorderColor(colors theme.Colors, dark bool) ui.Color {
 // menuBlur is the reference menu backdrop-filter: blur(40px) saturate(150%) with dither.
 var menuBlur = glass.Blur{Radius: 40, Saturation: 0.5, Dither: true}
 
+type maskBlurMaterial struct {
+	mask   ui.Color
+	radius float32
+}
+
+func (m maskBlurMaterial) PaintMaterial(p *ui.Painter, r ui.Rect, _ [4]float32) {
+	if r.W <= 0 || r.H <= 0 {
+		return
+	}
+	if m.radius > 0 {
+		glass.Blur{Radius: m.radius}.PaintMaterial(p, r, [4]float32{})
+	}
+	if m.mask.A > 0 {
+		p.Fill(r, m.mask, 0)
+	}
+}
+
+type blurFillMaterial struct {
+	blur glass.Blur
+	tint ui.Color
+}
+
+func (m blurFillMaterial) PaintMaterial(p *ui.Painter, r ui.Rect, radii [4]float32) {
+	if r.W <= 0 || r.H <= 0 {
+		return
+	}
+	m.blur.PaintMaterial(p, r, radii)
+	if m.tint.A > 0 {
+		radius := radii[0]
+		p.Fill(r, m.tint, radius)
+	}
+}
+
+// MenuGlassMaterial returns the shared menu backdrop blur material
+// (blur(40px) saturate(150%), dithered).
+func MenuGlassMaterial() ui.Material { return menuPanelGlass{} }
+
+// MaskBlurMaterial paints a modal dim mask over a softened backdrop
+// (--dsw-mask-blur: blur(2px)).
+func MaskBlurMaterial(mask ui.Color, radius float32) ui.Material {
+	return maskBlurMaterial{mask: mask, radius: radius}
+}
+
+// DrawGlassRim paints the 0.5–1 DIP inner specular highlight along the inside
+// perimeter and top lip of a frosted glass panel, matching coss modals.
+func DrawGlassRim(p *ui.Painter, r ui.Rect, radius float32) { drawGlassRim(p, r, radius) }
+
 // drawGlassRim paints the 0.5–1 DIP inner specular highlight along the inside
 // perimeter and top lip of a frosted glass panel, matching coss modals.
 func drawGlassRim(p *ui.Painter, r ui.Rect, radius float32) {
@@ -372,7 +419,8 @@ func drawGlassRim(p *ui.Painter, r ui.Rect, radius float32) {
 // slider, the hairline border, inner specular rim and the elevation shadow.
 func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
 	round := firstRadius(radius)
-	if backgroundState.active {
+	glassActive := backgroundState.active || design.GlassEnabled()
+	if glassActive {
 		e = e.Radius(round).Background(ui.Transparent).Material(menuPanelGlass{}).Draw(func(p *ui.Painter, r ui.Rect) {
 			drawGlass(p, r, base, MaterialMenu, round, false)
 		})
@@ -384,13 +432,47 @@ func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Elem
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}
-		if backgroundState.active {
+		if glassActive {
 			drawGlassRim(p, r, round)
 		}
 		if border.A != 0 {
 			p.Stroke(r, border, round, 0.5)
 		}
 	}))
+}
+
+// ApplyMenuSurface dresses a token-styled menu/popover panel with the unified
+// 40px menu glass blur, specular rim, hairline border, and adaptive lv3 shadow
+// when glass or a live backdrop is active, falling back to solid coss tokens.
+func ApplyMenuSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element {
+	e.Border(design.BorderWidth, t.Border).Radius(radius).TextColor(t.PopoverForeground)
+	if t.Glass || backgroundState.active {
+		dark := t.IsDark()
+		fill := t.Popover
+		if !t.Glass && backgroundState.active {
+			fill = MaterialFill(t.Popover, MenuSolidity(effectivePrefs(backgroundState.prefs), dark))
+		}
+		e.Material(blurFillMaterial{blur: menuBlur, tint: fill})
+		menuElevationFor(e, dark)
+		e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			if r.W <= 0 || r.H <= 0 {
+				return
+			}
+			drawGlassRim(p, r, radius)
+			if t.Border.A != 0 {
+				p.Stroke(r, t.Border, radius, 0.5)
+			}
+		})
+		return e
+	}
+	e.Background(t.Popover)
+	for i := len(design.ShadowLg) - 1; i >= 0; i-- {
+		s := design.ShadowLg[i]
+		if s.Blur > 0 || s.Spread > 0 {
+			e.Shadow(s.X, s.Y, s.Blur, s.Spread, s.Color.Alpha(0.05))
+		}
+	}
+	return e
 }
 
 // FrostSurface dresses e as a raised surface in the menu material while a

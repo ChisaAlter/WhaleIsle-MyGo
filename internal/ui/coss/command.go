@@ -78,7 +78,7 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 	sh.scale(design.ShadowLg, black, 0.05)
 	d := deco{border: design.BorderWidth, radius: design.RadiusXL2}
 	d.highlight(t, 0.04, 0.06)
-	applyGlassMaterial(panel, t, t.Popover, 28, 0.45)
+	applyGlassMaterial(panel, t, t.Popover, 40, 0.50)
 	applyGlassElevation(t, &sh, &d, glassTierModal)
 	finish(panel, &sh, &d)
 	motion(panel, "command/command-dialog-popup", 0, 0)

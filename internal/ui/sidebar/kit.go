@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
@@ -121,6 +122,9 @@ func activeSchedulesForSession(m Model, sessionID string) []schedstore.Entry {
 }
 
 func sbPopoverSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element {
+	if t.Glass || chrome.BackdropActive() {
+		return chrome.ApplyMenuSurface(e, t, radius)
+	}
 	e.Background(t.Popover).Border(design.BorderWidth, t.Border).Radius(radius).TextColor(t.PopoverForeground)
 	for _, s := range design.ShadowLg {
 		if s.Blur > 0 || s.Spread > 0 {

@@ -129,23 +129,7 @@ func composerCardElevation(e ui.Element, t *design.Tokens, focused, disabled boo
 // menuPanelLook gives a popup the shared coss popover look: popover fill,
 // border, and shadow-lg/5 without an enter/position transition.
 func menuPanelLook(c *ui.Context, e ui.Element) ui.Element {
-	t := design.For(c)
-	e.Border(design.BorderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.PopoverForeground)
-	if chrome.BackdropActive() {
-		chrome.GlassSurface(e, t.Popover, chrome.MaterialMenu, design.RadiusXL)
-	} else {
-		e.Background(t.Popover)
-	}
-	if t.Glass || chrome.BackdropActive() {
-		dark := t.IsDark()
-		e.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			paintGlassInnerRim(p, r, design.RadiusXL, dark, 0.12, 0.65)
-		})
-		applyGlassShadows(e, dark, 0.32, 0.16, 0.10, 0.05)
-	} else {
-		applyShadows(e, design.ShadowLg, design.TW.Black, 0.05)
-	}
-	return e
+	return chrome.ApplyMenuSurface(e, design.For(c), design.RadiusXL)
 }
 
 // menuSurface gives a PopoverBase panel the shared coss popover look plus coss

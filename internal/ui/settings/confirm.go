@@ -153,8 +153,14 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 		t := tk(c)
 		w, h := c.Size()
 		inset := design.Sp(4)
-		backdrop.Background(design.TW.Black.Alpha(0.32)).Column().Justify(ui.Center).AlignItems(ui.Center).Padding(inset)
-		panel.Width(max(0, min(width, w-2*inset))).MaxHeight(max(0, h-2*inset)).Radius(design.RadiusXL2).Clip().
+		dlgRadius := theme.ContextRadii(c).Dialog
+		backdrop.Column().Justify(ui.Center).AlignItems(ui.Center).Padding(inset)
+		if t.Glass || chrome.BackdropActive() {
+			backdrop.Material(chrome.MaskBlurMaterial(design.TW.Black.Alpha(0.32), 2))
+		} else {
+			backdrop.Background(design.TW.Black.Alpha(0.32))
+		}
+		panel.Width(max(0, min(width, w-2*inset))).MaxHeight(max(0, h-2*inset)).Radius(dlgRadius).Clip().
 			Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground).Role(ui.RoleDialog)
 		if t.Glass || chrome.BackdropActive() {
 			panel.Material(dialogGlassMaterial{
@@ -168,7 +174,7 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				pad := ui.Rect{X: r.X + design.BorderWidth, Y: r.Y + design.BorderWidth, W: r.W - 2*design.BorderWidth, H: r.H - 2*design.BorderWidth}
 				if pad.W > 2 && pad.H > 2 {
-					p.Stroke(pad, rim, max(0, design.RadiusXL2-design.BorderWidth), design.BorderWidth)
+					p.Stroke(pad, rim, max(0, dlgRadius-design.BorderWidth), design.BorderWidth)
 				}
 			})
 			if t.IsDark() {
