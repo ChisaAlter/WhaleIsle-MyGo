@@ -305,3 +305,61 @@ func TestPopoverRevealFadesMenuIn(t *testing.T) {
 		t.Fatalf("menu never reached full opacity: %d", settled)
 	}
 }
+
+func TestPopoverRevealRisesAndRespectsGlassBackdrop(t *testing.T) {
+	if SlowDuration != widgets.SlowDuration {
+		t.Fatalf("slow duration %v, want %v", SlowDuration, widgets.SlowDuration)
+	}
+	// Under an active frosted backdrop, PopoverReveal keeps opacity solid so
+	// backdrop blur sampling is not dimmed on enter, and rises popoverRise DIP.
+	prevActive := backgroundState.active
+	backgroundState.active = true
+	defer func() { backgroundState.active = prevActive }()
+	open := true
+	start := time.Unix(2000, 0)
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Background(ui.RGB(0, 0, 0))
+		anchor := ui.Button(c, "anchor")
+		ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
+			panel = PopoverReveal(c, panel.Label("glass-popover").Key("glass-popover").Width(40).Height(20).Radius(8))
+			panel.Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(r, ui.RGB(255, 0, 0), 8) })
+		})
+	}, 120, 80)
+	tt.SetTime(start)
+	first, ok := tt.Find("glass-popover")
+	if !ok {
+		t.Fatal("glass popover missing at start")
+	}
+	if got := tt.Image().RGBAAt(int(first.X+first.W/2), int(first.Y+first.H/2)).R; got < 250 {
+		t.Fatalf("glass popover faded opacity at frame 0: R=%d", got)
+	}
+	tt.SetTime(start.Add(PopoverDuration))
+	settled, _ := tt.Find("glass-popover")
+	if got := first.Y - settled.Y; got != popoverRise {
+		t.Fatalf("glass popover started %v DIP below settled, want %v", got, popoverRise)
+	}
+}
+
+func TestRevealOverlayRises8DIPInGlassMode(t *testing.T) {
+	prevActive := backgroundState.active
+	backgroundState.active = true
+	defer func() { backgroundState.active = prevActive }()
+	open := true
+	start := time.Unix(1000, 0)
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Background(ui.RGB(0, 0, 0))
+		ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+			RevealOverlay(c, backdrop, panel.Label("overlay-rise").Key("overlay-rise").Width(40).Height(20).Radius(8), ui.RGBA(0, 0, 0, .5))
+		})
+	}, 100, 80)
+	tt.SetTime(start)
+	first, ok := tt.Find("overlay-rise")
+	if !ok {
+		t.Fatal("overlay panel missing at start")
+	}
+	tt.SetTime(start.Add(OverlayDuration))
+	settled, _ := tt.Find("overlay-rise")
+	if got := first.Y - settled.Y; got != overlayRise {
+		t.Fatalf("glass overlay started %v DIP below settled, want %v", got, overlayRise)
+	}
+}

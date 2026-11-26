@@ -21,7 +21,12 @@ func PillSelect(c *ui.Context, colors theme.Colors, value *string, options []str
 		trigger.Background(c.Theme().SurfaceHover)
 	}
 	trigger.Children(func() {
-		ui.Text(c, *value).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).SingleLine()
+		FlipText(c, *value, FlipTextOptions{
+			Key:        "pill-select-value",
+			Color:      c.Theme().Text,
+			FontSize:   theme.InterfaceSize(14),
+			LineHeight: theme.InterfaceSize(22),
+		})
 		ui.Box(c).Size(14, 14).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
 			var path ui.Path
 			path.MoveTo(r.X+r.W*.25, r.Y+r.H*.38).LineTo(r.X+r.W*.5, r.Y+r.H*.6).LineTo(r.X+r.W*.75, r.Y+r.H*.38)
