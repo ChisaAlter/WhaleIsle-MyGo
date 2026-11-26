@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -66,8 +67,11 @@ func TestViewRetriesTheHostAfterAnError(t *testing.T) {
 	if opened != 0 {
 		t.Fatalf("auto-opened despite an error: %d", opened)
 	}
-	if !tt.HasText("WebView2 runtime unavailable") {
-		t.Fatalf("missing real error: %v", tt.Texts())
+	if !tt.HasText(errcopy.SentenceText(m.HostError)) {
+		t.Fatalf("missing sanitized error sentence %q: %v", errcopy.SentenceText(m.HostError), tt.Texts())
+	}
+	if tt.HasText(m.HostError) {
+		t.Fatalf("raw HostError leaked into ZH UI: %v", tt.Texts())
 	}
 	if err := tt.Click(i18n.T(i18n.KeyWebViewOpenHost)); err != nil {
 		t.Fatal(err)

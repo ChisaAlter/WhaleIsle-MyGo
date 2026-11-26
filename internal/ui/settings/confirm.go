@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -64,7 +65,7 @@ func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 	}
 	cancelLabel := opts.CancelLabel
 	if cancelLabel == "" {
-		cancelLabel = "取消"
+		cancelLabel = i18n.Pick("取消", "Cancel")
 	}
 	width := opts.Width
 	if width <= 0 {
@@ -121,7 +122,7 @@ func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 				finish(opts.OnConfirm)
 			}
 		})
-	})
+	}, ui.DialogOptions{BackdropDismissDisabled: true})
 	if !open {
 		finish(opts.OnCancel)
 	}

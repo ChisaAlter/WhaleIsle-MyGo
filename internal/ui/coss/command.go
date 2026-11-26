@@ -125,7 +125,7 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 					if len(shown) > 0 {
 						st.highlight = (st.highlight + len(shown) - 1) % len(shown)
 					}
-				case in.Submitted():
+				case in.Submitted() && !in.Composing():
 					if st.highlight < len(shown) {
 						chosen = items[shown[st.highlight]].ID
 					}

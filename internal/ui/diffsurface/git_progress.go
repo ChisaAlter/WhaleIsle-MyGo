@@ -15,8 +15,12 @@ import (
 // DrawGitProgress shows bounded, operation-owned progress; dismissal never stops
 // a mutating Git command. Only message preparation has a cancellation action.
 func DrawGitProgress(c *ui.Context, p *git.Progress, fg, muted ui.Color, onDismiss func()) {
+	drawGitProgress(c, p, fg, muted, onDismiss)
+}
+
+func drawGitProgress(c *ui.Context, p *git.Progress, fg, muted ui.Color, onDismiss func()) bool {
 	if p == nil {
-		return
+		return false
 	}
 	s := p.Snapshot()
 	leftPad, rightPad := chrome.TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(3))
@@ -69,4 +73,5 @@ func DrawGitProgress(c *ui.Context, p *git.Progress, fg, muted ui.Color, onDismi
 			ui.Text(c, line).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).MaxLines(2)
 		}
 	})
+	return s.Done
 }

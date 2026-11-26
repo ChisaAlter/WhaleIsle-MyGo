@@ -15,6 +15,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -355,23 +356,7 @@ func View(c *ui.Context, m Model) {
 						p.focused = 0
 					}
 					if fragment := FormatSelection(selection); shell.id == p.active && fragment != "" {
-						bounds := surface.Bounds()
-						ui.Overlay(c, func() {
-							ui.Row(c).Absolute().Left(max(bounds.X+8, bounds.X+bounds.W-340)).Top(max(bounds.Y, bounds.Y+bounds.H-34)).Gap(0).Padding(0, 4).Height(26).Border(0.5, border).Radius(6).Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface)).Children(func() {
-								if widgets.Button(c, colors, terminalLabel("复制", "Copy"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-									mygo.Clipboard.WriteText(selection)
-								}
-								if widgets.Button(c, colors, terminalLabel("加入对话", "Add to chat"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
-									if err := m.OnAddToChat(fragment); err != nil {
-										p.notice = errcopy.Sentence(err)
-									} else {
-										p.notice = terminalLabel("已加入对话草稿", "Added to the chat draft")
-										shell.term.ClearSelection()
-									}
-								}
-								paintSelectionTarget(c, m, selectionKey)
-							})
-						})
+						paintSelectionActionBar(c, m, p, shell, colors, border, surface.Bounds(), selection, fragment, selectionKey)
 					}
 				})
 			}
@@ -385,6 +370,65 @@ func View(c *ui.Context, m Model) {
 			} else {
 				ui.Row(c).Key(group.id).Fill().Grow(1).MinHeight(0).MinWidth(0).Gap(0.5).Children(paint)
 			}
+		})
+	})
+}
+
+func selectionActionBarLayout(bounds ui.Rect, winW, winH float32) (availLeft, availRight, pad, maxW, initialTop float32) {
+	availLeft = max(float32(0), bounds.X)
+	availRight = bounds.X + bounds.W
+	if winW > 0 && winW < availRight {
+		availRight = winW
+	}
+	availW := max(float32(0), availRight-availLeft)
+	pad = min(design.Sp(2), availW/4)
+	maxW = max(float32(0), availW-2*pad)
+	maxBottom := bounds.Y + bounds.H
+	if winH > 0 && winH < maxBottom {
+		maxBottom = winH
+	}
+	initialTop = max(float32(0), max(bounds.Y, maxBottom-design.Sp(8.5)))
+	return availLeft, availRight, pad, maxW, initialTop
+}
+
+func paintSelectionActionBar(c *ui.Context, m Model, p *Panel, shell *terminalPane, colors theme.Colors, border ui.Color, bounds ui.Rect, selection, fragment string, selectionKey terminalSelectionKey) {
+	winW, winH := c.Size()
+	availLeft, availRight, pad, maxW, initialTop := selectionActionBarLayout(bounds, winW, winH)
+	ui.Overlay(c, func() {
+		bar := ui.Row(c.Key("terminal-selection-bar")).Absolute().Left(availLeft+pad).Top(initialTop).MaxWidth(maxW).MinHeight(design.Sp(6.5)).Wrap().AlignItems(ui.Center).Gap(0).Padding(0, design.Sp(1)).Border(design.BorderWidth/2, border).Radius(design.RadiusMD).Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface)).Label(terminalLabel("终端选区操作", "Terminal selection actions"))
+		bar.Children(func() {
+			if widgets.Button(c, colors, terminalLabel("复制", "Copy"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+				mygo.Clipboard.WriteText(selection)
+			}
+			if widgets.Button(c, colors, terminalLabel("加入对话", "Add to chat"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
+				if err := m.OnAddToChat(fragment); err != nil {
+					p.notice = errcopy.Sentence(err)
+				} else {
+					p.notice = terminalLabel("已加入对话草稿", "Added to the chat draft")
+					if shell != nil && shell.term != nil {
+						shell.term.ClearSelection()
+					}
+				}
+			}
+			paintSelectionTarget(c, m, selectionKey)
+		})
+		bar.OffsetAfterLayout(func(r ui.Rect) ui.Point {
+			desiredX := max(availLeft+pad, availRight-pad-r.W)
+			if winW > 0 && desiredX+r.W > winW {
+				desiredX = max(float32(0), winW-r.W)
+			}
+			if desiredX < availLeft {
+				desiredX = availLeft
+			}
+			maxBottom := bounds.Y + bounds.H
+			if winH > 0 && winH < maxBottom {
+				maxBottom = winH
+			}
+			desiredY := max(bounds.Y, maxBottom-r.H-pad)
+			if desiredY < 0 {
+				desiredY = 0
+			}
+			return ui.Point{X: desiredX - r.X, Y: desiredY - r.Y}
 		})
 	})
 }

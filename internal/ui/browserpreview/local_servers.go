@@ -2,6 +2,7 @@ package browserpreview
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -57,11 +58,7 @@ func (b *Controller) resumeLocalDiscovery(t *Tab) {
 	go func() {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
-		for {
-			result := localservers.DiscoverStatus(ctx)
-			if ctx.Err() != nil {
-				return
-			}
+		runLocalDiscoveryLoop(ctx, ticker.C, localservers.DiscoverStatus, func(result localservers.Discovery) {
 			applied := make(chan struct{})
 			parent.Update(func() {
 				defer close(applied)
@@ -76,16 +73,38 @@ func (b *Controller) resumeLocalDiscovery(t *Tab) {
 			})
 			select {
 			case <-ctx.Done():
-				return
 			case <-applied:
 			}
-			select {
-			case <-ctx.Done():
+		})
+	}()
+}
+
+func runLocalDiscoveryLoop(ctx context.Context, tick <-chan time.Time, discover func(context.Context) localservers.Discovery, onChange func(localservers.Discovery)) {
+	var (
+		hasLast     bool
+		lastServers []localservers.Server
+		lastError   string
+	)
+	for {
+		result := discover(ctx)
+		if ctx.Err() != nil {
+			return
+		}
+		if !hasLast || result.Error != lastError || !slices.Equal(lastServers, result.Servers) {
+			hasLast = true
+			lastError = result.Error
+			lastServers = slices.Clone(result.Servers)
+			onChange(result)
+			if ctx.Err() != nil {
 				return
-			case <-ticker.C:
 			}
 		}
-	}()
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick:
+		}
+	}
 }
 
 func (b *Controller) localServerControls(c *ui.Context, t *Tab) {
