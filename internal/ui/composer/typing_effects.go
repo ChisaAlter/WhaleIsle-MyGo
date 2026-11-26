@@ -39,6 +39,7 @@ type typingEffects struct {
 	echoes          []typingEcho
 	compositionBase string
 	composing       bool
+	unmarkedEcho    bool
 	caretBorn       time.Time
 }
 
@@ -115,14 +116,19 @@ type typingInputClient struct{ *DraftClient }
 
 func (input typingInputClient) ReplaceText(target *ui.TextInputRange, text string) {
 	client := input.DraftClient
+	committing := client.compositionPending != nil && target != nil && *target == *client.compositionPending
 	before := client.text()
-	if client.typing.composing {
+	if client.typing.composing || committing {
 		before = client.typing.compositionBase
+		if client.typing.unmarkedEcho && len(client.typing.echoes) > 0 {
+			client.typing.echoes = client.typing.echoes[:len(client.typing.echoes)-1]
+		}
 	}
 	client.nativeTyping = true
 	client.ReplaceText(target, text)
 	client.nativeTyping = false
 	client.typing.composing = false
+	client.typing.unmarkedEcho = false
 	client.captureTyping(before, client.text())
 }
 
@@ -132,6 +138,7 @@ func (input typingInputClient) SetMarkedText(target *ui.TextInputRange, text str
 		client.typing.compositionBase = client.text()
 		client.typing.composing = true
 	}
+	client.typing.unmarkedEcho = false
 	client.SetMarkedText(target, text, selected)
 }
 
@@ -139,7 +146,9 @@ func (input typingInputClient) UnmarkText() {
 	client := input.DraftClient
 	client.UnmarkText()
 	if client.typing.composing {
+		prev := len(client.typing.echoes)
 		client.captureTyping(client.typing.compositionBase, client.text())
+		client.typing.unmarkedEcho = len(client.typing.echoes) > prev
 		client.typing.composing = false
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func effectNear(t *testing.T, got, want float64) {
@@ -216,6 +218,61 @@ func TestEffectTimingTypingLifecycle(t *testing.T) {
 	client.configureTyping(m, true)
 	if len(client.typing.echoes) != 0 || !client.typing.caretBorn.IsZero() {
 		t.Fatal("reduced motion retained typing animation")
+	}
+}
+
+func TestTypingEffectsIMECommitPasteUndoDeleteAndBatch(t *testing.T) {
+	draft := ""
+	client := NewDraftClient(&draft)
+	m := Model{TypingFx: true, TypingFxStyle: json.RawMessage(`{"effect":"drop","cursor":"block"}`)}
+	client.configureTyping(m, false)
+
+	ti := typingInputClient{DraftClient: client}
+
+	// 1. IME composition: SetMarkedText emits 0 echoes; direct commit emits 1 echo for final text.
+	ti.SetMarkedText(nil, "zh", ui.TextInputRange{Start: 2, End: 2})
+	if len(client.typing.echoes) != 0 {
+		t.Fatalf("SetMarkedText emitted echoes during composition: %d", len(client.typing.echoes))
+	}
+	ti.SetMarkedText(nil, "zhong", ui.TextInputRange{Start: 5, End: 5})
+	if len(client.typing.echoes) != 0 {
+		t.Fatalf("SetMarkedText update emitted echoes: %d", len(client.typing.echoes))
+	}
+	ti.ReplaceText(nil, "中")
+	if len(client.typing.echoes) != 1 || client.typing.echoes[0].text != "中" {
+		t.Fatalf("direct IME commit echoes = %+v, want single echo \"中\"", client.typing.echoes)
+	}
+
+	// 2. OS IME pattern: UnmarkText followed by ReplaceText(&marked, committed)
+	// must emit only 1 echo for the final committed text (never intermediate preedit).
+	client.typing.echoes = nil
+	marked := ui.TextInputRange{Start: ui.UTF16Len(draft), End: ui.UTF16Len(draft) + 3}
+	ti.SetMarkedText(nil, "wen", ui.TextInputRange{Start: 3, End: 3})
+	ti.UnmarkText()
+	ti.ReplaceText(&marked, "文")
+	if len(client.typing.echoes) != 1 || client.typing.echoes[0].text != "文" {
+		t.Fatalf("unmark+replace IME commit echoes = %+v, want single echo \"文\"", client.typing.echoes)
+	}
+
+	// 3. Standalone UnmarkText (accept preedit as-is) emits 1 echo.
+	client.typing.echoes = nil
+	ti.SetMarkedText(nil, "字", ui.TextInputRange{Start: 1, End: 1})
+	ti.UnmarkText()
+	if len(client.typing.echoes) != 1 || client.typing.echoes[0].text != "字" {
+		t.Fatalf("standalone UnmarkText echoes = %+v, want single echo \"字\"", client.typing.echoes)
+	}
+
+	// 4. Direct client.ReplaceText (paste / delete / cut), Undo, Redo, whitespace and >16 UTF-16 batch emit 0 echoes.
+	client.typing.echoes = nil
+	end := ui.UTF16Len(draft)
+	client.ReplaceText(&ui.TextInputRange{Start: end, End: end}, "pasted") // paste bypasses typingInputClient
+	client.ReplaceText(&ui.TextInputRange{Start: end, End: end + 6}, "")  // delete
+	ti.ReplaceText(nil, " ")                                               // whitespace-only keystroke
+	ti.ReplaceText(nil, "abcdefghijklmnopq")                               // 17 UTF-16 code units (>16 batch)
+	client.Undo()
+	client.Redo()
+	if len(client.typing.echoes) != 0 {
+		t.Fatalf("paste/delete/whitespace/batch/undo/redo emitted unexpected echoes: %+v", client.typing.echoes)
 	}
 }
 

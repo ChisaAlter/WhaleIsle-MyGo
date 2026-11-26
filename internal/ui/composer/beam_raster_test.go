@@ -33,3 +33,56 @@ func TestBeamRasterRebuildsGeometryForDPITrackAndPalette(t *testing.T) {
 		}
 	}
 }
+
+func TestBeamRaster24AnglesCornerCoverageAndDarkPhase(t *testing.T) {
+	const w, h float32 = 654, 193
+	style := readBeamStyle(nil)
+	colors := beamPalettes["legacy"]
+	intervals := len(colors)
+	opacity := beamOpacityTargets(style, true, 1, 1)
+
+	var b beamRasterData
+	b.prepare(w, h, 1, style.TrackWidth, colors, true)
+	if b.width != int(w)+8 || b.height != int(h)+8 {
+		t.Fatalf("unexpected 4px bloom shell dimensions: %dx%d", b.width, b.height)
+	}
+
+	// Sample the 2px stroke ring along each of the four 22px corners (arc midpoint
+	// at radius 22 - 1 = 21 from the corner's inner circle center).
+	offset := float32(22.0 - 21.0*0.70710678)
+	corners := [4][2]int{
+		{int(offset) + 4, int(offset) + 4},     // top-left
+		{int(w-offset) + 4, int(offset) + 4},   // top-right
+		{int(w-offset) + 4, int(h-offset) + 4}, // bottom-right
+		{int(offset) + 4, int(h-offset) + 4},   // bottom-left
+	}
+	var maxAlpha [4]uint8
+	minAlpha := [4]uint8{255, 255, 255, 255}
+
+	for step := 0; step < 24; step++ {
+		phase := float64(step) / 24.0
+		b.render(w, h, 1, style, colors, intervals, phase, 0, false, opacity)
+		for i, pt := range corners {
+			a := b.pixels.RGBAAt(pt[0], pt[1]).A
+			if a > maxAlpha[i] {
+				maxAlpha[i] = a
+			}
+			if a < minAlpha[i] {
+				minAlpha[i] = a
+			}
+		}
+		// Outer 4px bloom shell bounds must remain clipped cleanly at corners.
+		if cornerOutside := b.pixels.RGBAAt(0, 0).A; cornerOutside != 0 {
+			t.Fatalf("step %d: pixel outside 26px outer shell leaked alpha=%d", step, cornerOutside)
+		}
+	}
+
+	for i := range corners {
+		if maxAlpha[i] < 100 {
+			t.Fatalf("corner %d never reached high visibility across 24 angles: maxAlpha=%d", i, maxAlpha[i])
+		}
+		if minAlpha[i] > 40 {
+			t.Fatalf("corner %d never returned to dark phase across 24 angles: minAlpha=%d", i, minAlpha[i])
+		}
+	}
+}
