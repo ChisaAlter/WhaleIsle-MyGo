@@ -2,9 +2,21 @@ package frame
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
+
+func frameCanvasFill(t *design.Tokens) ui.Color {
+	if t.Glass {
+		return t.Background
+	}
+	if chrome.BackdropActive() {
+		return chrome.BackdropCanvas(t.Background)
+	}
+	return t.Background
+}
 
 // NavigationShell owns the persistent workspace rail. Chat and global panels
 // occupy the same center slot; fullscreen settings/guest pages bypass this API.
@@ -23,7 +35,7 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 	// The production frame lives inside this shell with ExternalNavigation.
 	// A phone rightbar covers the viewport rather than the rail's clipped main
 	// column. Global workspace pages keep their own navigation and caption.
-	canvas := tk(c).Background
+	canvas := frameCanvasFill(tk(c))
 	if !m.WorkspacePage && workspaceAutoFullscreen(m) {
 		ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinWidth(0).MinHeight(0).Background(canvas).Children(func() {
 			content()

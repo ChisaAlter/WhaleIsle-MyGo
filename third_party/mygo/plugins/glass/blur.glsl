@@ -16,6 +16,12 @@ vec4 blurSample(Effect e, vec2 q) {
 	return top * (1.0 - w.y) + bot * w.y;
 }
 
+float blurIGN(vec2 pos) {
+	float n = fract(52.9829189 * fract(dot(pos, vec2(0.06711056, 0.00583715))));
+	float r = n * 2.0 - 1.0;
+	return (r >= 0.0 ? 1.0 : -1.0) * (1.0 - sqrt(max(0.0, 1.0 - abs(r))));
+}
+
 vec4 effect(vec2 p, Effect e) {
 	vec2 d = e.p0.zw - e.p0.xy;
 	float l = d.x * d.x + d.y * d.y;
@@ -32,5 +38,8 @@ vec4 effect(vec2 p, Effect e) {
 	float lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 	c.rgb = clamp(lum + (c.rgb - lum) * (1.0 + e.p2.x) + e.p2.y * c.a, vec3(0.0), vec3(c.a));
 	c += (vec4(e.p3.rgb, 1.0) - c) * e.p2.z;
+	if (e.p3.w > 0.5 && c.a > 0.0) {
+		c.rgb = clamp(c.rgb + blurIGN(floor(p)) * (0.5 / 255.0) * c.a, vec3(0.0), vec3(c.a));
+	}
 	return c * w;
 }

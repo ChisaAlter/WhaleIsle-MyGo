@@ -110,6 +110,18 @@ func wallpaperBackdropPrefs(path string, prefs wallpapers.Preferences) wallpaper
 	return wallpapers.NormalizeEffect(path, prefs)
 }
 
+func (s *mainState) currentWallpaperConfigPath() string {
+	s.mu.Lock()
+	cfgStore := s.cfgStore
+	s.mu.Unlock()
+	if cfgStore == nil {
+		return ""
+	}
+	cfg := s.effectiveConfigFor(cfgStore)
+	path, _ := theme.WindowWallpaperPath(cfg.WallpaperPath)
+	return path
+}
+
 func (s *mainState) resolvedWallpaperPath(path string) string {
 	prefs := wallpapers.Defaults()
 	if g := s.wallpaperControls; g != nil {

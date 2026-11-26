@@ -24,15 +24,24 @@ func TestDirect3D(t *testing.T) {
 		t.Fatal(err)
 	}
 	gputest.Compare(t, "blur-d3d11", pix, stride, s)
+	s = ambientScene()
+	if pix, stride, err = d3d11.RenderOffscreen(s); err != nil {
+		t.Fatal(err)
+	}
+	gputest.Compare(t, "ambient-d3d11", pix, stride, s)
 }
 
 // TestBytecode checks that the bytecode compiled ahead of time comes from
-// glass.hlsl and blur.hlsl and the renderer's head and tail as they are.
+// glass.hlsl, blur.hlsl and ambient.hlsl and the renderer's head and tail as
+// they are.
 func TestBytecode(t *testing.T) {
 	if gpu.SourceSum(d3d11.EffectSource(hlslSource)) != hlslSum {
 		t.Error("glass.hlsl or the Direct3D renderer's effect.hlsl changed since shaders_windows.go was generated: run go generate ./plugins/glass on Windows")
 	}
 	if gpu.SourceSum(d3d11.EffectSource(blurHLSLSource)) != blurHLSLSum {
 		t.Error("blur.hlsl or the Direct3D renderer's effect.hlsl changed since shaders_windows.go was generated: run go generate ./plugins/glass on Windows")
+	}
+	if gpu.SourceSum(d3d11.EffectSource(ambientHLSLSource)) != ambientHLSLSum {
+		t.Error("ambient.hlsl or the Direct3D renderer's effect.hlsl changed since shaders_windows.go was generated: run go generate ./plugins/glass on Windows")
 	}
 }

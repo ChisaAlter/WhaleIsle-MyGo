@@ -267,7 +267,7 @@ func View(c *ui.Context, m Model) {
 
 	selectionKey := captureSelectionKey(m, selection)
 
-	root := chrome.GlassSurface(ui.Column(c).Fill().MinHeight(0).MinWidth(0), chrome.Color(colors.Field), chrome.MaterialTerminal)
+	root := chrome.GlassSurface(ui.Column(c).Fill().MinHeight(0).MinWidth(0), chrome.Color(colors.BG), chrome.MaterialTerminal)
 	root.ContextMenu(func(menu *ui.Menu) {
 		if p != nil && menu.Item(i18n.T(i18n.KeyTerminalCopyCwd)).Disabled(p.cwd == "").Chosen() {
 			mygo.Clipboard.WriteText(p.currentDirectory())

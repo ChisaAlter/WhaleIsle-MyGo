@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 )
@@ -84,20 +85,66 @@ func composerCardBorder(t *design.Tokens, focused bool) ui.Color {
 	return t.Input
 }
 
-func composerCardElevation(e ui.Element, t *design.Tokens, focused, disabled bool) {
-	if focused && !disabled {
-		e.Shadow(0, 0, 0, design.InputRingWidth, t.Ring.Alpha(design.InputRingAlpha))
-	} else if !disabled {
-		applyShadows(e, design.ShadowXs, design.TW.Black, 0.05)
+func applyGlassShadows(e ui.Element, dark bool, darkOuter, darkInner, lightOuter, lightInner float32) {
+	outer, inner := lightOuter, lightInner
+	if dark {
+		outer, inner = darkOuter, darkInner
 	}
+	e.Shadow(0, 10, 26, 0, design.TW.Black.Alpha(outer)).
+		Shadow(0, 2, 8, 0, design.TW.Black.Alpha(inner))
+}
+
+func paintGlassInnerRim(p *ui.Painter, r ui.Rect, radius float32, dark bool, darkAlpha, lightAlpha float32) {
+	inset := design.BorderWidth
+	inner := ui.Rect{X: r.X + inset, Y: r.Y + inset, W: r.W - 2*inset, H: r.H - 2*inset}
+	if inner.W <= 0 || inner.H <= 0 {
+		return
+	}
+	alpha := lightAlpha
+	if dark {
+		alpha = darkAlpha
+	}
+	p.Stroke(inner, design.TW.White.Alpha(alpha), max(0, radius-inset), design.BorderWidth)
+}
+
+func composerCardElevation(e ui.Element, t *design.Tokens, focused, disabled bool) {
+	if disabled {
+		return
+	}
+	glassMode := t.Glass || chrome.BackdropActive()
+	if focused {
+		e.Shadow(0, 0, 0, design.InputRingWidth, t.Ring.Alpha(design.InputRingAlpha))
+		if glassMode {
+			applyGlassShadows(e, t.IsDark(), 0.28, 0.14, 0.08, 0.04)
+		}
+		return
+	}
+	if glassMode {
+		applyGlassShadows(e, t.IsDark(), 0.28, 0.14, 0.08, 0.04)
+		return
+	}
+	applyShadows(e, design.ShadowXs, design.TW.Black, 0.05)
 }
 
 // menuPanelLook gives a popup the shared coss popover look: popover fill,
 // border, and shadow-lg/5 without an enter/position transition.
 func menuPanelLook(c *ui.Context, e ui.Element) ui.Element {
 	t := design.For(c)
-	e.Background(t.Popover).Border(design.BorderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.PopoverForeground)
-	applyShadows(e, design.ShadowLg, design.TW.Black, 0.05)
+	e.Border(design.BorderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.PopoverForeground)
+	if chrome.BackdropActive() {
+		chrome.GlassSurface(e, t.Popover, chrome.MaterialMenu, design.RadiusXL)
+	} else {
+		e.Background(t.Popover)
+	}
+	if t.Glass || chrome.BackdropActive() {
+		dark := t.IsDark()
+		e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			paintGlassInnerRim(p, r, design.RadiusXL, dark, 0.12, 0.65)
+		})
+		applyGlassShadows(e, dark, 0.32, 0.16, 0.10, 0.05)
+	} else {
+		applyShadows(e, design.ShadowLg, design.TW.Black, 0.05)
+	}
 	return e
 }
 
@@ -176,10 +223,12 @@ func chip(c *ui.Context, open bool, textColor ui.Color) ui.Element {
 	return trigger
 }
 
-// paintInnerBloom stands in for the dark card rim highlight: concentric
-// hairlines just inside the edge. Over white it stays invisible; in dark
-// themes it lights the rim subtly.
-func paintInnerBloom(p *ui.Painter, r ui.Rect, radius float32) {
+// paintInnerBloom stands in for the InputBar resting inner glow: concentric
+// hairlines just inside the edge, fading smoothly across 12 DIPs.
+func paintInnerBloom(p *ui.Painter, r ui.Rect, radius, peakAlpha float32) {
+	if peakAlpha <= 0 {
+		return
+	}
 	white := design.TW.White
 	p.Clip(r, radius, func() {
 		const steps = 16
@@ -191,7 +240,10 @@ func paintInnerBloom(p *ui.Painter, r ui.Rect, radius float32) {
 			}
 			t := float32(i) / float32(steps)
 			falloff := (1 - t) * (1 - t)
-			alpha := float32(0.004) + float32(0.052)*falloff
+			alpha := peakAlpha * falloff
+			if alpha < 0.002 {
+				continue
+			}
 			p.Stroke(band, white.Alpha(alpha), max(0, radius-d), 0.85)
 		}
 	})

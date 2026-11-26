@@ -23,6 +23,12 @@ var (
 	blurHLSLSource string
 	//go:embed blur.glsl
 	blurGLSLSource string
+	//go:embed ambient.metal
+	ambientMetalSource string
+	//go:embed ambient.hlsl
+	ambientHLSLSource string
+	//go:embed ambient.glsl
+	ambientGLSLSource string
 )
 
 // Effect is the glass's effect, which the renderers draw (see
@@ -48,6 +54,17 @@ var blurEffect = &scene.Effect{
 	HLSL:     scene.EffectCode{Source: blurHLSLSource, Compiled: blurBytecode, Sum: blurHLSLSum},
 	GLSL:     blurGLSLSource,
 	Pixels:   func() scene.EffectPixels { return &blurPixels{} },
+}
+
+// ambientEffect draws an animated multi-blob gradient backdrop in a single
+// pass without reading a backdrop texture.
+var ambientEffect = &scene.Effect{
+	Name:     "ambient",
+	Backdrop: false,
+	Metal:    scene.EffectCode{Source: ambientMetalSource, Compiled: ambientMetalLibrary, Sum: ambientMetalSum},
+	HLSL:     scene.EffectCode{Source: ambientHLSLSource, Compiled: ambientBytecode, Sum: ambientHLSLSum},
+	GLSL:     ambientGLSLSource,
+	Pixels:   func() scene.EffectPixels { return &ambientPixels{} },
 }
 
 // material is a pane of glass, in device pixels: the effect's parameters.

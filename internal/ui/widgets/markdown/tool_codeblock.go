@@ -56,14 +56,14 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 		}
 		banner := ui.Row(c.Key("banner")).Absolute().Top(top).Left(0).Right(0).Height(42).Padding(10, 18, 8, 22).
 			Gap(12).AlignItems(ui.Center).Radius(16, 16, 0, 0).Label(codeLabel(st))
-		// The sticky banner keeps a fill so the scrolling source cannot show
-		// through: frosted like the card when the caller dresses surfaces —
-		// square corners are fine, the card's clip shapes the top — else the
-		// card fill it always painted.
-		if st.CodeSurface != nil {
-			banner = st.CodeSurface(banner, 0)
-		} else {
-			banner = banner.Background(st.CodeBG)
+		// At rest (top == 0), root already paints the card fill and border, so
+		// banner stays transparent and never calls CodeSurface a second time.
+		// Once scrolled (top > 0), fill banner with opaque CodeBG so scrolled
+		// code lines cannot bleed through behind the sticky controls.
+		if top > 0 && st.CodeBG.A > 0 {
+			bannerBG := st.CodeBG
+			bannerBG.A = 255
+			banner = banner.Background(bannerBG)
 		}
 		banner.Children(func() {
 			ui.Text(c, language).Font(font).FontSize(11).FixedLineHeight(18).TextColor(languageInk).NoWrap().Grow(1).MinWidth(0)

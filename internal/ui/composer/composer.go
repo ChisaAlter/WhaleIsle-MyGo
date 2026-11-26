@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -21,6 +22,7 @@ import (
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/filelink"
@@ -371,16 +373,35 @@ func View(c *ui.Context, m Model) {
 		focused := !inputDisabled && card.FocusWithin()
 		cardFill := composerCardFill(t)
 		cardBorder := composerCardBorder(t, focused)
+		glassMode := t.Glass || chrome.BackdropActive()
+		prefs := chrome.BackdropPreferences()
+		transparentActive := prefs.Transparent && chrome.BackdropHasWallpaper()
+		if glassMode && !transparentActive {
+			card.Material(glass.Blur{Radius: 28, Saturation: 0.45, Dither: true})
+		}
 		composerCardElevation(card, t, focused, inputDisabled)
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
 		card.Draw(func(p *ui.Painter, r ui.Rect) {
-			p.Fill(r, cardFill, cardRadius)
+			if chrome.BackdropActive() {
+				chrome.DrawGlass(p, r, cardFill, chrome.MaterialPanel, cardRadius)
+			} else {
+				p.Fill(r, cardFill, cardRadius)
+			}
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
-			if t.IsDark() {
-				paintInnerBloom(p, r, cardRadius)
+			if glassMode {
+				peakAlpha := float32(0.35)
+				if t.IsDark() {
+					peakAlpha = 0.14
+				}
+				paintInnerBloom(p, r, cardRadius, peakAlpha)
+			} else if t.IsDark() {
+				paintInnerBloom(p, r, cardRadius, 0.056)
 			}
 		})
 		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			if glassMode {
+				paintGlassInnerRim(p, r, cardRadius, t.IsDark(), 0.12, 0.65)
+			}
 			p.Stroke(r, cardBorder, cardRadius, design.BorderWidth)
 		})
 		card.Children(func() {
@@ -599,7 +620,7 @@ func View(c *ui.Context, m Model) {
 				// surface underneath, so the overlay is only a visual promise.
 				images, bytes := composerIntake(m.State)
 				overlay := ui.Box(c.Key("composer-drop-overlay")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
-					Radius(cardRadius).Background(t.Background.Alpha(0.92)).
+					Radius(cardRadius).Background(chrome.MaterialFill(t.Background, 0.92)).
 					Border(design.BorderWidth, accent).Justify(ui.Center).AlignItems(ui.Center).PassThrough()
 				overlay.Children(func() {
 					ui.Column(c).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
@@ -909,7 +930,10 @@ func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, skill
 			}
 			l := ui.List(c, list, len(items)).Rows(func(row ui.ListRow) {
 				sk := items[row.Index]
-				bg := t.Popover
+				bg := ui.Transparent
+				if !chrome.BackdropActive() {
+					bg = t.Popover
+				}
 				rowFg := t.PopoverForeground
 				if row.Index == sel {
 					bg = t.Accent

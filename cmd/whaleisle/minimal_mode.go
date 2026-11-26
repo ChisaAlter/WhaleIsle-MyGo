@@ -32,6 +32,7 @@ func applyMinimalMode(on bool) {
 	// token. Setting it next to the motion policy keeps it in force from
 	// the first frame; less motion still removes a dialog at once.
 	ui.SetDialogExit(ui.DialogExit{Duration: chrome.OverlayExitDuration, Ease: widgets.DesignEase})
+	syncDesignGlassFromPolicy()
 }
 
 // errMinimalModeUnavailable is the refusal before the profile's settings are

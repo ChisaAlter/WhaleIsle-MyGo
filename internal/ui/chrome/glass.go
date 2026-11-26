@@ -154,7 +154,7 @@ func SampleBackdrop(rect ui.Rect) (ui.Color, bool) {
 		return ui.Color{}, false
 	}
 	keep := float32(1)
-	if gradientBackdrop.frame == nil && !s.prefs.Transparent {
+	if gradientBackdrop.frame == nil && !effectivePrefs(s.prefs).Transparent {
 		keep = 1 - MaskAlpha(s.dark)
 	}
 	return s.colors.average(s.box, rect, keep)
@@ -231,10 +231,13 @@ func Glass(base ui.Color, m Material, radius ...float32) func(*ui.Painter, ui.Re
 // where the token's share would leave secondary text under 3:1 on the surface it
 // produces, the surface frosts more solid instead.
 func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...float32) {
+	drawGlass(p, r, base, m, firstRadius(radius), true)
+}
+
+func drawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, round float32, withFrost bool) {
 	if r.W <= 0 || r.H <= 0 {
 		return
 	}
-	round := firstRadius(radius)
 	// The transparent theme drops every chrome fill, so the image shows
 	// through unmasked; the terminal and menus keep their own fills.
 	prefs := effectivePrefs(backgroundState.prefs)
@@ -243,9 +246,15 @@ func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...fl
 	}
 	if !backgroundState.active {
 		// No backdrop: dark chrome composites over the desktop exactly as the
-		// native glass model does; light keeps the solid token fill.
-		if alpha := ShowThroughAlpha(prefs, p.Theme().Dark); alpha < 1 && chromeSurface(m) {
-			p.Fill(r, MaterialFill(base, alpha), round)
+		// native glass model does (and the terminal follows its own slider);
+		// light keeps the solid token fill.
+		if alpha := ShowThroughAlpha(prefs, p.Theme().Dark); alpha < 1 && (chromeSurface(m) || m == MaterialTerminal) {
+			if m == MaterialTerminal {
+				alpha = MaterialAlpha(MaterialTerminal, prefs, p.Theme().Dark)
+			}
+			if alpha > 0 {
+				p.Fill(r, MaterialFill(base, alpha), round)
+			}
 			return
 		}
 		// No backdrop to share: the surface keeps the theme's own fill, as the
@@ -258,15 +267,6 @@ func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...fl
 	// (--dsw-specific-input-major is an 80% rgba in the sheets); the material
 	// decides that share here, so the slider drives it once instead of twice.
 	alpha := MaterialAlpha(m, prefs, dark)
-	if gradientBackdrop.frame != nil {
-		// The gradient already paints its source-composited pixels beneath the
-		// shared canvas. A raw sampled patch here would replace that canvas tint.
-		// Its raised fills retain the CSS token alpha, without image-only guards.
-		if alpha > 0 {
-			p.Fill(r, MaterialFill(base, alpha), round)
-		}
-		return
-	}
 	if !dark && m != MaterialCanvas {
 		if backdrop, ok := SampleBackdrop(r); ok {
 			alpha = MaterialAlphaFor(backdrop, base, m, prefs, dark, Color(theme.SecondaryInk(dark)))
@@ -275,10 +275,12 @@ func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...fl
 	if alpha <= 0 {
 		return
 	}
-	if frost := frostOf(m); frost.cell > 0 {
-		// The frost is a GPU backdrop blur of what is painted under the
-		// surface; no CPU patch of the wallpaper is made.
-		glass.Blur{Radius: frost.cell, Saturation: frost.saturate - 1}.PaintMaterial(p, r, [4]float32{round, round, round, round})
+	if withFrost {
+		if frost := frostOf(m); frost.cell > 0 {
+			// The frost is a GPU backdrop blur of what is painted under the
+			// surface; no CPU patch of the wallpaper is made.
+			glass.Blur{Radius: frost.cell, Saturation: frost.saturate - 1, Dither: true}.PaintMaterial(p, r, [4]float32{round, round, round, round})
+		}
 	}
 	p.Fill(r, MaterialFill(base, alpha), round)
 }
@@ -339,31 +341,55 @@ func MenuBorderColor(colors theme.Colors, dark bool) ui.Color {
 	return Color(colors.BorderL1)
 }
 
-// menuBlur is the reference menu backdrop-filter: blur(40px) saturate(150%).
-var menuBlur = glass.Blur{Radius: 40, Saturation: 0.5}
+// menuBlur is the reference menu backdrop-filter: blur(40px) saturate(150%) with dither.
+var menuBlur = glass.Blur{Radius: 40, Saturation: 0.5, Dither: true}
+
+// drawGlassRim paints the 0.5–1 DIP inner specular highlight along the inside
+// perimeter and top lip of a frosted glass panel, matching coss modals.
+func drawGlassRim(p *ui.Painter, r ui.Rect, radius float32) {
+	if r.W <= 2 || r.H <= 2 {
+		return
+	}
+	dark := p.Theme().Dark
+	rim := ui.RGBA(255, 255, 255, 0.36)
+	top := ui.RGBA(255, 255, 255, 0.72)
+	if dark {
+		rim = ui.RGBA(255, 255, 255, 0.08)
+		top = ui.RGBA(255, 255, 255, 0.14)
+	}
+	inner := ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
+	innerR := max(0, radius-1)
+	p.Stroke(inner, rim, innerR, 0.75)
+	p.Clip(inner, innerR, func() {
+		cast := ui.Rect{X: inner.X, Y: inner.Y + 1, W: inner.W, H: inner.H}
+		p.Shadow(cast, innerR, 0, -1, 0, 0, top)
+	})
+}
 
 // MenuSurface dresses e as the shared menu panel: the menu material, which
 // blurs what was rendered under the menu (backdrop-filter: blur(40px)
 // saturate(150%)) and keeps its own fill instead of following the glass
-// slider, the hairline border and the elevation shadow. The caller keeps its
-// width and padding; the radius passed here is the panel's own corner, set on
-// the element as well as given to the glass, so the border, the shadow and the
-// clip follow the same curve.
-//
-// The hairline is painted after the glass: a Draw callback runs after the
-// element's border, so a bordered glass panel would lose its edge under an
-// opaque fill.
+// slider, the hairline border, inner specular rim and the elevation shadow.
 func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
 	round := firstRadius(radius)
-	e = GlassSurface(e.Radius(round), base, MaterialMenu, round).Border(0.5, border)
 	if backgroundState.active {
-		e = e.Material(menuPanelGlass{})
+		e = e.Radius(round).Background(ui.Transparent).Material(menuPanelGlass{}).Draw(func(p *ui.Painter, r ui.Rect) {
+			drawGlass(p, r, base, MaterialMenu, round, false)
+		})
+	} else {
+		e = GlassSurface(e.Radius(round), base, MaterialMenu, round)
 	}
+	e = e.Border(0.5, border)
 	return MenuElevation(e.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if border.A == 0 || r.W <= 0 || r.H <= 0 {
+		if r.W <= 0 || r.H <= 0 {
 			return
 		}
-		p.Stroke(r, border, round, 0.5)
+		if backgroundState.active {
+			drawGlassRim(p, r, round)
+		}
+		if border.A != 0 {
+			p.Stroke(r, border, round, 0.5)
+		}
 	}))
 }
 
@@ -429,19 +455,28 @@ func MenuShadow(p *ui.Painter, rect ui.Rect, radius float32) {
 	p.Stroke(rect, t.Border, radius, 0.5)
 }
 
+func menuElevationFor(e ui.Element, dark bool) ui.Element {
+	if dark {
+		return e.Shadow(0, 10, 28, -2, ui.RGBA(0, 0, 0, .32)).
+			Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .16))
+	}
+	return e.Shadow(0, 10, 28, -2, ui.RGBA(0, 0, 0, .10)).
+		Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .05))
+}
+
+func modalElevationFor(e ui.Element, dark bool) ui.Element {
+	if dark {
+		return e.Shadow(0, 18, 40, -4, ui.RGBA(0, 0, 0, .32)).
+			Shadow(0, 4, 12, 0, ui.RGBA(0, 0, 0, .16))
+	}
+	return e.Shadow(0, 18, 40, -4, ui.RGBA(0, 0, 0, .10)).
+		Shadow(0, 4, 12, 0, ui.RGBA(0, 0, 0, .05))
+}
+
 // MenuElevation gives a floating menu or card its drop shadow, matching the
-// --dsw-elevation-* recipe: a small near shadow plus one wide soft one. A menu
-// panel takes the shared material, the hairline, this elevation and the popover
-// fade together:
-//
-//	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
-//		progress := chrome.Reveal(c, panel, chrome.PopoverDuration)
-//		panel.Width(220).Radius(10).Opacity(progress)
-//		chrome.MenuSurface(panel, fill, border, 10)
-//	})
+// adaptive light/dark dual-layer glass elevation.
 func MenuElevation(e ui.Element) ui.Element {
-	return e.Shadow(0, 0, 20, 0, ui.RGBA(0, 0, 0, .05)).
-		Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .04))
+	return menuElevationFor(e, backgroundState.dark)
 }
 
 // menuPanelGlass is the ui.Material a theme's Menu asks for (Theme.Menu) and
@@ -598,4 +633,21 @@ func ShowThroughAlpha(p wallpapers.Preferences, dark bool) float32 {
 // desktop pixel behind it.
 func GlassComposite(panel, desktop ui.Color, alpha float32) ui.Color {
 	return MaterialFill(panel, alpha).Over(desktop)
+}
+
+// AcrylicCanvasAlpha returns the reference Windows Desktop Acrylic canvas
+// opacity curve: round(100 * (canvasSolidityUncapped(g)/100)^1.5) / 100.
+func AcrylicCanvasAlpha(p wallpapers.Preferences) float32 {
+	uncapped := float64(canvasSolidityUncapped(clampPercent(p.Glass))) / 100
+	return float32(math.Round(100*math.Pow(uncapped, 1.5)) / 100)
+}
+
+// MenuSolidity returns the reference menu surface fill opacity for p.Glass:
+// light max(g*0.875, g*2.1-110)/100, dark max(g*0.8, g*2.75-175)/100.
+func MenuSolidity(p wallpapers.Preferences, dark bool) float32 {
+	g := clampPercent(p.Glass)
+	if dark {
+		return float32(math.Max(g*0.8, g*2.75-175) / 100)
+	}
+	return float32(math.Max(g*0.875, g*2.1-110) / 100)
 }

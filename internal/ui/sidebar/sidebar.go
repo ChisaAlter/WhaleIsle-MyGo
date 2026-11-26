@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/product"
@@ -394,13 +395,29 @@ func View(c *ui.Context, m Model) {
 	m.workspaceWatermarks = ui.Local(root, "workspace-watermarks", func() workspaceWatermarkState { return workspaceWatermarkState{} })
 	m.sidebarDrag = ui.Local(root, "sidebar-drag-state", func() sidebarDragState { return sidebarDragState{} })
 	fill := t.Sidebar
+	prefs := chrome.BackdropPreferences()
+	blurSidebar := chrome.BackdropActive() && skinLayout.Skin != theme.SkinCodex &&
+		!prefs.HideSidebarMask && !(prefs.Transparent && chrome.BackdropHasWallpaper())
 	if skinLayout.Active() {
 		if m.Collapsed && skinLayout.Skin == theme.SkinCodex {
 			fill = t.Background
 		}
-		root.Background(fill).Radius(0).DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if skinLayout.Skin != theme.SkinCodex && chrome.BackdropActive() {
+			chrome.GlassSurface(root, fill, chrome.MaterialSidebar).Radius(0)
+			if blurSidebar {
+				root.Material(glass.Blur{Radius: 16, Saturation: 0.35, Dither: true})
+			}
+		} else {
+			root.Background(fill).Radius(0)
+		}
+		root.DrawOver(func(p *ui.Painter, r ui.Rect) {
 			p.Fill(ui.Rect{X: r.X + r.W - skinLayout.SidebarBorder, Y: r.Y, W: skinLayout.SidebarBorder, H: r.H}, t.SidebarBorder, 0)
 		})
+	} else if chrome.BackdropActive() {
+		chrome.GlassSurface(root, fill, chrome.MaterialSidebar).Radius(0)
+		if blurSidebar {
+			root.Material(glass.Blur{Radius: 16, Saturation: 0.35, Dither: true})
+		}
 	} else {
 		root.Background(fill).Radius(0)
 	}

@@ -24,6 +24,12 @@ float4 blurSample(texture2d<float> t, Effect e, float2 q) {
 	return top * (1.0f - w.y) + bot * w.y;
 }
 
+float blurIGN(float2 pos) {
+	float n = fract(52.9829189f * fract(dot(pos, float2(0.06711056f, 0.00583715f))));
+	float r = n * 2.0f - 1.0f;
+	return (r >= 0.0f ? 1.0f : -1.0f) * (1.0f - sqrt(max(0.0f, 1.0f - abs(r))));
+}
+
 float4 effect(float2 p, Effect e, texture2d<float> backdrop) {
 	float2 d = e.p0.zw - e.p0.xy;
 	float l = d.x * d.x + d.y * d.y;
@@ -40,5 +46,8 @@ float4 effect(float2 p, Effect e, texture2d<float> backdrop) {
 	float lum = 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
 	c.rgb = clamp(lum + (c.rgb - lum) * (1.0f + e.p2.x) + e.p2.y * c.a, 0.0f, c.a);
 	c += (float4(e.p3.rgb, 1.0f) - c) * e.p2.z;
+	if (e.p3.w > 0.5f && c.a > 0.0f) {
+		c.rgb = clamp(c.rgb + blurIGN(floor(p)) * (0.5f / 255.0f) * c.a, 0.0f, c.a);
+	}
 	return c * w;
 }

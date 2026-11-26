@@ -45,7 +45,7 @@ func CommandPalette(c *ui.Context, open *bool, query *string, items []CommandIte
 	chosen := ""
 	withKey(c, o.Key)
 	ui.DialogBaseWithOptions(c, open, ui.DialogOptions{}, func(back, panel ui.Element) {
-		backdropLook(back, "command/command-dialog-backdrop")
+		backdropLook(back, t, "command/command-dialog-backdrop")
 		_, wh := c.Size()
 		back.Column().Justify(ui.Start).AlignItems(ui.Center).Padding(max(design.Sp(4), wh*0.1), design.Sp(4))
 		chosen = commandPanel(c, t, panel, query, items, o, true)
@@ -78,6 +78,8 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 	sh.scale(design.ShadowLg, black, 0.05)
 	d := deco{border: design.BorderWidth, radius: design.RadiusXL2}
 	d.highlight(t, 0.04, 0.06)
+	applyGlassMaterial(panel, t, t.Popover, 28, 0.45)
+	applyGlassElevation(t, &sh, &d, glassTierModal)
 	finish(panel, &sh, &d)
 	motion(panel, "command/command-dialog-popup", 0, 0)
 	st := ui.Local(panel, "coss.command", func() commandState { return commandState{} })
@@ -128,7 +130,15 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 			})
 		})
 		// The inner card (-mx-px, rounded top, border without bottom).
-		inner := ui.Column(c).FillWidth().Grow(1).MinHeight(0).Margin(0, -1, 0, -1).Background(t.Popover).
+		innerBg := t.Popover
+		if t.Glass {
+			if t.IsDark() {
+				innerBg = white.Alpha(0.03)
+			} else {
+				innerBg = white.Alpha(0.24)
+			}
+		}
+		inner := ui.Column(c).FillWidth().Grow(1).MinHeight(0).Margin(0, -1, 0, -1).Background(innerBg).
 			BorderWidth(design.BorderWidth, design.BorderWidth, 0, design.BorderWidth).BorderColor(t.Border)
 		if o.Footer != nil {
 			inner.Radius(design.RadiusXL, design.RadiusXL, 0, 0)

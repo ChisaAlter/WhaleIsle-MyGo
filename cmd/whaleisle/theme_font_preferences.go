@@ -126,11 +126,15 @@ func (s *mainState) beginAppearanceFrame(c *ui.Context) {
 	id := s.themeID
 	s.mu.Unlock()
 	p := theme.RenderPreferences()
-	systemDark := mygo.Theme.IsDark()
+	systemDark := false
+	if mygo.App.IsReady() {
+		systemDark = mygo.Theme.IsDark()
+	}
 	resolved := theme.ResolveWithSystem(id, systemDark)
 	dark := resolved.Scheme == theme.SchemeDark
 	p.Interface = theme.FontForSkin(p, theme.SkinForMode(p, dark), theme.SkinInterfaceFont)
 	colors := resolved.Active(systemDark)
+	s.syncAppearanceBackdrop(id, systemDark, dark)
 	applyAppearanceTheme(c, p, colors, dark)
 }
 

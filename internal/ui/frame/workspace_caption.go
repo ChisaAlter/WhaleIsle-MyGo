@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -121,10 +122,17 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	// The band's bottom hairline anchors the header the way the client's
 	// conversation-header ::after does.
 	layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
+	tCaption := tk(c)
 	if layout.Active() {
 		row.Background(theme.Color(layout.ChatBackground))
+	} else if tCaption.Glass || chrome.BackdropActive() {
+		prefs := chrome.BackdropPreferences()
+		if chrome.BackdropActive() && !prefs.HideSidebarMask && !(prefs.Transparent && chrome.BackdropHasWallpaper()) {
+			chrome.GlassSurface(row, tCaption.Sidebar, chrome.MaterialSidebar)
+		} else {
+			row.Background(ui.Transparent)
+		}
 	}
-	tCaption := tk(c)
 	stroke, ink := design.BorderWidth/2, tCaption.Border
 	if m.SystemDark {
 		ink = design.TW.White.Alpha(0.02)

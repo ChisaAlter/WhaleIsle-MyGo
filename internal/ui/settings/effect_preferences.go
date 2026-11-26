@@ -10,6 +10,7 @@ import (
 	"unicode/utf16"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
@@ -60,21 +61,7 @@ func effectBeamPaletteColors(raw json.RawMessage) []string {
 }
 
 func settingsEffectPreview(c *ui.Context, style json.RawMessage, typing bool) {
-	box := chrome.FrostSurface(ui.Column(c.Key("settings-effect-preview")).FillWidth().MinWidth(0).Padding(12), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 16)
-	if typing {
-		box.MinHeight(86).Children(func() {
-			ui.Text(c, providerCopy("输入特效", "Typing effects")).FontSize(14).Padding(16).TextColor(c.Theme().Text)
-		})
-		return
-	}
-	colors := effectBeamPaletteColors(style)
-	accent := c.Theme().Accent
-	if len(colors) > 0 && effectHex(colors[0]) {
-		accent = chrome.Color(colors[0])
-	}
-	box.Radius(22).MinHeight(86).Border(1.5, accent).Children(func() {
-		ui.Text(c, providerCopy("智能体正在思考", "Agent is thinking")).FontSize(14).Padding(16).TextColor(c.Theme().Text)
-	})
+	composer.SettingsEffectPreview(c, style, typing)
 }
 
 type effectChoice struct {
@@ -693,7 +680,11 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 				label = fmt.Sprintf("%02d:%02d", int(value)/60, int(value)%60)
 			}
 			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			if ui.StepSlider(c, &value, number.lo, number.hi, number.step).FillWidth().Label("effect-" + number.path).Disabled(blocked || disabled).Changed() {
+			if coss.Slider(c, &value, number.lo, number.hi, coss.SliderOptions{
+				Step:     number.step,
+				Label:    "effect-" + number.path,
+				Disabled: blocked || disabled,
+			}).Changed() {
 				effectSet(d.Style, number.path, value)
 				if !typing {
 					d.Style["mode"] = "custom"
