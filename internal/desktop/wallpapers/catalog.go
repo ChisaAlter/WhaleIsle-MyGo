@@ -9,7 +9,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -47,43 +49,162 @@ func Sources() []Source {
 	return []Source{{ID: "bing", Kind: "bing", Name: storelocale.T(storelocale.KeyStoreWallpapersBing)}, {ID: "wallhaven", Kind: "wallhaven", Name: "Wallhaven"}}
 }
 
-// Retain the original catalog's HTTPS/public-host, redirect, byte and timeout boundaries.
-func blocked(host string) bool {
-	host = strings.ToLower(strings.Trim(host, "[]"))
-	if host == "" || host == "localhost" || strings.HasSuffix(host, ".localhost") || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") {
-		return true
+func allowTestHTTP() bool {
+	return os.Getenv("DSHD_WALLPAPER_ALLOW_HTTP") == "1"
+}
+
+var (
+	blockedIPv4Prefixes = mustPrefixes(
+		"0.0.0.0/8",
+		"10.0.0.0/8",
+		"100.64.0.0/10",
+		"169.254.0.0/16",
+		"172.16.0.0/12",
+		"192.0.0.0/24",
+		"192.0.2.0/24",
+		"192.88.99.0/24",
+		"192.168.0.0/16",
+		"198.18.0.0/15",
+		"198.51.100.0/24",
+		"203.0.113.0/24",
+		"224.0.0.0/4",
+		"240.0.0.0/4",
+	)
+	blockedIPv6Prefixes = mustPrefixes(
+		"::/128",
+		"64:ff9b:1::/48",
+		"100::/64",
+		"2001::/23",
+		"2001:db8::/32",
+		"2002::/16",
+		"3fff::/20",
+		"fc00::/7",
+		"fe80::/10",
+		"fec0::/10",
+		"ff00::/8",
+	)
+	loopbackIPv4Prefix = netip.MustParsePrefix("127.0.0.0/8")
+	loopbackIPv6Prefix = netip.MustParsePrefix("::1/128")
+)
+
+func mustPrefixes(cidrs ...string) []netip.Prefix {
+	out := make([]netip.Prefix, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		out = append(out, netip.MustParsePrefix(cidr))
 	}
-	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+	return out
+}
+
+func isBlockedIPv4Addr(addr netip.Addr) bool {
+	if loopbackIPv4Prefix.Contains(addr) || addr == netip.IPv4Unspecified() {
+		return !allowTestHTTP()
+	}
+	for _, p := range blockedIPv4Prefixes {
+		if p.Contains(addr) {
 			return true
-		}
-		if v := ip.To4(); v != nil {
-			return v[0] == 0 || (v[0] == 100 && v[1] >= 64 && v[1] <= 127) || (v[0] == 198 && (v[1] == 18 || v[1] == 19))
 		}
 	}
 	return false
 }
+
+// embeddedIPv4 extracts an IPv4 address from ::/96 (IPv4-compatible),
+// ::ffff:0/96 (IPv4-mapped) or 64:ff9b::/96 (NAT64 well-known prefix).
+func embeddedIPv4(addr netip.Addr) (netip.Addr, bool) {
+	if !addr.Is6() {
+		return netip.Addr{}, false
+	}
+	b := addr.As16()
+	isCompat := b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[4] == 0 && b[5] == 0 && b[6] == 0 && b[7] == 0 && b[8] == 0 && b[9] == 0 && b[10] == 0 && b[11] == 0
+	isMapped := b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[4] == 0 && b[5] == 0 && b[6] == 0 && b[7] == 0 && b[8] == 0 && b[9] == 0 && b[10] == 0xff && b[11] == 0xff
+	isNAT64 := b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0 && b[5] == 0 && b[6] == 0 && b[7] == 0 && b[8] == 0 && b[9] == 0 && b[10] == 0 && b[11] == 0
+	if !isCompat && !isMapped && !isNAT64 {
+		return netip.Addr{}, false
+	}
+	return netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]}), true
+}
+
+// Retain the original catalog's HTTPS/public-host, redirect, byte and timeout boundaries.
+func blocked(host string) bool {
+	host = strings.TrimRight(strings.Trim(strings.TrimSpace(host), "[]"), ".")
+	host = strings.ToLower(host)
+	if host == "" {
+		return true
+	}
+	if addr, err := netip.ParseAddr(host); err == nil {
+		if addr.Zone() != "" {
+			return true
+		}
+		if addr.Is4() {
+			return isBlockedIPv4Addr(addr)
+		}
+		if addr.Is4In6() {
+			return isBlockedIPv4Addr(addr.Unmap())
+		}
+		if v4, ok := embeddedIPv4(addr); ok {
+			return isBlockedIPv4Addr(v4)
+		}
+		if loopbackIPv6Prefix.Contains(addr) {
+			return !allowTestHTTP()
+		}
+		for _, p := range blockedIPv6Prefixes {
+			if p.Contains(addr) {
+				return true
+			}
+		}
+		return false
+	}
+	if strings.Contains(host, ":") {
+		return true
+	}
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") {
+		return !allowTestHTTP()
+	}
+	return false
+}
 func URL(raw string) (*url.URL, error) {
-	u, e := url.Parse(strings.TrimSpace(raw))
-	if e != nil || u.Scheme != "https" || u.User != nil || blocked(u.Hostname()) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || len(trimmed) > 2000 {
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperAddressMustBeAPublicHttps))
+	}
+	u, e := url.Parse(trimmed)
+	schemeOK := e == nil && (u.Scheme == "https" || (u.Scheme == "http" && allowTestHTTP()))
+	if !schemeOK || u.User != nil || blocked(u.Hostname()) {
 		return nil, errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperAddressMustBeAPublicHttps))
 	}
 	return u, nil
+}
+func resolveAllowedAddrs(ctx context.Context, hostname string) ([]netip.Addr, error) {
+	if blocked(hostname) {
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperAddressResolvesToADisallow))
+	}
+	clean := strings.TrimRight(strings.Trim(strings.TrimSpace(hostname), "[]"), ".")
+	if addr, err := netip.ParseAddr(clean); err == nil {
+		return []netip.Addr{addr}, nil
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, clean)
+	if err != nil {
+		return nil, err
+	}
+	addrs := make([]netip.Addr, 0, len(ips))
+	for _, ip := range ips {
+		if blocked(ip.IP.String()) {
+			return nil, errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperAddressResolvesToADisallow))
+		}
+		if addr, ok := netip.AddrFromSlice(ip.IP); ok {
+			addrs = append(addrs, addr)
+		}
+	}
+	if len(addrs) == 0 {
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperAddressResolvesToADisallow))
+	}
+	return addrs, nil
 }
 func allowed(ctx context.Context, u *url.URL) error {
 	if _, err := URL(u.String()); err != nil {
 		return err
 	}
-	ips, err := net.DefaultResolver.LookupIPAddr(ctx, u.Hostname())
-	if err != nil {
-		return err
-	}
-	for _, ip := range ips {
-		if blocked(ip.IP.String()) {
-			return errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperAddressResolvesToADisallow))
-		}
-	}
-	return nil
+	_, err := resolveAllowedAddrs(ctx, u.Hostname())
+	return err
 }
 func Fetch(ctx context.Context, raw string, image bool) ([]byte, error) {
 	u, err := URL(raw)
@@ -99,7 +220,30 @@ func Fetch(ctx context.Context, raw string, image bool) ([]byte, error) {
 		limit = 12 * 1024 * 1024
 		timeout = 20 * time.Second
 	}
-	client := &http.Client{Timeout: timeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	dialer := &net.Dialer{Timeout: timeout}
+	transport := &http.Transport{
+		DialContext: func(dialCtx context.Context, network, addr string) (net.Conn, error) {
+			host, port, splitErr := net.SplitHostPort(addr)
+			if splitErr != nil {
+				return nil, splitErr
+			}
+			addrs, resolveErr := resolveAllowedAddrs(dialCtx, host)
+			if resolveErr != nil {
+				return nil, resolveErr
+			}
+			var lastErr error
+			for _, resolved := range addrs {
+				conn, dialErr := dialer.DialContext(dialCtx, network, net.JoinHostPort(resolved.String(), port))
+				if dialErr == nil {
+					return conn, nil
+				}
+				lastErr = dialErr
+			}
+			return nil, lastErr
+		},
+	}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Timeout: timeout, Transport: transport, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) > 4 {
 			return errors.New(storelocale.T(storelocale.KeyStoreWallpapersTooManyWallpaperRedirects))
 		}

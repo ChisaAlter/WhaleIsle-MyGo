@@ -133,10 +133,14 @@ func glassSurfaceFilter(sig designGlassSignature) design.SurfaceFilter {
 			return
 		}
 		if dark && sig.acrylic {
+			sidebarA := chrome.ShowThroughAlpha(prefs, true)
+			if sig.hideSidebarMask {
+				sidebarA = 0
+			}
 			applyDarkGlassPalette(
 				p,
 				acrylicCanvasAlpha(prefs),
-				chrome.ShowThroughAlpha(prefs, true),
+				sidebarA,
 				0.80,
 				darkGlassMenuAlpha(prefs),
 			)

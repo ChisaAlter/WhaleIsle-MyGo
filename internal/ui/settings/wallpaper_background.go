@@ -201,7 +201,7 @@ func (g *WallpaperEditor) toggleFavorite(item wallpapers.Item) {
 			break
 		}
 	}
-	if !found {
+	if !found && len(out) < 100 {
 		out = append(out, item)
 	}
 	g.changePreference(func(p *wallpapers.Preferences) { p.Favorites = out })
@@ -219,7 +219,7 @@ func (g *WallpaperEditor) load(page int) {
 	if g.Source == "收藏" {
 		g.Items = nil
 		for _, item := range g.currentPreferences().Favorites {
-			if strings.Contains(strings.ToLower(item.Title+" "+item.ID), strings.ToLower(g.Search)) {
+			if strings.Contains(strings.ToLower(item.Title+" "+item.Copyright+" "+item.ID), strings.ToLower(g.Search)) {
 				g.Items = append(g.Items, item)
 			}
 		}

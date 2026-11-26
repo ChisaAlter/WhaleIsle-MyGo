@@ -247,3 +247,244 @@ func TestBackgroundEffectModalDraftIsolationSwatchesAndReset(t *testing.T) {
 		t.Fatalf("reset clobbered unrelated wallpaper prefs: blur=%v hideMask=%v", got.Blur, got.HideSidebarMask)
 	}
 }
+
+func TestBackgroundEffectModalExternalHostRefreshAndCustomTransition(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(old)
+
+	g, saves, _ := wallpaperFixture(t)
+	g.Prefs.Preset = "aurora"
+	g.Prefs.Variant = "orbs"
+	g.Prefs.Speed = 190
+	g.Prefs.Count = 5
+	g.Saved = g.Prefs.Clone()
+	path := ""
+	a := &AppearanceAccess{Background: g, WallpaperPath: &path, OnBrowseWallpaper: func() {}}
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		appearancePane(c, Model{Appearance: a, ThemeID: "deepseek.light"}, c.Theme().Text, c.Theme().TextMuted)
+	}, 900, 1800)
+	if err := tt.Click("Background effect settings"); err != nil {
+		t.Fatalf("open background effect modal: %v", err)
+	}
+	if err := tt.Click("Sunset"); err != nil {
+		t.Fatalf("select Sunset: %v", err)
+	}
+
+	// Simulate an external Host theme publication arriving while the dialog is open.
+	external := g.Saved.Clone()
+	external.Preset = "ocean"
+	external.Speed = 110
+	g.AcceptHost(external)
+	tt.Frame()
+
+	if err := tt.Click("Save"); err != nil {
+		t.Fatalf("save background effect modal: %v", err)
+	}
+	if len(*saves) != 1 || (*saves)[0].Preset != "sunset" || (*saves)[0].Speed != 190 {
+		t.Fatalf("external AcceptHost clobbered open modal draft: saves=%+v", *saves)
+	}
+
+	// Editing a color slot or slider transitions preset to "custom" on save.
+	if err := tt.Click("Background effect settings"); err != nil {
+		t.Fatalf("reopen background effect modal: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Animation style"); err != nil {
+		t.Fatalf("open Animation style select: %v", err)
+	}
+	if err := tt.Click("Chaos"); err != nil {
+		t.Fatalf("select Chaos variant: %v", err)
+	}
+	if err := tt.Click("Save"); err != nil {
+		t.Fatalf("save custom variant: %v", err)
+	}
+	if len(*saves) != 2 || (*saves)[1].Variant != "chaos" || (*saves)[1].Preset != "custom" {
+		t.Fatalf("variant edit did not mark custom preset: %+v", (*saves)[1])
+	}
+}
+
+func TestWallpaperPrecedenceHighGlassHintAndTransparentBlurNudge(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(old)
+
+	g, saves, _ := wallpaperFixture(t)
+	var raw bytes.Buffer
+	_ = png.Encode(&raw, image.NewRGBA(image.Rect(0, 0, 16, 16)))
+	dataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(raw.Bytes())
+	hasImg := false
+	g.ImageSource = func() string {
+		if hasImg {
+			return dataURL
+		}
+		return ""
+	}
+	g.Prefs.Effect = "gradient"
+	g.Prefs.EffectExplicit = true
+	g.Prefs.Glass = 90
+	g.Prefs.Blur = 5
+	g.Saved = g.Prefs.Clone()
+
+	path := ""
+	a := &AppearanceAccess{Background: g, WallpaperPath: &path, OnBrowseWallpaper: func() {}}
+	tt := ui.NewTester(func(c *ui.Context) {
+		appearancePane(c, Model{Appearance: a, ThemeID: "deepseek.light"}, c.Theme().Text, c.Theme().TextMuted)
+	}, 900, 1800)
+	if tt.HasText("Enabled; the current wallpaper takes precedence.") {
+		t.Fatal("wallpaper precedence hint appeared without wallpaper")
+	}
+
+	// Set wallpaper: pauses gradient hint + high glass (>=90%) hint appear.
+	hasImg = true
+	path = dataURL
+	tt.Frame()
+	if !tt.HasText("Enabled; the current wallpaper takes precedence.") {
+		t.Fatal("missing wallpaper precedence hint while gradient & wallpaper are both set")
+	}
+	if !tt.HasText("High glass opacity covers the wallpaper. Lower Glass opacity to let more of the image show through.") {
+		t.Fatal("missing >=90% glass opacity warning hint")
+	}
+
+	// Lower glass below 90%: warning disappears.
+	g.changePreference(func(p *wallpapers.Preferences) { p.Glass = 85 })
+	tt.Frame()
+	if tt.HasText("High glass opacity covers the wallpaper. Lower Glass opacity to let more of the image show through.") {
+		t.Fatal("glass opacity hint remained when Glass < 90")
+	}
+
+	// Clear wallpaper: gradient precedence hint disappears.
+	hasImg = false
+	path = ""
+	g.ClearImage()
+	tt.Frame()
+	if tt.HasText("Enabled; the current wallpaper takes precedence.") {
+		t.Fatal("precedence hint remained after clearing wallpaper")
+	}
+
+	// Transparent theme one-shot Blur >= 20% nudge:
+	// (1) Without wallpaper, turning Transparent ON keeps Blur=5.
+	g.changePreference(func(p *wallpapers.Preferences) { p.Transparent = true })
+	if g.Saved.Blur != 5 {
+		t.Fatalf("transparent without wallpaper nudged blur to %v", g.Saved.Blur)
+	}
+	// (2) Adding a wallpaper via applyCrop while Transparent is ON nudges Blur to 20.
+	g.previewSource = image.NewRGBA(image.Rect(0, 0, 32, 18))
+	g.cropDraft = wallpapers.DefaultCrop()
+	g.cropOpen = true
+	g.applyCrop()
+	if g.Saved.Blur != 20 {
+		t.Fatalf("applyCrop with Transparent=true did not nudge Blur from 5 to 20, got %v", g.Saved.Blur)
+	}
+	// (3) User can subsequently lower Blur below 20 without re-clamping, and UI shows hint.
+	hasImg = true
+	path = dataURL
+	g.changePreference(func(p *wallpapers.Preferences) { p.Blur = 8 })
+	tt.Frame()
+	if g.Saved.Blur != 8 {
+		t.Fatalf("subsequent Blur=8 was re-clamped to %v", g.Saved.Blur)
+	}
+	if !tt.HasText("Frosted glass is below 20%, so text sits directly on the sharp wallpaper and may be hard to read. Raise the frosted-glass slider.") {
+		t.Fatal("missing transparent <20% blur readability hint")
+	}
+	// (4) Toggling Transparent ON while wallpaper is already set with Blur < 20 nudges Blur to 20.
+	g.changePreference(func(p *wallpapers.Preferences) { p.Transparent = false; p.Blur = 4 })
+	g.changePreference(func(p *wallpapers.Preferences) { p.Transparent = true })
+	if g.Saved.Blur != 20 || len(*saves) == 0 {
+		t.Fatalf("turning Transparent ON over existing wallpaper did not nudge Blur to 20: %v", g.Saved.Blur)
+	}
+}
+
+func TestWallpaperGalleryTabsFavoritesConfirmCancelAndSourceCRUD(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(old)
+
+	g, saves, applied := wallpaperFixture(t)
+	g.Items = []wallpapers.Item{
+		{ID: "img-1", SourceID: "bing", Title: "Blue Coast", Copyright: "Bing", ThumbURL: "https://example.com/t1.jpg", ImageURL: "https://example.com/1.jpg"},
+	}
+	g.Source = "bing"
+	g.filterKey = "bing\n\n100\n最近"
+	g.galleryOpen = true
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() { wallpaperBackgroundPane(c, g, c.Theme().Text, c.Theme().TextMuted) })
+	}, 960, 1200)
+
+	// Tabs include sources + Favorites, and grid renders item.
+	if !tt.HasText("Bing") || !tt.HasText("Wallhaven") || !tt.HasText("☆ Favorites") || !tt.HasText("Blue Coast") {
+		t.Fatal("gallery missing expected tabs or item")
+	}
+
+	// Favorite toggle saves item and makes it searchable under Favorites.
+	if err := tt.Click("☆"); err != nil {
+		t.Fatalf("click Favorite star: %v", err)
+	}
+	if len(*saves) != 1 || len(g.Saved.Favorites) != 1 {
+		t.Fatalf("favorite not persisted: saves=%d favs=%d", len(*saves), len(g.Saved.Favorites))
+	}
+
+	// Click card opens confirm dialog; Cancel keeps gallery open and does not apply.
+	if err := tt.Click("Blue Coast"); err != nil {
+		t.Fatalf("click item card: %v", err)
+	}
+	if !tt.HasText("Use this wallpaper?") {
+		t.Fatal("missing confirm wallpaper dialog")
+	}
+	if err := tt.Click("Cancel"); err != nil {
+		t.Fatalf("click Cancel on confirm dialog: %v", err)
+	}
+	if !g.galleryOpen || len(*applied) != 0 {
+		t.Fatalf("cancel closed gallery or applied wallpaper: galleryOpen=%v applied=%d", g.galleryOpen, len(*applied))
+	}
+
+	// Manage sources: add rejects private IP, rejects duplicate URL, accepts public HTTPS, edit & delete work.
+	if err := tt.Click("Manage sources"); err != nil {
+		t.Fatalf("open Manage sources: %v", err)
+	}
+	if err := tt.Click("Add source"); err != nil {
+		t.Fatalf("open Add source: %v", err)
+	}
+	if err := tt.SetValue("Source name", "PrivateNet"); err != nil {
+		t.Fatalf("type source name: %v", err)
+	}
+	if err := tt.SetValue("Catalog URL", "https://127.0.0.1/walls.json"); err != nil {
+		t.Fatalf("type private IP URL: %v", err)
+	}
+	if err := tt.Click("Save"); err != nil {
+		t.Fatalf("save private IP source: %v", err)
+	}
+	if !g.sourceEditOpen || g.sourceError == "" {
+		t.Fatal("expected private IP catalog URL to be rejected")
+	}
+
+	// Valid public HTTPS catalog succeeds.
+	if err := tt.SetValue("Catalog URL", "https://example.com/walls.json"); err != nil {
+		t.Fatalf("type public URL: %v", err)
+	}
+	if err := tt.Click("Save"); err != nil {
+		t.Fatalf("save public source: %v", err)
+	}
+	if g.sourceEditOpen || len(g.Saved.Sources) != 3 {
+		t.Fatalf("expected new catalog source to save, open=%v sources=%+v", g.sourceEditOpen, g.Saved.Sources)
+	}
+
+	// Adding a duplicate catalog URL is rejected.
+	if err := tt.Click("Add source"); err != nil {
+		t.Fatalf("reopen Add source: %v", err)
+	}
+	if err := tt.SetValue("Source name", "Dup"); err != nil {
+		t.Fatalf("type dup name: %v", err)
+	}
+	if err := tt.SetValue("Catalog URL", "https://example.com/walls.json"); err != nil {
+		t.Fatalf("type dup URL: %v", err)
+	}
+	if err := tt.Click("Save"); err != nil {
+		t.Fatalf("save dup source: %v", err)
+	}
+	if !g.sourceEditOpen || g.sourceError == "" {
+		t.Fatal("expected duplicate catalog URL to be rejected")
+	}
+}
