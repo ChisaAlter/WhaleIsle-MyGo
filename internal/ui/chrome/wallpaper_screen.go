@@ -179,11 +179,11 @@ func (m *wallpaperColors) average(box, panel ui.Rect, keep float32) (ui.Color, b
 }
 
 // wallpaperBlurMaterial is the wallpaper blur slider on the GPU: the page's
-// filter: blur(radius) over the painted image.
+// filter: blur(radius) over the painted image (0-100% -> 0-40px).
 func wallpaperBlurMaterial(radius int) glass.Blur {
 	sat := float32(0)
 	if radius > 0 {
 		sat = min(float32(0.35), float32(radius)/40*0.35)
 	}
-	return glass.Blur{Radius: float32(radius) / 2, Saturation: sat, Dither: true}
+	return glass.Blur{Radius: float32(radius), Saturation: sat, Dither: true}
 }

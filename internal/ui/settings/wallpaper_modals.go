@@ -7,7 +7,6 @@ import (
 
 	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/wallpapers"
-	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
@@ -441,9 +440,17 @@ func wallpaperSourceEditModal(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 				return
 			}
 			if source.Kind == "catalog" {
-				if _, err := wallpapers.URL(source.URL); err != nil {
-					g.sourceError = errcopy.Sentence(err)
+				parsed, err := wallpapers.URL(source.URL)
+				if err != nil {
+					g.sourceError = providerCopy("地址无效，请填写公开的 HTTPS 目录地址。", "Invalid URL. Enter a public HTTPS catalog URL.")
 					return
+				}
+				source.URL = parsed.String()
+				for _, existing := range g.currentPreferences().Sources {
+					if existing.Kind == "catalog" && existing.ID != g.sourceEditingID && existing.URL == source.URL {
+						g.sourceError = providerCopy("此壁纸目录已添加。", "This catalog URL is already added.")
+						return
+					}
 				}
 			} else {
 				source.URL = ""

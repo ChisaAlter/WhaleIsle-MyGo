@@ -1036,3 +1036,83 @@ func TestLightGlassScrollbarTranslucentContract(t *testing.T) {
 		t.Fatalf("non-glass light scrollbars = (%+v, %+v), want (%+v, %+v)", gotRest, gotHover, chrome.Color(lightRest), chrome.Color(lightHover))
 	}
 }
+
+func TestHideSidebarMaskAcrylicAndGlassThemeLosslessToggle(t *testing.T) {
+	resetAppearanceGlobalsForTest(t)
+	applyMinimalMode(false)
+
+	// 1. Under dark Windows Acrylic, HideSidebarMask=true keeps Sidebar transparent
+	// (alpha=0) while HideSidebarMask=false restores ShowThroughAlpha; non-rail
+	// surfaces (Card/Popover) stay unaffected.
+	prefs := wallpapers.Defaults()
+	prefs.Glass = 80
+	masked := glassSurfaceFilter(designGlassSignature{
+		enabled: true, dark: true, glass: 80, acrylic: true, hideSidebarMask: false,
+	})
+	unmasked := glassSurfaceFilter(designGlassSignature{
+		enabled: true, dark: true, glass: 80, acrylic: true, hideSidebarMask: true,
+	})
+	palMasked := design.Base(design.Dark)
+	palUnmasked := design.Base(design.Dark)
+	masked(design.Dark, &palMasked)
+	unmasked(design.Dark, &palUnmasked)
+	if palUnmasked.Sidebar.A != 0 {
+		t.Fatalf("Acrylic with HideSidebarMask=true had Sidebar.A=%d, want 0", palUnmasked.Sidebar.A)
+	}
+	if palMasked.Sidebar != chrome.MaterialFill(ui.RGB(27, 27, 28), chrome.ShowThroughAlpha(prefs, true)) {
+		t.Fatalf("Acrylic with HideSidebarMask=false had Sidebar=%+v", palMasked.Sidebar)
+	}
+	if palUnmasked.Card != palMasked.Card || palUnmasked.Popover != palMasked.Popover {
+		t.Fatal("HideSidebarMask altered non-rail Card/Popover tokens")
+	}
+
+	// 2. GlassTheme architecture switch: OFF disables backdrop/decoding/glass
+	// without losing stored preferences; ON restores them losslessly.
+	cfg := minimalModeStore(t)
+	wallURL := testSolidWallpaperURL(t, color.RGBA{R: 40, G: 100, B: 220, A: 255}, 32, 32)
+	off := false
+	if err := cfg.Update(func(c *config.Config) {
+		c.Theme = theme.IDDeepseekDark
+		c.WallpaperPath = wallURL
+		c.GlassTheme = &off
+	}); err != nil {
+		t.Fatal(err)
+	}
+	stored := wallpapers.Defaults()
+	stored.Effect = "gradient"
+	stored.EffectExplicit = true
+	stored.Preset = "sunset"
+	stored.Blur = 35
+	stored.Glass = 70
+	if err := cfg.SaveWallpaperBackground(stored); err != nil {
+		t.Fatal(err)
+	}
+
+	applyGlassTheme(false)
+	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekDark}
+	ui.NewTester(func(c *ui.Context) {
+		s.beginAppearanceFrame(c)
+		defer s.endAppearanceFrame()
+		paint := s.wallpaperPainter(s.currentWallpaperConfigPath(), true, false)
+		ui.Box(c).Fill().Draw(paint)
+	}, 200, 120)
+	if chrome.BackdropActive() || design.GlassEnabled() || chrome.BackdropHasWallpaper() {
+		t.Fatalf("GlassTheme=false leaked backdrop/glass: active=%v glass=%v wall=%v", chrome.BackdropActive(), design.GlassEnabled(), chrome.BackdropHasWallpaper())
+	}
+
+	// Turning GlassTheme ON restores stored wallpaper & preferences losslessly.
+	applyGlassTheme(true)
+	ui.NewTester(func(c *ui.Context) {
+		s.beginAppearanceFrame(c)
+		defer s.endAppearanceFrame()
+		paint := s.wallpaperPainter(s.currentWallpaperConfigPath(), true, false)
+		ui.Box(c).Fill().Draw(paint)
+	}, 200, 120)
+	if !chrome.BackdropActive() || !chrome.BackdropHasWallpaper() || !design.GlassEnabled() {
+		t.Fatalf("GlassTheme=true failed to restore wallpaper/glass: active=%v wall=%v glass=%v", chrome.BackdropActive(), chrome.BackdropHasWallpaper(), design.GlassEnabled())
+	}
+	gotPrefs := chrome.BackdropPreferences()
+	if gotPrefs.Preset != "sunset" || gotPrefs.Blur != 35 || gotPrefs.Glass != 70 {
+		t.Fatalf("GlassTheme toggle lost stored preferences: %+v", gotPrefs)
+	}
+}
