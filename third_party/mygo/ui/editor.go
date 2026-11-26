@@ -166,7 +166,12 @@ func (ed *editor) process(c *context, e *node) {
 		}
 		switch ev.kind {
 		case editKey:
+			wasComposing := ed.compose != ""
 			ed.commitCompose()
+			if wasComposing && ev.key == KeyEnter {
+				c.rt.consumed = true
+				break
+			}
 			ed.key(c, st, ev)
 		case editInsert:
 			ed.compose = ""

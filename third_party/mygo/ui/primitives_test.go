@@ -125,6 +125,56 @@ func TestComposing(t *testing.T) {
 	}
 }
 
+// TestComposingEnterCommitsWithoutSubmitting checks UX-05: pressing Enter while
+// an IME composition is active finishes composition into the buffer without
+// firing Submitted() on a single-line input or inserting a newline in a
+// multi-line input.
+func TestComposingEnterCommitsWithoutSubmitting(t *testing.T) {
+	text, composing := "", false
+	submitted := 0
+	tt := coreNewTester(func(c *context) {
+		in := coreTextInputBase(c, &text).Width(120).Label("branch")
+		composing = in.Composing()
+		if in.Submitted() {
+			submitted++
+		}
+	}, 200, 50)
+	defer tt.rt.close()
+
+	tt.Click("branch")
+	tt.Compose("fen", 3)
+	if !composing || text != "" {
+		t.Fatalf("while composing: composing=%v text=%q", composing, text)
+	}
+	// First Enter confirms the composition; must NOT submit.
+	tt.Key(0, KeyEnter)
+	if composing || text != "fen" || submitted != 0 {
+		t.Fatalf("after composing Enter: composing=%v text=%q submitted=%d, want false, %q, 0", composing, text, submitted, "fen")
+	}
+	// Second Enter (no longer composing) submits normally.
+	tt.Key(0, KeyEnter)
+	if submitted != 1 {
+		t.Fatalf("after plain Enter: submitted=%d, want 1", submitted)
+	}
+
+	// Multiline TextArea: Enter during composition commits without inserting '\n'.
+	multi := ""
+	ttMulti := coreNewTester(func(c *context) {
+		coreTextArea(c, &multi).Size(150, 80).AutoFocus()
+	}, 200, 100)
+	defer ttMulti.rt.close()
+
+	ttMulti.Compose("ni", 2)
+	ttMulti.Key(0, KeyEnter)
+	if multi != "ni" {
+		t.Fatalf("multiline after composing Enter: got %q, want %q", multi, "ni")
+	}
+	ttMulti.Key(0, KeyEnter)
+	if multi != "ni\n" {
+		t.Fatalf("multiline after plain Enter: got %q, want %q", multi, "ni\n")
+	}
+}
+
 func TestOpenURLOutcome(t *testing.T) {
 	var outcome error
 	calls := 0

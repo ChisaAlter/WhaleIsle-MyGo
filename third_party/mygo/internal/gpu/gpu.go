@@ -116,6 +116,19 @@ type Batch struct {
 	Backdrop int
 }
 
+// IdleRenderer is an optional interface implemented by GPU renderers that can
+// reclaim transient GPU resources once a window stops drawing frames.
+type IdleRenderer interface {
+	Idle()
+}
+
+// TrimmableRenderer is an optional interface implemented by GPU renderers that
+// can perform a deeper GPU memory reclaim while a window is occluded (hidden
+// or minimized).
+type TrimmableRenderer interface {
+	Trim()
+}
+
 // Builder builds the instances and batches of scenes, reusing its memory
 // from frame to frame.
 type Builder struct {
