@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"image"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -418,6 +419,7 @@ func (s *Service) MemoryBytes() int64 {
 // yet. It never blocks on I/O or decoding: views call it every frame. o may be
 // nil for process-lifetime pictures (no cancellation).
 func (s *Service) Request(o *Owner, key Key, src Source) *Handle {
+	key = normalizeKey(key)
 	now := time.Now().UnixNano()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -539,6 +541,7 @@ func (s *Service) maybeRevalidateLocked(h *Handle) {
 
 // Forget drops a cached or failed picture so the next Request retries it.
 func (s *Service) Forget(key Key) {
+	key = normalizeKey(key)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if h := s.entries[key]; h != nil && h.res.Load() != nil {
@@ -548,6 +551,7 @@ func (s *Service) Forget(key Key) {
 
 // ForgetID drops every cached or failed picture of a content ID.
 func (s *Service) ForgetID(id string) {
+	id = normalizeKeyID(id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for k, h := range s.entries {
@@ -821,11 +825,27 @@ func (p Picture) Image() ui.ImageSource {
 	return nil
 }
 
+func hashDataURL(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return "dataurl:" + hex.EncodeToString(sum[:])
+}
+
+func normalizeKeyID(id string) string {
+	if strings.HasPrefix(id, "data:") {
+		return hashDataURL(id)
+	}
+	return id
+}
+
+func normalizeKey(key Key) Key {
+	key.ID = normalizeKeyID(key.ID)
+	return key
+}
+
 // DataURL keys a data: URL by its SHA-256 digest so multi-MB payloads are not
 // retained as map keys; the base64 or percent decoding happens on a worker.
 func DataURL(s string) (Key, Source) {
-	sum := sha256.Sum256([]byte(s))
-	return Key{ID: "dataurl:" + hex.EncodeToString(sum[:])}, Source{DataURL: s}
+	return Key{ID: hashDataURL(s)}, Source{DataURL: s}
 }
 
 // File keys a local file by its path; it is read on a worker. rev is a
@@ -857,6 +877,7 @@ func Bytes(data []byte, kind string) (Key, Source) {
 // Cached reports whether key has a ready picture in the cache, without
 // requesting it.
 func (s *Service) Cached(key Key) bool {
+	key = normalizeKey(key)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	h := s.entries[key]

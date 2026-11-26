@@ -303,12 +303,12 @@ func Sentence(err error) string {
 			return rejectedSentence(status)
 		}
 	}
+	if cause := Classify(err); cause != CauseUnknown {
+		return sentenceFor(cause, err.Error())
+	}
 	var httpErr *dsh.HTTPError
 	if errors.As(err, &httpErr) && httpErr.Status >= 400 && httpErr.Status < 600 {
 		return rejectedSentence(fmt.Sprintf("%d", httpErr.Status))
-	}
-	if cause := Classify(err); cause != CauseUnknown {
-		return sentenceFor(cause, err.Error())
 	}
 	if status, ok := HTTPStatus("", err.Error()); ok {
 		return rejectedSentence(status)

@@ -99,6 +99,10 @@ func TestDataURLKeyHashedSourceClearedAndFailedBounded(t *testing.T) {
 	if h.State() != Ready {
 		t.Fatalf("DataURL decode failed: state=%v", h.State())
 	}
+	// Callers looking up by the raw data: URL string must hit the same normalized handle.
+	if same := svc.Request(nil, Key{ID: rawDataURL}, Source{}); same != h || !svc.Cached(Key{ID: rawDataURL}) {
+		t.Fatalf("raw data: URL key lookup missed normalized handle: same=%v cached=%v", same == h, svc.Cached(Key{ID: rawDataURL}))
+	}
 	svc.mu.Lock()
 	if h.src.DataURL != "" || h.src.Bytes != nil {
 		svc.mu.Unlock()

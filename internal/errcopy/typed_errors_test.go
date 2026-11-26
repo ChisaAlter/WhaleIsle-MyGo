@@ -44,6 +44,11 @@ func TestSentenceAndUnderUseTypedErrorsAndHTTPStatus(t *testing.T) {
 			wantIn: "502",
 		},
 		{
+			name:   "local dsh http 403 directory access denied maps to permission",
+			err:    &dsh.HTTPError{Op: "directoryPicker/list", Status: 403, Body: "directory access denied"},
+			wantIn: "permission",
+		},
+		{
 			name:   "transport error",
 			err:    &dsh.TransportError{Op: "session/list", Err: &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("opaque")}},
 			wantIn: "network",
