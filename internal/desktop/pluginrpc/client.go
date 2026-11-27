@@ -136,7 +136,12 @@ func (c *Client) Call(ctx context.Context, prefix, method string, payload any, o
 		return err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("pluginrpc: HTTP %d: %s", resp.StatusCode, truncate(string(raw), 200))
+		return &HTTPError{
+			StatusCode: resp.StatusCode,
+			Plugin:     prefix,
+			Method:     method,
+			Body:       truncate(string(raw), 200),
+		}
 	}
 	var sr serverResponse
 	if err := json.Unmarshal(raw, &sr); err != nil {

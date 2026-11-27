@@ -244,6 +244,7 @@ func (rt *engine) pointerMove(x, y float32) {
 		}
 		rt.pointerX, rt.pointerY = x, y
 		rt.memoDirty(s.memo)
+		rt.memoDirty(s.id)
 		rt.requestFrame()
 		return
 	}
@@ -517,6 +518,7 @@ func (rt *engine) scroll(dx, dy float32, mods Modifiers, precise bool) {
 	for _, id := range chain {
 		if s := rt.states[id]; s != nil && scrollBy(s, dx, dy) {
 			rt.memoDirty(s.memo)
+			rt.memoDirty(s.id)
 			rt.requestFrame()
 			return
 		}
@@ -705,6 +707,8 @@ func (rt *engine) scrollKey(mods Modifiers, key Key) bool {
 			dy = page * max(s.h-line, s.h/2)
 		}
 		if scrollBy(s, dx, dy) {
+			rt.memoDirty(s.memo)
+			rt.memoDirty(s.id)
 			rt.clearWheelScroll()
 			rt.requestFrame()
 			return true

@@ -110,7 +110,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 		}
 		whaleSectionRow(c, "pet-whale-identity", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantNameAndTitle), "Name and title"), whaleSectionCopy(i18n.T(i18n.KeyW4AssistantTheNameAndTitleAreEachLimitedTo64Ch), "Name and title are limited to 64 characters each."), fg, muted, border, func() {
 			name, title := s.Name, s.UserTitle
-			nameInput := aInput(c.Key("whale-name"), &name, coss.InputOptions{Label: "Whale name", Disabled: disabled}).OnChange(func() {
+			nameInput := aInput(c.Key("whale-name"), &name, coss.InputOptions{Label: whaleSectionCopy("鲸鱼娘名称", "Whale name"), Disabled: disabled}).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("name", name)
 				}
@@ -123,7 +123,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 					w.OnSave("name")
 				}
 			})
-			titleInput := aInput(c.Key("whale-title"), &title, coss.InputOptions{Label: "Whale user title", Disabled: disabled}).OnChange(func() {
+			titleInput := aInput(c.Key("whale-title"), &title, coss.InputOptions{Label: whaleSectionCopy("对你的称呼", "Whale user title"), Disabled: disabled}).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("title", title)
 				}
@@ -173,7 +173,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 				selected = route.Provider + " / " + route.Model
 				labels = append(labels, selected)
 			}
-			aSelect(c, &selected, labels, "Whale model", prefDisabled || ps.ModelsError != nil).FillWidth().OnChange(func() {
+			aSelect(c, &selected, labels, whaleSectionCopy("鲸鱼娘模型", "Whale model"), prefDisabled || ps.ModelsError != nil).FillWidth().OnChange(func() {
 				if v, ok := choices[selected]; ok && p.OnEdit != nil {
 					p.OnEdit(v, ps.IMDefault)
 					if p.OnSave != nil {
@@ -203,7 +203,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 					}
 				}
 			}
-			aSelect(c, &effort, effortLabels, "Whale reasoning effort", prefDisabled).FillWidth().OnChange(func() {
+			aSelect(c, &effort, effortLabels, whaleSectionCopy("鲸鱼娘思考强度", "Whale reasoning effort"), prefDisabled).FillWidth().OnChange(func() {
 				route.ReasoningEffort = effortValues[effort]
 				if p.OnEdit != nil {
 					p.OnEdit(route, ps.IMDefault)
@@ -215,12 +215,14 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 		})
 		whaleSectionRow(c, "pet-whale-im", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantImDefaultChat), "Default IM conversation"), whaleSectionCopy(i18n.T(i18n.KeyW4AssistantImBotsWithoutAnotherPresetJoinHerResi), "IM bots without another preset join her resident conversation."), fg, muted, border, func() {
 			im := ps.IMDefault
-			if coss.Switch(c, &im, "", coss.CheckOptions{Label: "Whale default IM", Disabled: prefDisabled}).Changed() && p.OnEdit != nil {
-				p.OnEdit(ps.Route, im)
-				if p.OnSave != nil {
-					p.OnSave("im")
+			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
+				if coss.Switch(c, &im, "", coss.CheckOptions{Label: whaleSectionCopy(i18n.T(i18n.KeyW4AssistantImDefaultChat), "Whale default IM"), Disabled: prefDisabled}).Changed() && p.OnEdit != nil {
+					p.OnEdit(ps.Route, im)
+					if p.OnSave != nil {
+						p.OnSave("im")
+					}
 				}
-			}
+			})
 		})
 		for _, item := range []struct{ id, title, hint string }{{"persona", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantExtraPersona), "Extra persona"), s.PersonaText}, {"memory", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantLongTermMemory), "Long-term memory"), whaleSectionCopy(i18n.T(i18n.KeyW4AssistantInjectedWithHerResidentSession), "Injected into her resident conversation.")}, {"skills", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantSkills), "Skills"), fmt.Sprintf(whaleSectionCopy(i18n.T(i18n.KeyW4AssistantDSkillsOnTheCurrentHost), "%d skills on this Host"), len(ps.Server.Skills))}} {
 			whaleSectionRow(c, "pet-whale-"+item.id, item.title, item.hint, fg, muted, border, func() {

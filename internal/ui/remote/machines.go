@@ -42,7 +42,6 @@ var (
 )
 
 func viewMachines(c *ui.Context, m Model) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.Machines == nil || m.MachineEditor == nil {
 		return
 	}
@@ -64,7 +63,7 @@ func viewMachines(c *ui.Context, m Model) {
 			if len(s.Machines) > 0 {
 				ui.Text(c, fmt.Sprintf("%d", len(s.Machines))).FontSize(fonttheme.InterfaceSize(11)).FontFeatures("tnum").TextColor(muted)
 			}
-			if widgets.Button(c, colors, label("添加机器", "Add machine"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || !m.HarnessReady).Clicked() {
+			if coss.Button(c, label("添加机器", "Add machine"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy || !m.HarnessReady}).Clicked() {
 				if e.Open && e.Draft.ID == "" {
 					e.Open = false
 					return
@@ -98,7 +97,6 @@ func viewMachines(c *ui.Context, m Model) {
 // machineRow is one flat list row of the installed machine card: the identity
 // line, the mono facts and inline ghost actions.
 func machineRow(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor, machine remotestore.Machine, muted ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	current := machine.ID == s.CurrentID
 	row := ui.Row(c.Key("remote-machine-"+machine.ID)).FillWidth().MinWidth(0).Gap(8).Padding(8, 0).AlignItems(ui.Center)
 	if row.Hovered() {
@@ -127,16 +125,16 @@ func machineRow(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor
 			})
 		})
 		ui.Row(c).Shrink(0).Gap(4).Wrap().AlignItems(ui.Center).Children(func() {
-			if !current && widgets.Button(c, colors, label("设为当前", "Set active"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+			if !current && coss.Button(c, label("设为当前", "Set active"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 				m.Machines.Select(machine.ID)
 			}
-			if widgets.Button(c, colors, label("测试连接", "Test connection"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+			if coss.Button(c, label("测试连接", "Test connection"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 				m.Machines.TestMachine(machine.ID)
 			}
-			if widgets.Button(c, colors, label("编辑", "Edit"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+			if coss.Button(c, label("编辑", "Edit"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 				*e = MachineEditor{Open: true, Draft: machine.EditDraft()}
 			}
-			if widgets.Button(c, colors, label("删除", "Delete"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+			if coss.Button(c, label("删除", "Delete"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 				e.PendingRemove = machine.ID
 				e.RemovalGeneration = s.Generation
 			}
@@ -190,10 +188,10 @@ func removeMachineConfirm(c *ui.Context, m Model, s remotestore.Snapshot, e *Mac
 				ui.Text(c, s.Error.SentenceText()).FillWidth().TextColor(c.Theme().Danger).Selectable()
 			}
 			ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-				if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || e.Removing).Clicked() {
+				if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy || e.Removing}).Clicked() {
 					e.PendingRemove = ""
 				}
-				if widgets.Button(c, colors, label("确认移除", "Confirm removal"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				if coss.Button(c, label("确认移除", "Confirm removal"), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 					e.Removing = m.Machines.RemoveAtGeneration(machine.ID, e.RemovalGeneration)
 				}
 			})
@@ -205,7 +203,6 @@ func removeMachineConfirm(c *ui.Context, m Model, s remotestore.Snapshot, e *Mac
 // order — identity, 认证方式 (secrets, fingerprint policy, toggles), 跳板机 —
 // then the test/cancel/save row. Local validation keeps bad drafts off the wire.
 func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor, muted, border ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	draft := &e.Draft
 	if draft.Options == nil {
 		draft.Options = &remotestore.ConnectionDraft{ProxyPort: "22"}
@@ -263,19 +260,19 @@ func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEdi
 			ui.Text(c, e.Error).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger)
 		}
 		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-			if widgets.Button(c, colors, label("测试连接", "Test connection"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || problem != "").Clicked() {
+			if coss.Button(c, label("测试连接", "Test connection"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy || problem != ""}).Clicked() {
 				if err := m.Machines.TestDraft(e.Draft); err != nil {
 					e.Error = errcopy.Sentence(err)
 				} else {
 					e.Error = ""
 				}
 			}
-			if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+			if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 				e.Open = false
 				e.Draft = remotestore.Draft{}
 				e.Error = ""
 			}
-			if widgets.Button(c, colors, label("保存", "Save"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Busy || problem != "").Clicked() {
+			if coss.Button(c, label("保存", "Save"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: s.Busy || problem != ""}).Clicked() {
 				if err := m.Machines.Save(e.Draft); err != nil {
 					e.Error = errcopy.Sentence(err)
 				} else {
@@ -287,8 +284,7 @@ func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEdi
 	})
 }
 
-// segmentedRow is the installed SettingsSelect block: equal-width segments,
-// the chosen one inverted.
+// segmentedRow is a coss-themed equal-width segmented choice row.
 func segmentedRow(c *ui.Context, key string, labels []string, active int, disabled bool) int {
 	const height float32 = 28
 	root := ui.Row(c.Key(key)).FillWidth().MinWidth(0).MaxWidth(340).Height(height).Shrink(0).Gap(8).AlignItems(ui.Stretch)
@@ -300,22 +296,16 @@ func segmentedRow(c *ui.Context, key string, labels []string, active int, disabl
 		}
 		for index, caption := range labels {
 			i, text := index, caption
-			labelColor := c.Theme().Text
-			bg := ui.Transparent
+			variant := coss.ButtonOutline
 			if i == active {
-				bg = labelColor
-				labelColor = c.Theme().Background
+				variant = coss.ButtonDefault
 			}
-			segment := coss.Button(c.Key(key+"-"+strconv.Itoa(i)), "", coss.ButtonOptions{
-				Variant:  coss.ButtonGhost,
+			segment := coss.Button(c.Key(key+"-"+strconv.Itoa(i)), text, coss.ButtonOptions{
+				Variant:  variant,
 				Size:     coss.ButtonSM,
 				Disabled: disabled,
 				Pressed:  i == active,
-				Label:    text,
-				Content: func() {
-					ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(labelColor)
-				},
-			}).Width(width).Height(height).Padding(0).Radius(fonttheme.ContextRadii(c).SM).Background(bg).AlignItems(ui.Center).Justify(ui.Center)
+			}).Width(width).Height(height).Padding(0).Radius(fonttheme.ContextRadii(c).SM)
 			if segment.Clicked() && !disabled {
 				picked = i
 			}

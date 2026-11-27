@@ -95,11 +95,8 @@ func TestSettingsSwitchSourceBranchesKeepInteractionAndColors(t *testing.T) {
 			tt.SetTime(time.Unix(1001, 0))
 			bounds, found := tt.Find("Source switch branch")
 			wantWidth, wantHeight := toggleWidth, toggleHeight
-			if style == settingsSwitchInput {
-				wantWidth, wantHeight = 11*design.Unit, 7*design.Unit
-			}
 			if !found || bounds.W != wantWidth || bounds.H != wantHeight {
-				t.Fatalf("style%v bounds%+v dark%v", style, bounds, dark)
+				t.Fatalf("style%v bounds%+v dark%v want %vx%v", style, bounds, dark, wantWidth, wantHeight)
 			}
 			pixel := tt.Image().RGBAAt(int(bounds.X+(bounds.W-toggleWidth)/2+8), int(bounds.Y+bounds.H/2))
 			if pixel.R != want.R || pixel.G != want.G || pixel.B != want.B {

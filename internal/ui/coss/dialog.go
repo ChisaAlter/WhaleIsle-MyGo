@@ -83,7 +83,7 @@ func AlertDialog(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Ele
 // Sheet is coss's Sheet: a full-height panel along the right (or Side)
 // edge, at most 448 wide, sliding 32 DIPs in as it fades.
 func Sheet(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element {
-	if o.Side == SideBottom && o.Key == nil && o.MaxWidth == 0 {
+	if o.Side == SideDefault {
 		o.Side = SideRight
 	}
 	return modal(c, open, o, body, kindSheet)
@@ -151,7 +151,7 @@ func SheetPanel(c *ui.Context, o DialogOptions, body func()) ui.Element {
 	t := tok(c)
 	p := ui.Column(c)
 	ww, _ := c.Size()
-	if o.Side == SideBottom {
+	if o.Side == SideDefault {
 		o.Side = SideRight
 	}
 	modalPanel(c, t, p, o, body, kindSheet, ww)
@@ -299,7 +299,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		}
 		if !o.NoClose && kind != kindAlert {
 			ui.Box(c).Absolute().Right(design.Sp(2)).Top(design.Sp(2)).Children(func() {
-				if Button(c, "", ButtonOptions{Variant: ButtonGhost, Size: ButtonIcon, Icon: IconX, Label: "Close"}).Clicked() {
+				if Button(c, "", ButtonOptions{Variant: ButtonGhost, Size: ButtonIcon, Icon: IconX, Label: "Close", Disabled: o.DismissDisabled}).Clicked() {
 					c.CloseTopDialog()
 				}
 			})

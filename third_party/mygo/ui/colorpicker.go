@@ -206,7 +206,9 @@ func coreColorPicker(c *context, color *Color) *node {
 			for _, sw := range swatches {
 				b := coreButtonBase(c).Height(t.Space(5)).Radius(t.Radius).Background(sw.color).Label(sw.name).Tooltip(sw.name)
 				if *color == sw.color {
-					b.Border(2, t.Text)
+					b.DrawOver(func(p *Painter, r Rect) {
+						p.Stroke(r, t.Text, t.Radius, 2)
+					})
 				}
 				b.afterInput(func() {
 					if b.Clicked() {

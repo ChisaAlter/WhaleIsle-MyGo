@@ -273,7 +273,7 @@ func modelBoundScalar(c *ui.Context, binding *store.NamespaceBinding, snap store
 		switch f.Kind {
 		case store.FieldBool:
 			checked := value == "true"
-			if ui.Switch(c, &checked).Label(f.Label).Disabled(disabled).Changed() {
+			if kSwitch(c, &checked, f.Label, disabled).Changed() {
 				if checked {
 					binding.SetDraft(f.Key, "true")
 				} else {

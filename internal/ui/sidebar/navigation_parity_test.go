@@ -2,12 +2,14 @@ package sidebar
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/product"
@@ -153,6 +155,49 @@ func TestSidebarNavigationSelectionTracksActionsAndKeepsGeometry(t *testing.T) {
 	}
 }
 
+// buttonInkBox returns the tight bounding box of interior foreground (icon +
+// text) pixels inside rect, excluding the 3px outer border/corner band. Any
+// horizontal or vertical layout shift of the icon or label changes this box.
+func buttonInkBox(img *image.RGBA, r ui.Rect) image.Rectangle {
+	x0, y0 := int(r.X)+4, int(r.Y)+4
+	x1, y1 := int(r.X+r.W)-4, int(r.Y+r.H)-4
+	bg := img.RGBAAt(x0, y0)
+	diff := func(a, b color.RGBA) int {
+		abs := func(v int) int {
+			if v < 0 {
+				return -v
+			}
+			return v
+		}
+		return abs(int(a.R)-int(b.R)) + abs(int(a.G)-int(b.G)) + abs(int(a.B)-int(b.B))
+	}
+	minX, minY, maxX, maxY := x1, y1, x0, y0
+	found := false
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			if diff(img.RGBAAt(x, y), bg) > 24 {
+				found = true
+				if x < minX {
+					minX = x
+				}
+				if y < minY {
+					minY = y
+				}
+				if x > maxX {
+					maxX = x
+				}
+				if y > maxY {
+					maxY = y
+				}
+			}
+		}
+	}
+	if !found {
+		return image.Rectangle{}
+	}
+	return image.Rect(minX, minY, maxX+1, maxY+1)
+}
+
 func TestSidebarNavigationNewSessionShortcutHoverFocusAndUnbound(t *testing.T) {
 	previous := i18n.Locale()
 	t.Cleanup(func() { i18n.SetLocale(previous) })
@@ -167,45 +212,84 @@ func TestSidebarNavigationNewSessionShortcutHoverFocusAndUnbound(t *testing.T) {
 				}
 				tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 800)
 				tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+				now := time.Unix(3000, 0)
+				tt.SetTime(now)
 				label := i18n.T(i18n.KeySidebarNewSessionFallback)
 				before := navigationRect(t, tt, label)
+				if before.H != 38 {
+					t.Fatalf("new session button height=%v want 38", before.H)
+				}
 				if tt.HasText(m.NewSessionShortcut) {
-					t.Fatal("shortcut visible at rest")
+					t.Fatal("shortcut visible inline at rest")
+				}
+				restInk := buttonInkBox(tt.Image(), before)
+				if restInk.Empty() {
+					t.Fatal("missing rendered icon/label pixels inside new session button")
 				}
 				navigationEvidence(t, tt, fmt.Sprintf("new-session-%s-dark%v-rest", locale, dark))
+
+				// Hover immediately: NO inline shortcut injection and ZERO displacement of button or inner icon/text.
 				tt.Move(before.X+before.W/2, before.Y+before.H/2)
-				shortcut := navigationRect(t, tt, m.NewSessionShortcut)
-				if shortcut.X < before.X || shortcut.X+shortcut.W > before.X+before.W {
-					t.Fatalf("shortcut escaped button: %+v %+v", shortcut, before)
+				tt.Frame()
+				if tt.HasText(m.NewSessionShortcut) {
+					t.Fatalf("hover injected inline shortcut into button flow: %v", tt.Texts())
 				}
-				if after := navigationPanelRect(t, tt, label); after != before {
+				if after := navigationRect(t, tt, label); after != before {
 					t.Fatalf("hover changed button seat %+v -> %+v", before, after)
 				}
-				navigationEvidence(t, tt, fmt.Sprintf("new-session-%s-dark%v-hover", locale, dark))
-				tt.Move(279, 600)
-				if tt.HasText(m.NewSessionShortcut) {
-					t.Fatal("shortcut remained after hover")
+				hoverInk := buttonInkBox(tt.Image(), before)
+				if hoverInk != restInk {
+					t.Fatalf("hover shifted inner icon/label pixels: rest=%v hover=%v", restInk, hoverInk)
 				}
+				navigationEvidence(t, tt, fmt.Sprintf("new-session-%s-dark%v-hover", locale, dark))
+
+				// After tooltip delay, the shortcut appears in the Tooltip overlay (not inside the button box).
+				tt.SetTime(now.Add(time.Second))
+				wantTip := label + " (Ctrl+Alt+F8)"
+				if !tt.HasText(wantTip) {
+					t.Fatalf("tooltip missing %q: %v", wantTip, tt.Texts())
+				}
+				m.NewSessionShortcut = "Ctrl+Shift+F9"
+				tt.SetTime(now.Add(1500 * time.Millisecond))
+				wantTipUpdated := label + " (Ctrl+Shift+F9)"
+				if !tt.HasText(wantTipUpdated) || tt.HasText(wantTip) {
+					t.Fatalf("tooltip did not track updated binding: %v", tt.Texts())
+				}
+				m.NewSessionShortcut = ""
+				tt.SetTime(now.Add(2000 * time.Millisecond))
+				if tt.HasText(wantTipUpdated) {
+					t.Fatalf("unbound shortcut leaked stale tooltip: %v", tt.Texts())
+				}
+
+				tt.Move(279, 600)
+				tt.Frame()
+				m.NewSessionShortcut = "Ctrl+Alt+F8"
 				for n := 0; n < 8 && !tt.Focused(label); n++ {
 					tt.Key(0, ui.KeyTab)
 				}
-				if !tt.Focused(label) || !tt.HasText(m.NewSessionShortcut) {
-					t.Fatalf("keyboard focus missing hint: %v", tt.Texts())
+				if !tt.Focused(label) {
+					t.Fatalf("new session button unreachable via keyboard focus: %v", tt.Texts())
+				}
+				for _, txt := range tt.Texts() {
+					if txt == m.NewSessionShortcut {
+						t.Fatalf("keyboard focus injected standalone inline shortcut into button flow: %v", tt.Texts())
+					}
+				}
+				if tipRect, ok := tt.Find(wantTip); ok {
+					// Tooltip must render as an external overlay, never inside the button box.
+					if tipRect.X >= before.X && tipRect.X+tipRect.W <= before.X+before.W &&
+						tipRect.Y >= before.Y && tipRect.Y+tipRect.H <= before.Y+before.H {
+						t.Fatalf("shortcut tooltip rendered inside button box: tip=%+v btn=%+v", tipRect, before)
+					}
+				}
+				focusInk := buttonInkBox(tt.Image(), before)
+				if focusInk != restInk {
+					t.Fatalf("keyboard focus shifted inner icon/label pixels: rest=%v focus=%v", restInk, focusInk)
 				}
 				navigationEvidence(t, tt, fmt.Sprintf("new-session-%s-dark%v-focus", locale, dark))
 				tt.Key(0, ui.KeyEnter)
 				if calls != 1 {
 					t.Fatalf("Enter calls=%d", calls)
-				}
-				m.NewSessionShortcut = "Ctrl+Shift+F9"
-				tt.Frame()
-				if !tt.HasText(m.NewSessionShortcut) || tt.HasText("Ctrl+Alt+F8") {
-					t.Fatal("hint did not follow current binding")
-				}
-				m.NewSessionShortcut = ""
-				tt.Frame()
-				if tt.HasText("Ctrl+Shift+F9") {
-					t.Fatal("unbound command retained stale hint")
 				}
 				if err := tt.Click(label); err != nil {
 					t.Fatal(err)
@@ -262,11 +346,20 @@ func TestSidebarNavigationNarrowHintStaysInsideButton(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { newSessionButton(c, m) })
 	}, 180, 60)
-	r := navigationRect(t, tt, i18n.T(i18n.KeySidebarNewSessionFallback))
+	label := i18n.T(i18n.KeySidebarNewSessionFallback)
+	r := navigationRect(t, tt, label)
+	restInk := buttonInkBox(tt.Image(), r)
 	tt.Move(r.X+r.W/2, r.Y+r.H/2)
-	s := navigationRect(t, tt, m.NewSessionShortcut)
-	if s.X < r.X || s.X+s.W > r.X+r.W || r.H != 38 {
-		t.Fatalf("narrow shortcut escaped: button=%+v hint=%+v", r, s)
+	tt.Frame()
+	if tt.HasText(m.NewSessionShortcut) {
+		t.Fatalf("narrow button injected long shortcut inline: %v", tt.Texts())
+	}
+	after := navigationRect(t, tt, label)
+	if after != r || after.H != 38 {
+		t.Fatalf("narrow button changed seat on hover: %+v -> %+v", r, after)
+	}
+	if hoverInk := buttonInkBox(tt.Image(), after); hoverInk != restInk {
+		t.Fatalf("narrow button shifted icon/label on hover: %v -> %v", restInk, hoverInk)
 	}
 	navigationEvidence(t, tt, "new-session-narrow-long-shortcut")
 }

@@ -69,7 +69,7 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 	if m.FeaturesActive && m.Features != nil {
 		var cfg config.Config
 		if s.cfgStore != nil {
-			cfg = s.cfgStore.Get()
+			cfg = s.effectiveConfigFor(s.cfgStore)
 		}
 		m.Features.Project = s.projectPreferenceAccess()
 		m.Features.Assistant = s.featurePreferenceAccess(whaleAssistantFeature)
@@ -115,17 +115,21 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		}
 		m.About.OnOpenUpdateCenter = func() { u.OpenCenter(aboutRef) }
 	}
-	if m.InterfaceActive && m.Interface != nil {
+	if (m.InterfaceActive || m.FeaturesActive) && m.Interface != nil {
 		var cfg config.Config
 		if s.cfgStore != nil {
-			cfg = s.cfgStore.Get()
+			cfg = s.effectiveConfigFor(s.cfgStore)
 		}
-		m.Interface.Host = access
-		m.Interface.Project = s.projectPreferenceAccess()
-		m.Interface.DshbotEnabled = &cfg.DshbotEnabled
-		m.Interface.RemoteWorkspaceEnabled = &cfg.RemoteWorkspaceEnabled
+		dshbotEnabled := cfg.DshbotEnabled
+		m.Interface.DshbotEnabled = &dshbotEnabled
 		m.Interface.OnSetDshbot = func(v bool) { s.setAssistantFlag(nil, &v) }
-		m.Interface.OnSetRemoteWorkspace = s.setRemoteWorkspacePreference
+		if m.InterfaceActive {
+			remoteEnabled := cfg.RemoteWorkspaceEnabled
+			m.Interface.Host = access
+			m.Interface.Project = s.projectPreferenceAccess()
+			m.Interface.RemoteWorkspaceEnabled = &remoteEnabled
+			m.Interface.OnSetRemoteWorkspace = s.setRemoteWorkspacePreference
+		}
 	}
 	s.mu.Lock()
 	ep, ready, petActive := s.bootStatus.Endpoint, s.bootStatus.State == harness.Ready, s.settingsPetActiveLocked()
@@ -138,7 +142,7 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 	if petActive {
 		var cfg config.Config
 		if s.cfgStore != nil {
-			cfg = s.cfgStore.Get()
+			cfg = s.effectiveConfigFor(s.cfgStore)
 		}
 		petSettings := &settings.PetSettingsAccess{
 			AssistantPreference: s.featurePreferenceAccess(whaleAssistantFeature),

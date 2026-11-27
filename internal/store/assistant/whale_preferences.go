@@ -120,9 +120,18 @@ func (s *WhalePreferencesEditor) Finish(t WhalePreferencesTicket, v pluginrpc.Wh
 	s.state.Busy = false
 	if err != nil {
 		s.state.Error = state.FaultOf(err)
-		s.state.Loaded = false
-		if cmd != nil {
-			s.state.Notice = storelocale.T(storelocale.KeyStoreAssistantSaveNotVerifiedRefreshToCompare)
+		if cmd != nil && s.state.Loaded {
+			// Keep the loaded page interactive after a rejected write and roll back
+			// the unpersisted draft control to the last confirmed server value.
+			switch cmd.Action {
+			case "model":
+				s.state.Route = s.state.Server.Route()
+			case "im":
+				s.state.IMDefault = s.state.Server.IMDefault
+			}
+			s.state.Notice = ""
+		} else {
+			s.state.Loaded = false
 		}
 		s.publishLocked()
 		return

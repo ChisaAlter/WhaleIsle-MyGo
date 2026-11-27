@@ -53,6 +53,7 @@ func (s *mainState) startWorkbenchHost(win *mygo.Window, sup *harness.Supervisor
 
 func (s *mainState) workbenchHostStatus(c *ui.Context, win *mygo.Window, st harness.Status, sup *harness.Supervisor, logs []string) {
 	if st.State == harness.Ready && !st.Recovery {
+		s.renderWhaleConversationStatus(c, win)
 		return
 	}
 	m, _, message, label := s.hostStatusModel(win, st, sup, logs)

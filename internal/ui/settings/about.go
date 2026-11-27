@@ -185,7 +185,6 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	anchor.Children(func() {
 		// Keep the primary update status and next action directly under the
 		// desktop version. Only local diagnostics belong in the disclosure.
-		kPageTitle(c, i18n.T(KeyPass4AboutTitle))
 		kBody(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and official Harness.")).TextColor(muted)
 		settingsAlert(c, "about:118", a.Err != "", providerCopy("没能读取更新信息，请检查网络后重试。", "Update information could not be read. Check the connection and retry."), a.Err)
 		links := aboutLinks()
@@ -290,10 +289,13 @@ func aboutUpdateRow(c *ui.Context, a *AboutAccess, fg, muted ui.Color) {
 	t := tk(c)
 	ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Margin(design.Sp(2.5), 0, design.Sp(2)).AlignItems(ui.Center).Children(func() {
 		// The version is data, not a choice: it paints as read-only text
-		// instead of a disabled picker with one option.
-		ui.Text(c, emptyDash(a.Version)).Label(i18n.T(i18n.KeySettingsAboutCopyVersion)).
+		// instead of a disabled picker with one option, vertically centered
+		// inside the 28 DIP pill.
+		ui.Row(c).Label(i18n.T(i18n.KeySettingsAboutCopyVersion)).
 			Height(28).Padding(0, design.Sp(2.5)).Radius(design.RadiusLG).Border(design.BorderWidth, t.Border).
-			FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Tooltip(a.Version)
+			AlignItems(ui.Center).Justify(ui.Center).Tooltip(a.Version).Children(func() {
+			ui.Text(c, emptyDash(a.Version)).SingleLine().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		})
 		installLabel := i18n.T(KeyPass4OnlineInstall)
 		enabled := a.OnInstallUpdate != nil && !a.UpdateBusy
 		install := kPrimary(c, installLabel, !enabled).AlignSelf(ui.Start)
@@ -314,9 +316,6 @@ func aboutUpdateRow(c *ui.Context, a *AboutAccess, fg, muted ui.Color) {
 		}
 		if a.UpdatePhase == "ready" && a.OnInstallUpdate != nil && kPrimary(c, providerCopy("安装并重启", "Install and restart"), a.UpdateBusy).Clicked() {
 			a.OnInstallUpdate()
-		}
-		if a.OnOpenUpdateCenter != nil && kButton(c, providerCopy("打开更新中心", "Open Update Center")).Clicked() {
-			a.OnOpenUpdateCenter()
 		}
 		if a.OnOpenUpdateCenter != nil && kButton(c, i18n.T(i18n.KeySettingsParityAboutCenterOpen)).Clicked() {
 			a.OnOpenUpdateCenter()

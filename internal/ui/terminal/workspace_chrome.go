@@ -123,18 +123,19 @@ func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, ordinal int, 
 			p.activate(pane.id)
 			p.focusPending = pane.id
 		}
-		if active || hovered {
-			closeLabel := terminalLabel("关闭终端", "Close terminal")
-			close := coss.Button(c, "", coss.ButtonOptions{
-				Variant: coss.ButtonGhost,
-				Label:   closeLabel,
-				Content: func() {
-					ui.Icon(c, terminalCloseIcon).Size(10, 10).TextColor(muted).PassThrough()
-				},
-			}).Size(14, 14).Shrink(0).Padding(0).Radius(design.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
-			if close.Clicked() {
-				requestClosePane(m, pane.id)
-			}
+		closeLabel := terminalLabel("关闭终端", "Close terminal")
+		close := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Label:   closeLabel,
+			Content: func() {
+				ui.Icon(c, terminalCloseIcon).Size(10, 10).TextColor(muted).PassThrough()
+			},
+		}).Size(14, 14).Shrink(0).Padding(0).Radius(design.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
+		if !active && !hovered && !close.Hovered() && !close.Focused() {
+			close.Opacity(0)
+		}
+		if close.Clicked() {
+			requestClosePane(m, pane.id)
 		}
 	})
 }

@@ -80,6 +80,8 @@ type Status struct {
 	FailureAt     time.Time
 	FailureCode   string
 	FailureSignal string
+	// ACPMounted reports whether the dsh-acp-agents overlay was mounted for this launch.
+	ACPMounted bool
 }
 
 // Options configure a Supervisor.
@@ -695,24 +697,26 @@ func (s *Supervisor) run(gen int) {
 	}
 	var plan Plan
 	var patches []string
+	acpMounted := false
 	endPlan := startuptrace.Begin("host.plan")
 	if launch.DshBin != "" {
 		// Configured / test launchers skip desktop overlay preparation.
 		plan, err = Resolve(launch, port)
+		acpMounted = hasACPOverlay(launch.PatchFiles)
 	} else {
 		s.mu.Lock()
 		prep := s.opts.Prepare
 		s.mu.Unlock()
 		var start StartPlan
 		start, err = PlanStart(launch, prep, port)
-		plan, patches = start.Plan, start.PatchFiles
+		plan, patches, acpMounted = start.Plan, start.PatchFiles, start.ACPMounted
 	}
 	endPlan()
 	if err != nil {
 		s.set(gen, Status{State: Failed, Err: err})
 		return
 	}
-	if !s.set(gen, Status{State: Starting, Source: plan.Source, PluginLoad: PluginProgress{Phase: "runtime"}}) {
+	if !s.set(gen, Status{State: Starting, Source: plan.Source, PluginLoad: PluginProgress{Phase: "runtime"}, ACPMounted: acpMounted}) {
 		return
 	}
 	s.log(fmt.Sprintf("» %s %s", plan.Command, strings.Join(plan.Args, " ")), gen)
@@ -829,7 +833,7 @@ func (s *Supervisor) run(gen int) {
 			// workspace/session baselines; pre-registering the launch cwd here
 			// suppresses that first-use initialization even in an empty profile.
 			startuptrace.Mark("host.ready")
-			if !s.set(gen, Status{State: Ready, Endpoint: ep, Source: plan.Source}) {
+			if !s.set(gen, Status{State: Ready, Endpoint: ep, Source: plan.Source, ACPMounted: acpMounted}) {
 				return
 			}
 			<-exited

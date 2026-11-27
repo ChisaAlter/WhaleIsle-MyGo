@@ -264,10 +264,11 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						if !editing || !termui.HostTitleEditor(c, terminal, sid) {
 							ui.Text(c, title).SingleLine().MinWidth(0).Grow(1).FontSize(theme.InterfaceSize(12))
 						}
-						// The original tab carries a ×; DockKit reveals it on the
-						// active or hovered chip like the files strip does.
+						// Keep the 16x16 close slot permanently mounted for closeable tabs
+						// and toggle opacity only, so hovering an inactive tab never shifts
+						// sibling tabs or compresses the tab title.
 						fileTab := tab.Files != nil && tab.Files.ResourcePath != ""
-						if (tab.Kind == "agents" || fileTab) && w.canCloseResource(tab) && (tab == n || chipHovered) {
+						if (tab.Kind == "agents" || fileTab) && w.canCloseResource(tab) {
 							closeLabel := paneLabel("关闭", "Close")
 							close := coss.Button(c, "", coss.ButtonOptions{
 								Variant: coss.ButtonGhost,
@@ -278,6 +279,9 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 									ui.Icon(c, workspacePaneCloseIcon).Size(10, 10).TextColor(t.MutedForeground).PassThrough()
 								},
 							}).Tooltip(closeLabel).Size(16, 16).Shrink(0).Padding(0).Radius(design.RadiusXS * 2).AlignItems(ui.Center).Justify(ui.Center)
+							if tab != n && !chipHovered && !close.Hovered() && !close.Focused() {
+								close.Opacity(0)
+							}
 							if close.Clicked() {
 								workspacePaneClose(m, tab)
 							}
@@ -287,7 +291,10 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						continue
 					}
 					if _, over := ui.DragOver[workspaceTabDrag](chip); over {
-						chip.Border(2, t.Primary)
+						primary := t.Primary
+						chip.DrawOver(func(p *ui.Painter, r ui.Rect) {
+							p.Stroke(r, primary, design.RadiusMD, 2)
+						})
 					}
 					if dropped, ok := ui.Drop[workspaceTabDrag](chip); ok {
 						w.pending = func() { w.MoveWorkspaceTab(dropped.ID, n.ID, index) }

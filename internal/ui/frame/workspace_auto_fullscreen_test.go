@@ -49,7 +49,7 @@ func newAutoFullscreenFrame(t *testing.T, external bool, width, height int) *aut
 		m := Model{Store: f.store, Sizes: &f.sizes, RightPaneOpen: f.open, RightPaneTab: &f.route, ExternalNavigation: external,
 			Draft: &f.draft, UseComposerTextInput: true, ComposerTextInput: f.client, ChatList: &f.chatList,
 			OnToggleTools: func() { f.open = !f.open; f.closes++ },
-			WorkspaceTrailing: func(c *ui.Context, _ string) {
+			WorkspaceTrailing: func(c *ui.Context, _ string, _ bool) {
 				if ui.Button(c, "Toggle rightbar").Clicked() {
 					f.open = !f.open
 				}

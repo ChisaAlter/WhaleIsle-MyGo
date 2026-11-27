@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/ui/i18n"
 )
@@ -41,35 +42,39 @@ const (
 	// (OpenUI Lang) programs that cannot be shown.
 	CauseInterfaceInvalid
 	CauseInterfaceTooLarge
+	// CausePluginUnavailable reports that a local Host plugin control-plane
+	// endpoint is not mounted or enabled (for example pluginrpc HTTP 404/405).
+	CausePluginUnavailable
 )
 
 const (
-	keySeparator       = "errcopy.separator"
-	keyUnknown         = "errcopy.unknown"
-	keyCancelled       = "errcopy.cancelled"
-	keyTimeout         = "errcopy.timeout"
-	keyNetwork         = "errcopy.network"
-	keyDiskFull        = "errcopy.disk_full"
-	keyReadOnly        = "errcopy.read_only"
-	keyPermission      = "errcopy.permission"
-	keyConflict        = "errcopy.conflict"
-	keyNotFound        = "errcopy.not_found"
-	keyExited          = "errcopy.exited"
-	keyRuntimeExited   = "errcopy.runtime_exited"
-	keyRuntimeExitCode = "errcopy.runtime_exit_code"
-	keyKilled          = "errcopy.killed"
-	keyRuntimeMissing  = "errcopy.runtime_missing"
-	keyRuntimeMismatch = "errcopy.runtime_mismatch"
-	keyPortInUse       = "errcopy.port_in_use"
-	keyPageStopped     = "errcopy.page_stopped"
-	keyRevertConflict  = "errcopy.revert_conflict"
-	keyNoCredential    = "errcopy.no_credential"
-	keyRejectedRequest = "errcopy.rejected_request"
-	keyRejectedAuth    = "errcopy.rejected_auth"
-	keyRejectedRate    = "errcopy.rejected_rate"
-	keyRejectedServer  = "errcopy.rejected_server"
-	keyInterfaceBad    = "errcopy.interface_invalid"
-	keyInterfaceBig    = "errcopy.interface_too_large"
+	keySeparator         = "errcopy.separator"
+	keyUnknown           = "errcopy.unknown"
+	keyCancelled         = "errcopy.cancelled"
+	keyTimeout           = "errcopy.timeout"
+	keyNetwork           = "errcopy.network"
+	keyDiskFull          = "errcopy.disk_full"
+	keyReadOnly          = "errcopy.read_only"
+	keyPermission        = "errcopy.permission"
+	keyConflict          = "errcopy.conflict"
+	keyNotFound          = "errcopy.not_found"
+	keyExited            = "errcopy.exited"
+	keyRuntimeExited     = "errcopy.runtime_exited"
+	keyRuntimeExitCode   = "errcopy.runtime_exit_code"
+	keyKilled            = "errcopy.killed"
+	keyRuntimeMissing    = "errcopy.runtime_missing"
+	keyRuntimeMismatch   = "errcopy.runtime_mismatch"
+	keyPortInUse         = "errcopy.port_in_use"
+	keyPageStopped       = "errcopy.page_stopped"
+	keyRevertConflict    = "errcopy.revert_conflict"
+	keyNoCredential      = "errcopy.no_credential"
+	keyRejectedRequest   = "errcopy.rejected_request"
+	keyRejectedAuth      = "errcopy.rejected_auth"
+	keyRejectedRate      = "errcopy.rejected_rate"
+	keyRejectedServer    = "errcopy.rejected_server"
+	keyInterfaceBad      = "errcopy.interface_invalid"
+	keyInterfaceBig      = "errcopy.interface_too_large"
+	keyPluginUnavailable = "errcopy.plugin_unavailable"
 )
 
 // causes is ordered: an earlier family claims a message that a later pattern
@@ -92,6 +97,9 @@ var causes = []struct {
 	// prefixes (internal/ui/openui); they never reach another family.
 	{CauseInterfaceTooLarge, regexp.MustCompile(`^whale ui program over budget`)},
 	{CauseInterfaceInvalid, regexp.MustCompile(`^whale ui program invalid`)},
+	// Local Host plugin control-plane 404/405 means the plugin or feature is not
+	// mounted in this runtime; it must never be reported as an upstream LLM error.
+	{CausePluginUnavailable, regexp.MustCompile(`(?i)\bpluginrpc:\s*HTTP\s+(?:404|405)\b`)},
 	// Two programs name these failures, so each family covers both spellings:
 	// Go's exec/syscall errors, and the platform's own message when it is the one
 	// reporting (Windows winsock has no errno in the text).
@@ -193,6 +201,9 @@ func init() {
 	i18n.Register(keyInterfaceBig,
 		"这段交互界面超出了安全限制，无法显示。可以让助手生成更精简的版本。",
 		"This interface exceeds the safety limits and cannot be shown. Ask the assistant for a smaller version.")
+	i18n.Register(keyPluginUnavailable,
+		"当前运行时未启用此插件或功能。",
+		"This plugin or feature is not enabled in the current runtime.")
 	i18n.Register(keyNoCredential,
 		"未配置模型凭据。请在 设置 → 模型 里填写 API Key 后重试。",
 		"No model credentials are set. Add an API key in Settings → Models, then try again.")
@@ -269,6 +280,13 @@ func Classify(err error) Cause {
 		// The Host answered that a lazy service is still activating; the
 		// honest next step is the retry the timeout sentence offers.
 		return CauseTimeout
+	}
+	var pluginHTTP *pluginrpc.HTTPError
+	if errors.As(err, &pluginHTTP) {
+		if pluginHTTP.StatusCode == 404 || pluginHTTP.StatusCode == 405 {
+			return CausePluginUnavailable
+		}
+		return CauseUnknown
 	}
 	var rpcErr *dsh.Error
 	if errors.As(err, &rpcErr) {
@@ -375,13 +393,21 @@ func sentenceFor(cause Cause, raw string) string {
 // status quotes it inside one.
 var httpStatus = regexp.MustCompile(`(?i)\bHTTP[_ ](\d{3})\b`)
 
+// pluginRPCHTTP identifies local Host plugin control-plane HTTP errors so they
+// are never misclassified as upstream LLM model-service HTTP rejections.
+var pluginRPCHTTP = regexp.MustCompile(`(?i)\bpluginrpc:\s*HTTP\s+(\d{3})\b`)
+
 // HTTPStatus reports the status a failure carries, preferring the stable code
 // over the message, so a caller can tell a rejection from a transport failure.
 func HTTPStatus(code, raw string) (string, bool) {
-	for _, text := range []string{code, raw} {
-		if match := httpStatus.FindStringSubmatch(text); match != nil {
-			return match[1], true
-		}
+	if match := httpStatus.FindStringSubmatch(code); match != nil {
+		return match[1], true
+	}
+	if pluginRPCHTTP.MatchString(raw) {
+		return "", false
+	}
+	if match := httpStatus.FindStringSubmatch(raw); match != nil {
+		return match[1], true
 	}
 	return "", false
 }
@@ -504,6 +530,8 @@ func keyFor(cause Cause) string {
 		return keyRevertConflict
 	case CauseMissingCredential:
 		return keyNoCredential
+	case CausePluginUnavailable:
+		return keyPluginUnavailable
 	default:
 		return keyUnknown
 	}

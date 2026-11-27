@@ -243,6 +243,7 @@ type selectParts[T comparable] struct {
 	// option: it highlights another once it moves.
 	highlight *int
 	values    *[]T
+	disabled  *[]bool
 	next      []T
 	items     []*node
 	pointer   *[2]float32
@@ -279,6 +280,7 @@ func coreSelectBase[T comparable](c *context, selected *T) *selectParts[T] {
 		open:      coreLocal(b, "open", func() bool { return false }),
 		highlight: coreLocal(b, "highlight", func() int { return -1 }),
 		values:    coreLocal(b, "values", func() []T { return nil }),
+		disabled:  coreLocal(b, "disabled", func() []bool { return nil }),
 		pointer:   coreLocal(b, "pointer", func() [2]float32 { return [2]float32{} }),
 	}
 	b.afterInput(func() {
@@ -297,9 +299,17 @@ func coreSelectBase[T comparable](c *context, selected *T) *selectParts[T] {
 			open(want)
 		}
 		n := len(*s.values)
-		move := func(i int) {
-			*s.highlight = max(0, min(i, n-1))
-			c.rt.consumed = true
+		isDisabled := func(i int) bool {
+			return i < len(*s.disabled) && (*s.disabled)[i]
+		}
+		step := func(from, dir int) {
+			for i := from + dir; i >= 0 && i < n; i += dir {
+				if !isDisabled(i) {
+					*s.highlight = i
+					c.rt.consumed = true
+					return
+				}
+			}
 		}
 		if !*s.open {
 			if b.Shortcut(0, KeyDown) || b.Shortcut(0, KeyUp) || b.Shortcut(0, KeyEnter) || b.Shortcut(0, KeySpace) {
@@ -308,15 +318,23 @@ func coreSelectBase[T comparable](c *context, selected *T) *selectParts[T] {
 		} else if n > 0 {
 			switch {
 			case b.Shortcut(0, KeyDown):
-				move(*s.highlight + 1)
+				from := *s.highlight
+				if from < 0 {
+					from = -1
+				}
+				step(from, 1)
 			case b.Shortcut(0, KeyUp):
-				move(*s.highlight - 1)
+				from := *s.highlight
+				if from < 0 {
+					from = n
+				}
+				step(from, -1)
 			case b.Shortcut(0, KeyHome):
-				move(0)
+				step(-1, 1)
 			case b.Shortcut(0, KeyEnd):
-				move(n - 1)
+				step(n, -1)
 			case b.Shortcut(0, KeyEnter), b.Shortcut(0, KeySpace):
-				if h := *s.highlight; h >= 0 && h < n {
+				if h := *s.highlight; h >= 0 && h < n && !isDisabled(h) {
 					s.choose((*s.values)[h])
 				}
 			}
@@ -344,6 +362,9 @@ func (s *selectParts[T]) Open() bool { return *s.open }
 func (s *selectParts[T]) Highlight(value T) {
 	for i, v := range *s.values {
 		if v == value {
+			if i < len(*s.disabled) && (*s.disabled)[i] {
+				return
+			}
 			if *s.highlight != i {
 				*s.highlight = i
 				s.c.rt.consumed = true
@@ -368,8 +389,15 @@ func (s *selectParts[T]) Popup(fn func(panel *node)) *node {
 		s.next, s.items = s.next[:0], s.items[:0]
 		fn(panel)
 		*s.values = append((*s.values)[:0], s.next...)
+		dis := (*s.disabled)[:0]
 		for i, item := range s.items {
 			item.setPos, item.setSize = i+1, len(s.next)
+			dis = append(dis, item.IsDisabled())
+		}
+		*s.disabled = dis
+		if h := *s.highlight; h >= 0 && h < len(s.items) && s.items[h].IsDisabled() {
+			s.items[h].highlighted = false
+			*s.highlight = -1
 		}
 	})
 }
@@ -382,12 +410,13 @@ func (s *selectParts[T]) Item(value T) *node {
 	i := len(s.next)
 	s.next = append(s.next, value)
 	item := coreRow(c).Role(RoleListItem)
-	item.flags |= flagClickable | flagHover | flagChoosable
+	item.flags |= flagClickable | flagHover | flagChoosable | flagKeepFocus
 	s.items = append(s.items, item)
-	if *s.highlight < 0 && value == *s.selected {
+	wasDisabled := i < len(*s.disabled) && (*s.disabled)[i]
+	if *s.highlight < 0 && value == *s.selected && !wasDisabled {
 		*s.highlight = i
 	}
-	if p := [2]float32{c.rt.pointerX, c.rt.pointerY}; item.Hovered() && p != *s.pointer {
+	if p := [2]float32{c.rt.pointerX, c.rt.pointerY}; !wasDisabled && item.Hovered() && p != *s.pointer {
 		// The pointer moved onto it, which moves the highlight; the
 		// options built before learn it as the frame builds again.
 		*s.pointer = p
@@ -399,7 +428,7 @@ func (s *selectParts[T]) Item(value T) *node {
 	item.highlighted = *s.highlight == i
 	item.checked = 1 + int8(b2f(value == *s.selected))
 	item.afterInput(func() {
-		if item.Clicked() {
+		if item.Clicked() && !item.IsDisabled() {
 			s.choose(value)
 		}
 	})
@@ -437,7 +466,7 @@ func popover(c *context, anchor *node, open *bool, modal bool, fn func(panel *no
 	coreOverlay(c, func() {
 		if modal {
 			back := coreBox(c).Absolute().Left(0).Top(0).Right(0).Bottom(0)
-			back.flags |= flagClickable
+			back.flags |= flagClickable | flagKeepFocus
 			back.popover = anchor
 			if back.Clicked() {
 				*open = false
@@ -445,8 +474,12 @@ func popover(c *context, anchor *node, open *bool, modal bool, fn func(panel *no
 			back.noPointerCursor = true
 		}
 		panel = coreBox(c).Role(RolePopup).AttachTo(anchor, AnchorBottomLeft, AnchorTopLeft)
-		// Presses on it stay in it.
+		// Presses on it stay in it; modal popups (SelectBase) keep the focus on
+		// their trigger so closing by trigger, option, or backdrop never drops it.
 		panel.flags |= flagClickable
+		if modal {
+			panel.flags |= flagKeepFocus
+		}
 		panel.noPointerCursor = true
 		panel.Children(func() { fn(panel) })
 		if panel.OverlayShortcut(0, KeyEscape) || !modal && panel.PressedOutside() {

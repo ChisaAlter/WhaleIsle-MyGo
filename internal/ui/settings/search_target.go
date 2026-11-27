@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
@@ -162,11 +163,11 @@ func settingsSearchTarget(c *ui.Context, key, title string, row ui.Element) {
 		})
 		return
 	}
-	// A filter match (the rail search's own marking) keeps the accent outline.
-	row.Background(c.Theme().Accent.Alpha(.14)).Radius(8)
+	// A filter match (the rail search's own marking) keeps a soft accent wash
+	// and outline without a leading accent bar.
+	row.Background(c.Theme().Accent.Alpha(.14)).Radius(design.RadiusLG)
 	row.DrawOver(func(p *ui.Painter, bounds ui.Rect) {
-		p.Stroke(bounds, c.Theme().Accent.Alpha(.55), 1, 8)
-		p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y + 4, W: 3, H: max(0, bounds.H-8)}, c.Theme().Accent, 1.5)
+		p.Stroke(bounds, c.Theme().Accent.Alpha(.55), 1, design.RadiusLG)
 	})
 }
 

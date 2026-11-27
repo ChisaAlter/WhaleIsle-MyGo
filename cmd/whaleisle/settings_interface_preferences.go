@@ -18,21 +18,24 @@ func (s *mainState) setAutoAllowToolsPreference(next bool) (bool, error) {
 
 func (s *mainState) setInterfaceBoolPreference(key string, next bool) (bool, error) {
 	s.mu.Lock()
-	read := func(c config.Config) bool {
-		switch key {
-		case "archive":
-			return !c.HideArchivedList
-		case "tabs":
-			return !c.HideChatViewTabs
-		default:
-			return c.AutoAllowTools
-		}
-	}
-	if s.cfgStore == nil {
+	cfgStore := s.cfgStore
+	if cfgStore == nil {
 		s.mu.Unlock()
 		return !next, errors.New(i18n.T(i18n.KeyCmdConfigStoreNotReady))
 	}
-	err := s.cfgStore.Update(func(c *config.Config) {
+	switch key {
+	case "archive":
+		s.desktopDraft.showArchivedList = next
+	case "tabs":
+		s.desktopDraft.showViewTabs = next
+	case "tools":
+		s.desktopDraft.autoAllowTools = next
+	}
+	interactions := s.interactions
+	win := s.win
+	s.mu.Unlock()
+
+	s.enqueueConfigUpdate(cfgStore, func(c *config.Config) {
 		switch key {
 		case "archive":
 			c.HideArchivedList = !next
@@ -42,27 +45,11 @@ func (s *mainState) setInterfaceBoolPreference(key string, next bool) (bool, err
 			c.AutoAllowTools = next
 		}
 	})
-	accepted := read(s.cfgStore.Get())
-	if err != nil {
-		s.mu.Unlock()
-		return accepted, err
-	}
-	if accepted != next {
-		s.mu.Unlock()
-		return accepted, errors.New(i18n.T(i18n.KeySurfacesSettingsSaveFailed))
-	}
-	switch key {
-	case "archive":
-		s.desktopDraft.showArchivedList = accepted
-	case "tabs":
-		s.desktopDraft.showViewTabs = accepted
-	case "tools":
-		s.desktopDraft.autoAllowTools = accepted
-	}
-	interactions := s.interactions
-	s.mu.Unlock()
 	if key == "tools" && interactions != nil {
-		interactions.SetAutoAllow(accepted)
+		interactions.SetAutoAllow(next)
 	}
-	return accepted, nil
+	if win != nil {
+		win.Invalidate()
+	}
+	return next, nil
 }

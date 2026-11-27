@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
@@ -191,13 +191,13 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		ui.Text(c, i18n.T(i18n.KeyMiscRemoteNoUsableOfferEnablingStartsTheInst)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		if offerUsable(runtime, status, lan) && m.OnCopyConnectURL != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMiscRemoteCopyPairingLink), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
+		if offerUsable(runtime, status, lan) && m.OnCopyConnectURL != nil && coss.Button(c, i18n.T(i18n.KeyMiscRemoteCopyPairingLink), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM}).Clicked() {
 			m.OnCopyConnectURL()
 		}
-		if offerUsable(runtime, status, lan) && m.OnOpenConnectURL != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMiscRemoteOpenPairingLink), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+		if offerUsable(runtime, status, lan) && m.OnOpenConnectURL != nil && coss.Button(c, i18n.T(i18n.KeyMiscRemoteOpenPairingLink), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 			m.OnOpenConnectURL()
 		}
-		if m.OnRefreshPhone != nil && widgets.Button(c, colors, i18n.T(i18n.KeyRemotePhoneRefresh), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(runtime.DeviceAction.Busy).Clicked() {
+		if m.OnRefreshPhone != nil && coss.Button(c, i18n.T(i18n.KeyRemotePhoneRefresh), coss.ButtonOptions{Variant: coss.ButtonSecondary, Size: coss.ButtonSM, Disabled: runtime.DeviceAction.Busy}).Clicked() {
 			m.OnRefreshPhone()
 		}
 	})

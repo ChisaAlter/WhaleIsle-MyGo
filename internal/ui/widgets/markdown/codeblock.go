@@ -72,7 +72,15 @@ func viewCodeBlock(c *ui.Context, node ast.Node, source string, st Style) {
 	paintCodeCard(c, language, code, clipboardCode, st)
 }
 
+func codeNow(c *ui.Context) time.Time {
+	if now := c.Now(); !now.IsZero() {
+		return now
+	}
+	return time.Now()
+}
+
 func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style) {
+	now := codeNow(c)
 	size := CodeSize(st)
 	font := theme.RenderPreferences().Code.Family
 	radius := codeCardRadius(st.Dark)
@@ -84,6 +92,9 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 	}
 	wrap := ui.Local(root, "wrap-code", func() bool { return st.CodeWrapDefault })
 	copied := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })
+	if !copied.IsZero() && !now.Before(*copied) {
+		*copied = time.Time{}
+	}
 	highlight := ui.Local(root, "highlight", func() codeHighlightCache { return codeHighlightCache{} })
 	root.Children(func() {
 		if st.PlainCodeBanner {
@@ -93,7 +104,7 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 				Padding(codeBannerPadY, codeBannerPadX, codeBannerPadY, codeBannerPadX).Gap(12).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, language).FontSize(size).TextColor(st.FG).Font(font).FixedLineHeight(18).SingleLine().Grow(1).MinWidth(0)
 				bannerLabel := codeCopyLabel(st)
-				if time.Now().Before(*copied) {
+				if !copied.IsZero() && now.Before(*copied) {
 					bannerLabel = codeCopiedLabel(st)
 				}
 				if coss.Button(c, "", coss.ButtonOptions{
@@ -105,7 +116,7 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 					},
 				}).Height(18).Padding(0).Shrink(0).Clicked() {
 					c.WriteClipboard(clipboardCode)
-					*copied = time.Now().Add(codeCopiedDelay)
+					*copied = now.Add(codeCopiedDelay)
 				}
 			})
 		} else {
@@ -125,12 +136,12 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 						wrapIcon, wrapLabel = codeIconNoWrap, noWrapText
 					}
 					codeToolbarButton(c, wrapIcon, wrapLabel, st, func() { *wrap = !*wrap })
-					if time.Now().Before(*copied) {
+					if !copied.IsZero() && now.Before(*copied) {
 						codeToolbarButton(c, codeIconCheck, codeCopiedLabel(st), st, nil)
 					} else {
 						codeToolbarButton(c, codeIconCopy, codeCopyLabel(st), st, func() {
 							c.WriteClipboard(clipboardCode)
-							*copied = time.Now().Add(codeCopiedDelay)
+							*copied = now.Add(codeCopiedDelay)
 						})
 					}
 				})
@@ -154,14 +165,10 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 			})
 		}
 	})
-	if time.Now().Before(*copied) {
-		root.Draw(func(p *ui.Painter, _ ui.Rect) {
-			if time.Now().After(*copied) {
-				c.Services().Invalidate()
-				return
-			}
-			p.After(time.Until(*copied))
-		})
+	// Schedule recovery via build-phase c.After so any enclosing Memo region
+	// stays live until the 1s confirmation expires, then returns to 0 Hz.
+	if !copied.IsZero() && now.Before(*copied) {
+		c.After(copied.Sub(now))
 	}
 }
 

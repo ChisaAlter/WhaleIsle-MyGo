@@ -62,32 +62,78 @@ func sbSelectedBg(t *design.Tokens) ui.Color {
 	if t.Glass || chrome.BackdropActive() {
 		return chrome.Color(theme.ResolveWithSystem(theme.IDSystem, t.IsDark()).Active(t.IsDark()).Pressed)
 	}
-	if t.SidebarAccent.A > 0 {
-		return t.SidebarAccent
+	if t.IsDark() {
+		return design.TW.White.Alpha(0.11)
 	}
-	return t.Accent
+	return design.TW.Black.Alpha(0.085)
 }
 
 func sbHoverBg(t *design.Tokens) ui.Color {
-	return chrome.Color(theme.ResolveWithSystem(theme.IDSystem, t.IsDark()).Active(t.IsDark()).Hover)
+	if t.Glass || chrome.BackdropActive() {
+		return chrome.Color(theme.ResolveWithSystem(theme.IDSystem, t.IsDark()).Active(t.IsDark()).Hover)
+	}
+	if t.SidebarAccent.A > 0 {
+		return t.SidebarAccent
+	}
+	if t.IsDark() {
+		return design.TW.White.Alpha(0.04)
+	}
+	return design.TW.Black.Alpha(0.04)
 }
 
-// sbActiveIndicator paints a subtle 3px primary indicator bar along the leading
-// edge of an active sidebar row so active and hovered rows are unmistakably
-// distinct without shifting layout.
-func sbActiveIndicator(e ui.Element, t *design.Tokens) {
-	col := t.Primary
-	if col.A == 0 {
-		col = t.SidebarPrimary
+func sbRowInk(t *design.Tokens, selected bool, fallback ui.Color) ui.Color {
+	if selected && t.SidebarAccentForeground.A > 0 && (fallback.A == 0 || fallback == t.Foreground || fallback == t.SidebarForeground) {
+		return t.SidebarAccentForeground
 	}
-	if col.A == 0 {
-		return
+	return fallback
+}
+
+// sbActionOverlayDraw paints a row-matched backdrop behind an absolutely
+// positioned trailing action cluster so hover controls cover long titles and
+// timestamps cleanly without ever leaving Absolute layout.
+func sbActionOverlayDraw(t *design.Tokens, selected, hovered bool) func(*ui.Painter, ui.Rect) {
+	return func(p *ui.Painter, r ui.Rect) {
+		if r.W <= 0 || r.H <= 0 {
+			return
+		}
+		var overlay ui.Color
+		if selected {
+			overlay = sbSelectedBg(t)
+		} else if hovered {
+			overlay = sbHoverBg(t)
+		}
+		base := t.Sidebar
+		if base.A == 0 {
+			base = t.Background
+		}
+		surface := base
+		if chrome.BackdropActive() {
+			prefs := chrome.BackdropPreferences()
+			mat := chrome.MaterialSidebar
+			fillBase := base
+			if prefs.HideSidebarMask {
+				mat = chrome.MaterialCanvas
+				fillBase = t.Background
+			}
+			surface = chrome.BackdropFill(r, fillBase, mat, prefs, t.IsDark())
+		}
+		if overlay.A > 0 {
+			surface = overlay.Over(surface)
+		}
+		if surface.A == 0 {
+			return
+		}
+		pad := ui.Rect{X: r.X - 2, Y: r.Y, W: r.W + 4, H: r.H}
+		p.Fill(pad, surface, design.RadiusMD)
+		fadeW := min(float32(10), max(float32(0), pad.X))
+		if fadeW > 0 {
+			p.FillGradient(
+				ui.Rect{X: pad.X - fadeW, Y: pad.Y, W: fadeW, H: pad.H},
+				ui.LinearGradient{From: surface.Alpha(0), To: surface, Angle: 90},
+				0,
+			)
+		}
 	}
-	e.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		h := max(float32(10), r.H-12)
-		y := r.Y + (r.H-h)/2
-		p.Fill(ui.Rect{X: r.X + 2, Y: y, W: 3, H: h}, col, 1.5)
-	})
 }
 
 func buildActiveScheduleMap(view schedstore.ViewState) map[string][]schedstore.Entry {

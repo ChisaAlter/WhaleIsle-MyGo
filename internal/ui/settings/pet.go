@@ -205,15 +205,15 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 			}
 		})
 		bodyPreferenceRow(c, "pet-autonomy", providerCopy("自主行为", "Autonomy"), providerCopy("她自己开口说话、到处乱逛。", "She talks to herself and wanders on her own."), fg, muted, func() {
-			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			ui.Row(c).FillWidth().Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, providerCopy("自言自语", "Self-talk")).Grow(1).MinWidth(0)
-				if ui.Switch(c, &p.Behavior.SelfTalk).Label(providerCopy("自言自语", "Self-talk")).Disabled(disabled).Changed() {
+				if kSwitch(c, &p.Behavior.SelfTalk, providerCopy("自言自语", "Self-talk"), disabled).Changed() {
 					commit("selfTalk")
 				}
 			})
-			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			ui.Row(c).FillWidth().Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, providerCopy("自主乱逛", "Wander")).Grow(1).MinWidth(0)
-				if ui.Switch(c, &p.Behavior.Wander).Label(providerCopy("自主乱逛", "Wander")).Disabled(disabled).Changed() {
+				if kSwitch(c, &p.Behavior.Wander, providerCopy("自主乱逛", "Wander"), disabled).Changed() {
 					commit("wander")
 				}
 			})

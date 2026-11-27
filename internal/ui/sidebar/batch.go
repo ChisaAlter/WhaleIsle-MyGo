@@ -77,6 +77,35 @@ func batchRow(c *ui.Context, m Model, id, title string, fg ui.Color) bool {
 	return batchSessionRow(c, m, item, 0, title, fg, fg)
 }
 
+func batchCheckboxSlot(c *ui.Context, checked *bool, disabled bool, label, key string) bool {
+	t := tok(c)
+	changed := false
+	slot := ui.Box(c).Size(design.IconSM, design.Sp(5)).AlignItems(ui.Center).Justify(ui.Center)
+	slot.Draw(func(p *ui.Painter, r ui.Rect) {
+		if *checked {
+			return
+		}
+		box := ui.Rect{X: r.X + (r.W-16)/2, Y: r.Y + (r.H-16)/2, W: 16, H: 16}
+		bg := design.TW.Black.Alpha(0.04)
+		border := design.TW.Black.Alpha(0.30)
+		if t.IsDark() {
+			bg = design.TW.White.Alpha(0.08)
+			border = design.TW.White.Alpha(0.38)
+		}
+		p.Fill(box, bg, 4)
+		p.Stroke(box, border, 4, 1)
+	})
+	slot.Children(func() {
+		check := coss.Checkbox(c, checked, "", coss.CheckOptions{
+			Disabled: disabled,
+			Label:    label,
+			Key:      key,
+		})
+		changed = check.Changed()
+	})
+	return changed
+}
+
 func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title string, fg, muted ui.Color) bool {
 	if !m.Batch.Enabled {
 		return false
@@ -103,21 +132,16 @@ func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title
 	}
 	if selected {
 		row.Background(sbSelectedBg(t))
+	} else if !item.Blank && (row.Hovered() || row.FocusWithin()) {
+		row.Background(sbHoverBg(t))
 	}
 	row.Children(func() {
 		if item.Blank {
 			ui.Box(c).Size(design.IconSM, design.Sp(5))
 		} else {
-			ui.Box(c).Size(design.IconSM, design.Sp(5)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-				check := coss.Checkbox(c, &selected, "", coss.CheckOptions{
-					Disabled: locked,
-					Label:    i18n.WSf(i18n.KeyWSSelectionSessionAria, "name", title),
-					Key:      "batch-checkbox-" + item.SessionID,
-				})
-				changed = check.Changed()
-			})
+			changed = batchCheckboxSlot(c, &selected, locked, i18n.WSf(i18n.KeyWSSelectionSessionAria, "name", title), "batch-checkbox-"+item.SessionID)
 		}
-		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, design.Sp(1.5), 0, design.Sp(1)).SingleLine().FontSize(fs(14)).TextColor(fg)
+		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, design.Sp(1.5), 0, design.Sp(1)).SingleLine().FontSize(fs(14)).TextColor(sbRowInk(t, selected, fg))
 		if !item.Blank {
 			ui.Text(c, sessionTrailingLabel(sessionStatus(m, item), item.UpdatedAt)).Label("Session time " + item.SessionID).FontSize(fs(10)).FixedLineHeight(design.Sp(4)).SingleLine().TextColor(muted)
 		}
@@ -209,23 +233,46 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 		})
 		ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
 			archiveLabel := i18n.T(i18n.KeyWSSelectionArchive)
-			if coss.Button(c, archiveLabel, coss.ButtonOptions{
+			archiveDisabled := locked || none
+			archiveInk := t.Foreground
+			archiveBtn := coss.Button(c, archiveLabel, coss.ButtonOptions{
 				Variant:  coss.ButtonOutline,
 				Size:     coss.ButtonSM,
-				Disabled: locked || none,
-				Content:  batchActionContent(c, menuArchiveArtwork, archiveLabel, t.Foreground),
+				Disabled: archiveDisabled,
+				Content:  batchActionContent(c, menuArchiveArtwork, archiveLabel, archiveInk),
 				Key:      "batch-archive",
-			}).Label(archiveLabel).Grow(1).MinWidth(0).Clicked() && m.OnBatchRequest != nil {
+			}).Label(archiveLabel).Grow(1).MinWidth(0)
+			if t.IsDark() {
+				bg := design.TW.White.Alpha(0.10)
+				if !archiveDisabled && archiveBtn.Hovered() {
+					bg = design.TW.White.Alpha(0.16)
+				}
+				archiveBtn.Background(bg).Border(design.BorderWidth, design.TW.White.Alpha(0.22))
+			}
+			if archiveBtn.Clicked() && m.OnBatchRequest != nil {
 				m.OnBatchRequest("archive")
 			}
 			deleteLabel := i18n.T(i18n.KeyWSSelectionDelete)
-			if coss.Button(c, deleteLabel, coss.ButtonOptions{
+			deleteDisabled := locked || none
+			deleteInk := t.DestructiveForeground
+			if t.IsDark() {
+				deleteInk = design.TW.Red300
+			}
+			deleteBtn := coss.Button(c, deleteLabel, coss.ButtonOptions{
 				Variant:  coss.ButtonDestructiveOutline,
 				Size:     coss.ButtonSM,
-				Disabled: locked || none,
-				Content:  batchActionContent(c, menuTrashArtwork, deleteLabel, t.DestructiveForeground),
+				Disabled: deleteDisabled,
+				Content:  batchActionContent(c, menuTrashArtwork, deleteLabel, deleteInk),
 				Key:      "batch-delete",
-			}).Label(deleteLabel).Grow(1).MinWidth(0).Clicked() && m.OnBatchRequest != nil {
+			}).Label(deleteLabel).Grow(1).MinWidth(0)
+			if t.IsDark() {
+				bg := t.Destructive.Alpha(0.18)
+				if !deleteDisabled && deleteBtn.Hovered() {
+					bg = t.Destructive.Alpha(0.28)
+				}
+				deleteBtn.Background(bg).Border(design.BorderWidth, t.Destructive.Alpha(0.50))
+			}
+			if deleteBtn.Clicked() && m.OnBatchRequest != nil {
 				m.OnBatchRequest("delete")
 			}
 		})

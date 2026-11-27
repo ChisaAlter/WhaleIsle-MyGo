@@ -71,10 +71,10 @@ func darkGlassMenuAlpha(prefs wallpapers.Preferences) float32 {
 	return float32(math.Max(0, math.Min(100, pct)) / 100.0)
 }
 
-// lightGlassMenuAlpha implements max(g*0.875, g*2.1-110)/100 (g=80% -> 0.70).
+// lightGlassMenuAlpha implements max(g*0.8, g*1.8-80)/100 (g=80% -> 0.64, g=100% -> 1.00).
 func lightGlassMenuAlpha(prefs wallpapers.Preferences) float32 {
 	g := clampGlassPercent(prefs.Glass)
-	pct := math.Max(g*0.875, g*2.1-110)
+	pct := math.Max(g*0.8, g*1.8-80)
 	return float32(math.Max(0, math.Min(100, pct)) / 100.0)
 }
 
@@ -113,8 +113,8 @@ func applyLightGlassPalette(p *design.Palette, prefs wallpapers.Preferences) {
 	p.Accent = ui.RGBA(0, 0, 0, 0.055)
 	p.SidebarAccent = ui.RGBA(0, 0, 0, 0.055)
 	p.CodeHighlight = ui.RGBA(0, 0, 0, 0.055)
-	p.MutedForeground = ui.RGB(97, 102, 107)
-	p.SidebarForeground = ui.RGB(72, 76, 82)
+	p.MutedForeground = ui.RGB(63, 68, 74)
+	p.SidebarForeground = ui.RGB(44, 49, 56)
 }
 
 func glassSurfaceFilter(sig designGlassSignature) design.SurfaceFilter {

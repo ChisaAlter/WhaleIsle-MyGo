@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -341,5 +343,57 @@ func TestHTTPRejectionNamesTheStatusAndTheStep(t *testing.T) {
 	}
 	if _, ok := HTTPStatus("MISSING_CREDENTIAL", "no api key"); ok {
 		t.Fatal("a credential code read as an HTTP status")
+	}
+}
+
+// TestPluginRPCHTTPErrorsNeverMasqueradeAsModelService pins the separation
+// between local Host plugin control-plane HTTP responses (for example 404/405
+// when an optional plugin like dsh-acp-agents is not mounted) and upstream LLM
+// model service HTTP errors.
+func TestPluginRPCHTTPErrorsNeverMasqueradeAsModelService(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want Cause
+	}{
+		{"typed 405", &pluginrpc.HTTPError{StatusCode: 405, Plugin: "dsh-acp-agents", Method: "catalog"}, CausePluginUnavailable},
+		{"typed 404", &pluginrpc.HTTPError{StatusCode: 404, Plugin: "dsh-acp-agents", Method: "catalog", Body: "not found"}, CausePluginUnavailable},
+		{"raw text 405", errors.New("pluginrpc: HTTP 405: "), CausePluginUnavailable},
+		{"raw text 404", errors.New("pluginrpc: HTTP 404: route not found"), CausePluginUnavailable},
+		{"typed 500", &pluginrpc.HTTPError{StatusCode: 500, Plugin: "dsh-whale", Method: "catalog", Body: "boom"}, CauseUnknown},
+	}
+	for _, locale := range []string{i18n.LocaleZH, i18n.LocaleEN} {
+		withLocale(t, locale)
+		for _, tc := range cases {
+			t.Run(locale+"/"+tc.name, func(t *testing.T) {
+				if got := Classify(tc.err); got != tc.want {
+					t.Fatalf("Classify(%v) = %v, want %v", tc.err, got, tc.want)
+				}
+				for _, rendered := range []string{
+					Sentence(tc.err),
+					SentenceText(tc.err.Error()),
+					SentenceFor("", tc.err.Error()),
+					Under("刷新 Agent 目录", tc.err),
+					UnderText("刷新 Agent 目录", tc.err.Error()),
+				} {
+					if strings.Contains(rendered, "模型服务") || strings.Contains(rendered, "model service") {
+						t.Fatalf("pluginrpc failure misclassified as model service: %q", rendered)
+					}
+					if tc.want == CausePluginUnavailable {
+						if locale == i18n.LocaleZH && !strings.Contains(rendered, "未启用") {
+							t.Fatalf("expected plugin-unavailable copy in zh, got %q", rendered)
+						}
+						if locale == i18n.LocaleEN && !strings.Contains(rendered, "not enabled") {
+							t.Fatalf("expected plugin-unavailable copy in en, got %q", rendered)
+						}
+					}
+				}
+			})
+		}
+	}
+	// Upstream LLM HTTP 405 must continue mapping to model-service rejection.
+	withLocale(t, i18n.LocaleZH)
+	if got := Sentence(&dsh.HTTPError{Status: 405}); !strings.Contains(got, "模型服务拒绝了这次请求（405）") {
+		t.Fatalf("upstream dsh HTTP 405 = %q, want model-service rejection", got)
 	}
 }

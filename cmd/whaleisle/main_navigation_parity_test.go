@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
@@ -107,11 +108,18 @@ func TestMainNavigationRendersCurrentRouteAndCommittedShortcut(t *testing.T) {
 		check(-1)
 	}
 	label := i18n.T(i18n.KeySidebarNewSessionFallback)
+	now := time.Unix(3000, 0)
+	tt.SetTime(now)
 	r, ok := tt.Find(label)
 	if !ok {
 		t.Fatal("new session missing")
 	}
 	tt.Move(r.X+r.W/2, r.Y+r.H/2)
+	tt.Frame()
+	if after, ok := tt.Find(label); !ok || after != r {
+		t.Fatalf("hovering new session shifted layout: %+v -> %+v", r, after)
+	}
+	tt.SetTime(now.Add(time.Second))
 	display := func() string {
 		value := shortcuts.Resolve(s.pageShortcutBindings())["session.new"].String()
 		if runtime.GOOS == "windows" {
@@ -124,7 +132,7 @@ func TestMainNavigationRendersCurrentRouteAndCommittedShortcut(t *testing.T) {
 	}
 	initialHint := display()
 	if !tt.HasText(initialHint) {
-		t.Fatalf("initial shared default not displayed: %v", tt.Texts())
+		t.Fatalf("initial shared default not displayed in tooltip: %v", tt.Texts())
 	}
 	binding := &shortcutprefs.Binding{Code: "F8", Modifiers: []string{"primary", "alt"}}
 	result := prefs.Apply("native", prefs.Accepted().Revision, []shortcutprefs.Edit{{Type: "set", ID: "session.new", Binding: binding}})
@@ -134,17 +142,17 @@ func TestMainNavigationRendersCurrentRouteAndCommittedShortcut(t *testing.T) {
 		}
 		t.Fatalf("fixture preference edit=%+v", result)
 	}
-	tt.Frame()
+	tt.SetTime(now.Add(1500 * time.Millisecond))
 	customHint := display()
 	if !tt.HasText(customHint) || tt.HasText(initialHint) {
-		t.Fatal("committed binding edit did not reach visible hint")
+		t.Fatal("committed binding edit did not reach visible tooltip hint")
 	}
 	result = prefs.Apply("native", prefs.Accepted().Revision, []shortcutprefs.Edit{{Type: "set", ID: "session.new", Binding: nil}})
 	if result.Status != "saved" {
 		t.Fatalf("fixture unbind=%+v", result)
 	}
-	tt.Frame()
+	tt.SetTime(now.Add(2000 * time.Millisecond))
 	if tt.HasText(customHint) {
-		t.Fatal("committed unbind retained stale hint")
+		t.Fatal("committed unbind retained stale tooltip hint")
 	}
 }

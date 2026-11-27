@@ -92,8 +92,8 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 							}
 							day := day
 							iso := fmt.Sprintf("%04d-%02d-%02d", month.Year(), month.Month(), day)
-							cell := ui.Box(c.Key("schedule-calendar-" + iso)).Bind(&state.calendarCells[day]).
-								Grow(1).MinWidth(0).Height(design.Sp(7)).Center().Radius(design.RadiusMD).
+							cell := ui.Box(c.Key("schedule-calendar-"+iso)).Bind(&state.calendarCells[day]).
+								Grow(1).MinWidth(0).Height(design.Sp(7)).Center().Radius(design.RadiusMD).Border(design.BorderWidth, ui.Transparent).
 								Role(ui.RoleCell).Label(iso).Checked(iso == date).Cursor(ui.CursorPointer)
 							if day == state.calendarDay {
 								cell.Focusable()

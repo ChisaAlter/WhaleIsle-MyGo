@@ -63,7 +63,6 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	// row card mid-save would lose its state (including the flag that closes it).
 	setupOpen := ui.Local(page, "setup-open", func() string { return "" })
 	page.Children(func() {
-		ui.Text(c, providerCopy("模型", "Models")).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
 		ui.Text(c, providerCopy("填入各提供商的 API 密钥即可使用其模型。", "Enter your API keys to use models from the following providers.")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
 		settingsAlert(c, "models:63", a.Err != "", providerCopy("没能读取模型列表，请重试。", "The model list could not be read. Try again."), a.Err)
 		settingsNotice(c, "models:66", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })

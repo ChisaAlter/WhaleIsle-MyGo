@@ -42,9 +42,9 @@ func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*
 		&m.OnSelectDesktop, &m.OnSelectAccount, &m.OnSelectCredentials,
 		&m.OnSelectAbout, &m.OnSelectAppearance, &m.OnSelectInterface,
 		&m.OnSelectMCP, &m.OnSelectPlugins,
-		&m.OnSelectSkills, &m.OnSelectAgentPresets, &m.OnOpenRemote, &m.OnOpenRemoteWorkspace,
+		&m.OnSelectSkills, &m.OnSelectAgentPresets, &m.OnSelectRemote, &m.OnOpenRemote, &m.OnOpenRemoteWorkspace,
 		&m.OnSelectConversation, &m.OnSelectFeatures, &m.OnOpenMarket,
-		&m.OnSelectDeepSeekAPIs,
+		&m.OnSelectVoice, &m.OnSelectDeepSeekAPIs,
 		&m.OnClose,
 	} {
 		if fn := *callback; fn != nil {
@@ -87,6 +87,7 @@ func (s *mainState) leaveSettingsSection(m settings.Model, section settings.Sect
 	if m.Store != nil {
 		m.Store.LeaveServedForms()
 		m.Store.LeaveProviderForms()
+		m.Store.ClearTransientErrors()
 	}
 	credential := s.settingsReferencedCredentials.Snapshot()
 	if !credential.Busy {

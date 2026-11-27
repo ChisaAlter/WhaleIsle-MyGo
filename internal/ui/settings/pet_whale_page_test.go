@@ -93,7 +93,7 @@ func TestWhalePetPageTogglesIMAndSummarisesTheCatalog(t *testing.T) {
 	if !tt.HasText("1/2") {
 		t.Fatalf("skills summary missing: %v", tt.Texts())
 	}
-	if err := tt.Click("Whale IM toggle"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeySettingsWhaleIM) + providerCopy("开关", " toggle")); err != nil {
 		t.Fatalf("IM row is not clickable: %v", err)
 	}
 	if len(rec.patches) != 1 || rec.patches[0].IMDefault == nil || *rec.patches[0].IMDefault {
@@ -142,7 +142,7 @@ func TestWhalePetSkillsToggleInline(t *testing.T) {
 	if !tt.HasText("diary") || !tt.HasText("art") {
 		t.Fatalf("skill rows missing: %v", tt.Texts())
 	}
-	if err := tt.Click("Whale skill diary"); err != nil {
+	if err := tt.Click(providerCopy("鲸鱼娘技能 · ", "Whale skill ") + "diary"); err != nil {
 		t.Fatalf("skill switch missing: %v", err)
 	}
 	if len(rec.toggles) != 1 || rec.toggles[0] != "diary" {

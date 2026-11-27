@@ -10,8 +10,8 @@ import (
 // petHeader is the 0.3.13 page head: a 16/24 semibold title and the one-line
 // intro, which now also says that the desktop and IM share one conversation.
 func petHeader(c *ui.Context, fg, muted ui.Color) {
+	_ = fg
 	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(8, 0, 0, 0).Children(func() {
-		ui.Text(c, providerCopy("鲸鱼娘", "Whale")).FillWidth().FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 		ui.Text(c, providerCopy("你的常驻助理与桌面伙伴。桌面和 IM 共用她的同一条对话。", "Your resident assistant and desktop companion. The desktop and IM share her one conversation.")).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 	})
 }

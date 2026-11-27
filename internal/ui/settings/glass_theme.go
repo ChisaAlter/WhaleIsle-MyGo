@@ -32,7 +32,7 @@ func glassThemePane(c *ui.Context, g *GlassThemeAccess, fg, muted ui.Color) {
 		return
 	}
 	title := providerCopy("壁纸与毛玻璃主题", "Wallpaper and glass theme")
-	block := ui.Column(c.Key("appearance-glass-theme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(design.Sp(3))
+	block := ui.Column(c.Key("appearance-glass-theme")).FillWidth().MinWidth(0).Gap(design.Sp(3))
 	settingsSearchTarget(c, "appearance-glass-theme", title, block)
 	failure := ui.Local(block, "error", func() settingsRefusal { return settingsRefusal{} })
 	block.Children(func() {

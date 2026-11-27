@@ -79,6 +79,9 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func(), hasSha
 		// dragged sidebar, the drawer band) would otherwise push the column past
 		// the window edge and clip the hero headline with it.
 		conversation := ui.Box(c).Key("conversation-column").Grow(1).MinWidth(0).Clip()
+		if frameSplitBackdropColumns(m) {
+			conversation.Background(frameCanvasFill(tk(c)))
+		}
 		if !drag.active && !m.Sizes.dragging {
 			conversation.Transition(shellTrackTransition)
 		}

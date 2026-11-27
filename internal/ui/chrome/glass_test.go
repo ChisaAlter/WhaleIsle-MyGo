@@ -16,47 +16,80 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-// TestMaterialAlphaKeepsTokenSolidity pins the solidity each layer gets from
-// the harness wallpaper tokens (ui-theme/src/wallpaper.ts, mixWallpaperSurfaces)
-// and checks the curves only grow with the glass slider.
+// TestMaterialAlphaKeepsTokenSolidity pins the solidity each layer gets in dark
+// mode (harness wallpaper tokens) and the low-fog light-mode glass curves, and
+// checks that all curves grow monotonically with the glass slider.
 func TestMaterialAlphaKeepsTokenSolidity(t *testing.T) {
 	for _, tc := range []struct {
 		glass   float64
 		canvas  float32
 		sidebar float32
+		panel   float32
 	}{
-		{glass: 0, canvas: 0, sidebar: 0},
-		{glass: 20, canvas: .075, sidebar: .1375},
-		{glass: 40, canvas: .15, sidebar: .275},
-		{glass: 60, canvas: .30, sidebar: .45},
-		{glass: 80, canvas: .45, sidebar: .625},
-		{glass: 100, canvas: .45, sidebar: 1},
+		{glass: 0, canvas: 0, sidebar: 0, panel: 0},
+		{glass: 20, canvas: .075, sidebar: .1375, panel: .20},
+		{glass: 40, canvas: .15, sidebar: .275, panel: .40},
+		{glass: 60, canvas: .30, sidebar: .45, panel: .60},
+		{glass: 80, canvas: .45, sidebar: .625, panel: .80},
+		{glass: 100, canvas: .45, sidebar: 1, panel: 1},
 	} {
 		p := wallpapers.Defaults()
 		p.Glass, p.HideSidebarMask = tc.glass, false
 		for _, want := range []struct {
 			m     Material
 			alpha float32
-		}{{MaterialCanvas, tc.canvas}, {MaterialSidebar, tc.sidebar}, {MaterialPanel, float32(tc.glass / 100)}} {
-			if got := MaterialAlpha(want.m, p, false); math.Abs(float64(got-want.alpha)) > 1e-4 {
-				t.Fatalf("glass %.0f material %d: alpha = %v, want %v", tc.glass, want.m, got, want.alpha)
+		}{{MaterialCanvas, tc.canvas}, {MaterialSidebar, tc.sidebar}, {MaterialPanel, tc.panel}} {
+			if got := MaterialAlpha(want.m, p, true); math.Abs(float64(got-want.alpha)) > 1e-4 {
+				t.Fatalf("dark glass %.0f material %d: alpha = %v, want %v", tc.glass, want.m, got, want.alpha)
 			}
 		}
 	}
 
-	lastCanvas, lastSidebar := float32(-1), float32(-1)
-	for glass := 0.0; glass <= 100; glass++ {
+	for _, tc := range []struct {
+		glass   float64
+		canvas  float32
+		sidebar float32
+		panel   float32
+	}{
+		{glass: 0, canvas: 0, sidebar: 0, panel: 0},
+		{glass: 20, canvas: .04, sidebar: .10, panel: .145},
+		{glass: 40, canvas: .08, sidebar: .20, panel: .29},
+		{glass: 60, canvas: .16, sidebar: .30, panel: .435},
+		{glass: 80, canvas: .24, sidebar: .40, panel: .58},
+		{glass: 100, canvas: .26, sidebar: 1, panel: 1},
+	} {
 		p := wallpapers.Defaults()
-		p.Glass, p.HideSidebarMask = glass, false
-		canvas := MaterialAlpha(MaterialCanvas, p, false)
-		sidebar := MaterialAlpha(MaterialSidebar, p, false)
-		if canvas < lastCanvas || sidebar < lastSidebar {
-			t.Fatalf("solidity fell at glass %.0f: canvas %v→%v sidebar %v→%v", glass, lastCanvas, canvas, lastSidebar, sidebar)
+		p.Glass, p.HideSidebarMask = tc.glass, false
+		for _, want := range []struct {
+			m     Material
+			alpha float32
+		}{{MaterialCanvas, tc.canvas}, {MaterialSidebar, tc.sidebar}, {MaterialPanel, tc.panel}} {
+			if got := MaterialAlpha(want.m, p, false); math.Abs(float64(got-want.alpha)) > 1e-4 {
+				t.Fatalf("light glass %.0f material %d: alpha = %v, want %v", tc.glass, want.m, got, want.alpha)
+			}
 		}
-		if canvas > float32(maxCanvasSolidity)/100 {
-			t.Fatalf("canvas above its cap at glass %.0f: %v", glass, canvas)
+	}
+
+	for _, dark := range []bool{false, true} {
+		lastCanvas, lastSidebar, lastPanel := float32(-1), float32(-1), float32(-1)
+		capCanvas := float32(maxCanvasSolidity) / 100
+		if !dark {
+			capCanvas = float32(maxCanvasSolidityLight) / 100
 		}
-		lastCanvas, lastSidebar = canvas, sidebar
+		for glass := 0.0; glass <= 100; glass++ {
+			p := wallpapers.Defaults()
+			p.Glass, p.HideSidebarMask = glass, false
+			canvas := MaterialAlpha(MaterialCanvas, p, dark)
+			sidebar := MaterialAlpha(MaterialSidebar, p, dark)
+			panel := MaterialAlpha(MaterialPanel, p, dark)
+			if canvas < lastCanvas || sidebar < lastSidebar || panel < lastPanel {
+				t.Fatalf("dark=%v solidity fell at glass %.0f: canvas %v→%v sidebar %v→%v panel %v→%v", dark, glass, lastCanvas, canvas, lastSidebar, sidebar, lastPanel, panel)
+			}
+			if canvas > capCanvas+1e-5 {
+				t.Fatalf("dark=%v canvas above its cap at glass %.0f: %v > %v", dark, glass, canvas, capCanvas)
+			}
+			lastCanvas, lastSidebar, lastPanel = canvas, sidebar, panel
+		}
 	}
 }
 
@@ -91,16 +124,20 @@ func TestMaterialAlphaTransparentAndMasks(t *testing.T) {
 }
 
 // TestLegacyBackdropAlphasKeepTheirValues pins the fixed-alpha helpers the
-// shell already calls, so wiring surfaces to materials cannot change them.
+// shell already calls for both light (low-fog) and dark wallpaper halves.
 func TestLegacyBackdropAlphasKeepTheirValues(t *testing.T) {
-	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	t.Cleanup(func() {
+		backgroundState.dark = false
+		ConfigureBackdrop("", wallpapers.Defaults())
+	})
 	base := ui.RGB(20, 20, 20)
+	backgroundState.dark = false
 	ConfigureBackdrop("wall.png", wallpapers.Defaults())
-	if got := BackdropCanvas(base); got.A != base.Alpha(.45).A {
-		t.Fatalf("canvas alpha = %d, want 45%%", got.A)
+	if got := BackdropCanvas(base); got.A != base.Alpha(.24).A {
+		t.Fatalf("light canvas alpha = %d, want 24%% (%d)", got.A, base.Alpha(.24).A)
 	}
-	if got := BackdropSurface(base); got.A != base.Alpha(.8).A {
-		t.Fatalf("surface alpha = %d, want 80%%", got.A)
+	if got := BackdropSurface(base); got.A != base.Alpha(.58).A {
+		t.Fatalf("light surface alpha = %d, want 58%% (%d)", got.A, base.Alpha(.58).A)
 	}
 	if got := BackdropSidebar(base); got.A != 0 {
 		t.Fatalf("sidebar with its mask hidden = %d, want transparent", got.A)
@@ -108,9 +145,20 @@ func TestLegacyBackdropAlphasKeepTheirValues(t *testing.T) {
 	hidden := wallpapers.Defaults()
 	hidden.HideSidebarMask = false
 	ConfigureBackdrop("wall.png", hidden)
-	if got := BackdropSidebar(base); got.A != base.Alpha(.625).A {
-		t.Fatalf("sidebar alpha = %d, want 62.5%%", got.A)
+	if got := BackdropSidebar(base); got.A != base.Alpha(.40).A {
+		t.Fatalf("light sidebar alpha = %d, want 40%% (%d)", got.A, base.Alpha(.40).A)
 	}
+	backgroundState.dark = true
+	if got := BackdropCanvas(base); got.A != base.Alpha(.45).A {
+		t.Fatalf("dark canvas alpha = %d, want 45%%", got.A)
+	}
+	if got := BackdropSurface(base); got.A != base.Alpha(.8).A {
+		t.Fatalf("dark surface alpha = %d, want 80%%", got.A)
+	}
+	if got := BackdropSidebar(base); got.A != base.Alpha(.625).A {
+		t.Fatalf("dark sidebar alpha = %d, want 62.5%%", got.A)
+	}
+	backgroundState.dark = false
 	terminal := wallpapers.Defaults()
 	terminal.Terminal = 40
 	ConfigureBackdrop("wall.png", terminal)
@@ -337,8 +385,9 @@ func TestTransparentThemeNeedsAWallpaper(t *testing.T) {
 	p.Transparent, p.Effect, p.EffectExplicit = true, "gradient", true
 	base := ui.RGB(20, 20, 20)
 	ConfigureBackdrop("", p)
-	if got := BackdropCanvas(base); got.A != base.Alpha(.45).A {
-		t.Fatalf("transparent theme cleared the chrome over a gradient: alpha %d", got.A)
+	wantAlpha := base.Alpha(MaterialAlpha(MaterialCanvas, wallpapers.Defaults(), false)).A
+	if got := BackdropCanvas(base); got.A != wantAlpha {
+		t.Fatalf("transparent theme cleared the chrome over a gradient: alpha %d want %d", got.A, wantAlpha)
 	}
 	ConfigureBackdrop("wall.png", p)
 	if got := BackdropCanvas(base); got.A != 0 {
@@ -422,8 +471,9 @@ func TestGlassSurfaceReplacesTheSolidBackground(t *testing.T) {
 	}, 40, 20)
 	tt.Frame()
 	got := float64(tt.Image().RGBAAt(20, 10).R)
-	// Canvas 45% over the dimmed wallpaper, not the opaque fill.
-	want := float64(255)*.45 + float64(40)*(1-maskLight)*.55
+	// Light canvas uses the low-fog curve over the un-dimmed light wallpaper.
+	alpha := float64(MaterialAlpha(MaterialCanvas, prefs, false))
+	want := float64(255)*alpha + float64(40)*(1-maskLight)*(1-alpha)
 	if math.Abs(got-want) > 4 {
 		t.Fatalf("glass canvas pixel = %.0f, want about %.0f", got, want)
 	}

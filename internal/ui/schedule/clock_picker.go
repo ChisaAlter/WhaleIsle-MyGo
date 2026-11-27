@@ -102,8 +102,8 @@ func clockPicker(c *ui.Context, state *scheduleClockPicker, clock string, second
 							index := index
 							value := fmt.Sprintf("%02d", index)
 							option := ui.Box(c.Key(value)).Bind(&state.refs[column][index]).
-								Role(ui.RoleListItem).Label(name + " " + value).Checked(values[column] == index).
-								FillWidth().Height(design.Sp(8)).Center().Radius(design.RadiusMD).Cursor(ui.CursorPointer)
+								Role(ui.RoleListItem).Label(name+" "+value).Checked(values[column] == index).
+								FillWidth().Height(design.Sp(8)).Center().Radius(design.RadiusMD).Border(design.BorderWidth, ui.Transparent).Cursor(ui.CursorPointer)
 							cursor := state.column == column && state.index == index
 							if cursor || state.column != column && values[column] == index {
 								option.Focusable()

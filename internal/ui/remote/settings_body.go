@@ -13,7 +13,6 @@ import (
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // The installed build's gateway page: a 56-wide section label, a 260-wide
@@ -34,29 +33,36 @@ func settingsView(c *ui.Context, m Model) {
 	content := func() {
 		ui.Column(c.Key("remote-settings-body")).FillWidth().MinWidth(0).Gap(0).Children(func() {
 			if m.SettingsPage == "workspace" {
-				ui.Text(c, label("远程工作区", "Remote workspace")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
-				description, descriptionColor := label("把 SSH 机器变成工作区：本地镜像目录 + SFTP 同步 + 远程文件与命令。", "Turn SSH machines into workspaces: local mirror directories with SFTP sync, remote files and commands."), muted
-				if m.WorkspaceToggleError != "" {
-					description, descriptionColor = m.WorkspaceToggleError, chrome.Color(colors.Accent)
-				}
-				ui.Text(c, description).FontSize(theme.InterfaceSize(14)).TextColor(descriptionColor)
-				if !m.HarnessReady {
-					ui.Text(c, label("连接 Host 后即可管理远程机器。", "Connect to a Host to manage remote machines.")).TextColor(muted)
-					return
-				}
-				if !m.RemoteWorkspaceEnabled {
-					ui.Text(c, label("远程工作区尚未启用。", "Remote workspace is disabled.")).TextColor(muted)
-					if m.OnToggleWorkspace != nil && widgets.Button(c, colors, label("启用远程工作区", "Enable remote workspace"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: m.WorkspaceToggleBusy}).Clicked() && !m.WorkspaceToggleBusy {
-						m.OnToggleWorkspace(true)
+				ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2.5)).Children(func() {
+					ui.Text(c, label("远程工作区", "Remote workspace")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
+					description, descriptionColor := label("把 SSH 机器变成工作区：本地镜像目录 + SFTP 同步 + 远程文件与命令。", "Turn SSH machines into workspaces: local mirror directories with SFTP sync, remote files and commands."), muted
+					if m.WorkspaceToggleError != "" {
+						description, descriptionColor = m.WorkspaceToggleError, chrome.Color(colors.Accent)
 					}
-					return
-				}
-				ensureToolsLoaded(c, m)
-				viewActiveCard(c, m, border)
-				viewMachines(c, m)
-				viewSSHConfigCard(c, m, m.MachineEditor, border)
-				viewForwardsCard(c, m, m.MachineEditor, border)
-				viewAuditCard(c, m, m.MachineEditor, border)
+					ui.Text(c, description).FontSize(theme.InterfaceSize(14)).TextColor(descriptionColor)
+					if !m.HarnessReady {
+						ui.Text(c, label("连接 Host 后即可管理远程机器。", "Connect to a Host to manage remote machines.")).TextColor(muted)
+						return
+					}
+					if !m.RemoteWorkspaceEnabled {
+						ui.Text(c, label("远程工作区尚未启用。", "Remote workspace is disabled.")).TextColor(muted)
+						if m.OnToggleWorkspace != nil && coss.Button(c, label("启用远程工作区", "Enable remote workspace"), coss.ButtonOptions{
+							Variant:  coss.ButtonDefault,
+							Size:     coss.ButtonSM,
+							Disabled: m.WorkspaceToggleBusy,
+							Loading:  m.WorkspaceToggleBusy,
+						}).AlignSelf(ui.Start).Clicked() && !m.WorkspaceToggleBusy {
+							m.OnToggleWorkspace(true)
+						}
+						return
+					}
+					ensureToolsLoaded(c, m)
+					viewActiveCard(c, m, border)
+					viewMachines(c, m)
+					viewSSHConfigCard(c, m, m.MachineEditor, border)
+					viewForwardsCard(c, m, m.MachineEditor, border)
+					viewAuditCard(c, m, m.MachineEditor, border)
+				})
 				return
 			}
 			ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
@@ -226,8 +232,11 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 			e.Open = true
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Justify(ui.End).AlignItems(ui.Center).Children(func() {
-			commit := widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsSave),
-				widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: busy})
+			commit := coss.Button(c, i18n.T(i18n.KeySurfacesSettingsSave), coss.ButtonOptions{
+				Variant:  coss.ButtonDefault,
+				Size:     coss.ButtonSM,
+				Disabled: busy,
+			})
 			commit.Label(i18n.T(KeyPass6RemoteSaveRelay))
 			if commit.Clicked() {
 				next := current
@@ -237,8 +246,11 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 				save(next)
 			}
-			reset := widgets.Button(c, colors, i18n.T(KeyPass6RemoteRestoreDefault),
-				widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: busy})
+			reset := coss.Button(c, i18n.T(KeyPass6RemoteRestoreDefault), coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonSM,
+				Disabled: busy,
+			})
 			if reset.Clicked() {
 				next := current
 				next.RelayEndpoint = ""
@@ -281,8 +293,11 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 			e.Open = true
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {
-			commit := widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsSave),
-				widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: busy})
+			commit := coss.Button(c, i18n.T(i18n.KeySurfacesSettingsSave), coss.ButtonOptions{
+				Variant:  coss.ButtonDefault,
+				Size:     coss.ButtonSM,
+				Disabled: busy,
+			})
 			commit.Label(i18n.T(KeyPass6RemoteSavePort))
 			if commit.Clicked() {
 				next := current
@@ -294,12 +309,21 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 
 	gatewaySettingRow(c, "gateway-bind", i18n.T(KeyPass6RemoteBind), gatewayBindHint(current.BindAddress, m.PhoneRuntime.BindAddresses), fg, muted, func() {
 		bind := gatewayBindAddress(current.BindAddress)
-		selected := gatewayBindLabel(bind, m.PhoneRuntime.BindAddresses)
+		selected := bind
 		labels, values := gatewayBindOptions(bind, m.PhoneRuntime.BindAddresses)
-		if widgets.PillSelect(c, colors, &selected, labels, 18).Label(i18n.T(KeyPass6RemoteBindLabel)).AlignSelf(ui.End).Disabled(busy).Changed() {
-			if address, ok := values[selected]; ok && address != bind {
+		opts := make([]coss.SelectOption, len(labels))
+		for i, lbl := range labels {
+			opts[i] = coss.SelectOption{Value: values[lbl], Label: lbl}
+		}
+		if coss.Select(c, &selected, opts, coss.SelectOptions{
+			Size:     coss.InputSM,
+			Label:    i18n.T(KeyPass6RemoteBindLabel),
+			Disabled: busy,
+			Key:      "gateway-bind-select",
+		}).Width(gatewayControlWidth("gateway-bind")).AlignSelf(ui.End).Changed() {
+			if selected != "" && selected != bind {
 				next := current
-				next.BindAddress = address
+				next.BindAddress = selected
 				save(next)
 			}
 		}
@@ -317,8 +341,11 @@ func gatewayRefreshRow(c *ui.Context, m Model, e *GatewayEditor, fg, muted ui.Co
 	busy := m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy
 	gatewaySettingRow(c, "gateway-refresh", i18n.T(KeyPass6RemoteRefresh), i18n.T(KeyPass6RemoteRefreshHint), fg, muted, func() {
 		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {
-			refresh := widgets.Button(c, colors, i18n.T(KeyPass6RemoteRefreshAction),
-				widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: busy})
+			refresh := coss.Button(c, i18n.T(KeyPass6RemoteRefreshAction), coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonSM,
+				Disabled: busy,
+			})
 			if refresh.Clicked() {
 				if err := m.OnRotateToken(); err != nil {
 					e.Error = errcopy.Sentence(err)
@@ -374,8 +401,10 @@ func gatewayLegacySection(c *ui.Context, m Model, e *GatewayEditor, fg, muted ui
 				return
 			}
 			ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {
-				clear := widgets.Button(c, colors, i18n.T(KeyPass6RemoteLegacyClear),
-					widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall})
+				clear := coss.Button(c, i18n.T(KeyPass6RemoteLegacyClear), coss.ButtonOptions{
+					Variant: coss.ButtonDestructive,
+					Size:    coss.ButtonSM,
+				})
 				if clear.Clicked() {
 					if err := m.OnSetRelayToken(""); err != nil {
 						e.Error = errcopy.Sentence(err)
@@ -443,9 +472,9 @@ func gatewaySettingRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 	return root
 }
 
-// remoteGatewaySegmented is the installed page's two-part switch: equal
-// segments, transparent except the chosen one, which is filled black. It
-// reports the picked index, or -1 when the frame had no click.
+// remoteGatewaySegmented is the gateway's two-part switch using coss semantic
+// button tokens so active segments follow the global primary accent in both
+// light and dark themes. It reports the picked index, or -1 when unclicked.
 func remoteGatewaySegmented(c *ui.Context, key string, labels []string, active int, disabled bool) int {
 	const height float32 = 28
 	root := ui.Row(c.Key(key)).Width(gatewayControlWidth(key)).Height(height).Shrink(0).Gap(8).AlignItems(ui.Stretch)
@@ -453,22 +482,16 @@ func remoteGatewaySegmented(c *ui.Context, key string, labels []string, active i
 	root.Children(func() {
 		for index, caption := range labels {
 			i, text := index, caption
-			labelColor := c.Theme().Text
-			bg := ui.Transparent
+			variant := coss.ButtonOutline
 			if i == active {
-				bg = labelColor
-				labelColor = c.Theme().Background
+				variant = coss.ButtonDefault
 			}
-			segment := coss.Button(c.Key(key+"-"+strconv.Itoa(i)), "", coss.ButtonOptions{
-				Variant:  coss.ButtonGhost,
+			segment := coss.Button(c.Key(key+"-"+strconv.Itoa(i)), text, coss.ButtonOptions{
+				Variant:  variant,
 				Size:     coss.ButtonSM,
 				Disabled: disabled,
 				Pressed:  i == active,
-				Label:    text,
-				Content: func() {
-					ui.Text(c, text).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(labelColor)
-				},
-			}).Width((gatewayControlWidth(key) - 8) / 2).Height(height).Padding(0).Radius(theme.ContextRadii(c).SM).Background(bg).AlignItems(ui.Center).Justify(ui.Center)
+			}).Width((gatewayControlWidth(key) - 8) / 2).Height(height).Padding(0).Radius(theme.ContextRadii(c).SM)
 			if segment.Clicked() && !disabled {
 				picked = i
 			}

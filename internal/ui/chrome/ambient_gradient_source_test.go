@@ -374,7 +374,8 @@ func TestAmbientGradientPresetAndPanelSamples(t *testing.T) {
 	}
 	frame := &gradientFrame{pixels: src, config: c}
 	panel := gradientPanelPixels(frame, ui.RGB(255, 255, 255), p, false)
-	want := uint8(math.Round((255*.45 + 100*.55) * (1 - 61.0/255)))
+	canvasAlpha := float64(MaterialAlpha(MaterialCanvas, p, false))
+	want := uint8(math.Round((255*canvasAlpha + 100*(1-canvasAlpha)) * (1 - 61.0/255)))
 	if math.Abs(float64(panel.Pix[0])-float64(want)) > 1 {
 		t.Fatalf("panel backdrop=%d want%d", panel.Pix[0], want)
 	}

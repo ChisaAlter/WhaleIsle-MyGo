@@ -49,7 +49,7 @@ func TestBlankCaptionPreservesOriginalLeadingAndCornerOnly(t *testing.T) {
 	sizes.Center = 1000
 	snap := session.ViewState{SelectedID: "s", SelectedSummaryBlank: true, Items: []session.Item{{SessionID: "s", Blank: true}}}
 	tt := ui.NewTester(func(c *ui.Context) {
-		workspaceSharedCaption(c, Model{Sizes: &sizes, Store: session.New(), ConversationContributions: func(c *ui.Context, _ session.ViewState, slot string) { ui.Button(c, slot).Height(28) }, WorkspaceTrailing: func(c *ui.Context, _ string) { ui.Button(c, "native corner controls").Height(28) }}, snap, theme.Resolve("deepseek.light").Light, true)
+		workspaceSharedCaption(c, Model{Sizes: &sizes, Store: session.New(), ConversationContributions: func(c *ui.Context, _ session.ViewState, slot string) { ui.Button(c, slot).Height(28) }, WorkspaceTrailing: func(c *ui.Context, _ string, _ bool) { ui.Button(c, "native corner controls").Height(28) }}, snap, theme.Resolve("deepseek.light").Light, true)
 	}, 1000, 100)
 	for _, slot := range []string{"conversation.session.header.leading", "conversation.session.header.corner", "native corner controls", "Blank conversation caption"} {
 		if _, ok := tt.Find(slot); !ok {

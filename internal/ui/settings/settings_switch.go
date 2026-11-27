@@ -19,13 +19,12 @@ const (
 // settingsPreferenceSwitch is coss's Switch on SwitchBase, which keeps the
 // native toggle, focus, keyboard and Changed contract: a 30×18 track (input
 // off, primary on), the 16 DIP background thumb sliding over 150 ms, and the
-// ring-2 ring-offset-1 focus ring.
+// ring-2 ring-offset-1 focus ring. All settings switches share the same 30×18
+// dimensions so trailing controls align on one vertical baseline across rows.
 func settingsPreferenceSwitch(c *ui.Context, value *bool, style settingsSwitchStyle) ui.Element {
+	_ = style
 	t := tk(c)
 	switcher := ui.SwitchBase(c, value).Size(toggleWidth, toggleHeight).Shrink(0).Radius(design.RadiusFull).FocusRing(false).Cursor(ui.CursorPointer)
-	if style == settingsSwitchInput {
-		switcher.Size(11*design.Unit, 7*design.Unit)
-	}
 	position := switcher.AnimateWith("settings-switch-thumb", b01(*value), design.MotionFast, design.EaseInOut)
 	off, on, thumb, ring, gap := t.Input, t.Primary, t.Background, t.Ring, t.Background
 	shadow := design.TW.Black.Alpha(0.05)

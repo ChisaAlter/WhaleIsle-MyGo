@@ -220,3 +220,65 @@ func TestMenuSolidityCurveDialogPanelLayerAndFloatingCardLv2(t *testing.T) {
 		t.Fatalf("unexpected FloatingCardSurface bounds: %+v", floatBox)
 	}
 }
+
+func TestLightWallpaperClarityAndDynamicRange(t *testing.T) {
+	t.Cleanup(func() {
+		ConfigureBackdrop("", wallpapers.Defaults())
+		design.SetGlass(false, nil)
+	})
+	if got := MaskAlpha(false); got != 0 {
+		t.Fatalf("MaskAlpha(false) = %v, want 0 (no black fog veil in light mode)", got)
+	}
+	if got := MaskAlpha(true); got != 0.5 {
+		t.Fatalf("MaskAlpha(true) = %v, want 0.5", got)
+	}
+	prefs := wallpapers.Defaults()
+	prefs.Glass = 80
+	prefs.Effect = "none"
+	prefs.HideSidebarMask = false
+
+	renderSample := func(wall color.RGBA, mat Material, base ui.Color, paintGlass bool) color.RGBA {
+		t.Helper()
+		url := pngDataURL(t, wall, 8, 8)
+		tt := ui.NewTester(func(c *ui.Context) {
+			paint := WallpaperBackgroundPainter(url, prefs, true)
+			ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) }).Children(func() {
+				if paintGlass {
+					GlassSurface(ui.Box(c).Fill(), base, mat)
+				}
+			})
+		}, 40, 24)
+		tt.Frame()
+		return tt.Image().RGBAAt(20, 12)
+	}
+
+	rawWhite := renderSample(color.RGBA{R: 255, G: 255, B: 255, A: 255}, MaterialCanvas, ui.RGB(255, 255, 255), false)
+	rawBlack := renderSample(color.RGBA{R: 0, G: 0, B: 0, A: 255}, MaterialCanvas, ui.RGB(255, 255, 255), false)
+	if rawWhite.R < 253 || rawBlack.R > 2 {
+		t.Fatalf("light raw wallpaper unexpectedly dimmed/lifted: white=%v black=%v", rawWhite, rawBlack)
+	}
+
+	canvasWhite := renderSample(color.RGBA{R: 255, G: 255, B: 255, A: 255}, MaterialCanvas, ui.RGB(255, 255, 255), true)
+	canvasBlack := renderSample(color.RGBA{R: 0, G: 0, B: 0, A: 255}, MaterialCanvas, ui.RGB(255, 255, 255), true)
+	dynamicRange := float64(int(canvasWhite.R)-int(canvasBlack.R)) / 255.0
+	if dynamicRange < 0.70 {
+		t.Fatalf("light canvas dynamic range retention %.2f < 0.70 (white=%v black=%v)", dynamicRange, canvasWhite, canvasBlack)
+	}
+	if canvasBlack.R > 68 {
+		t.Fatalf("light canvas over pure black washed out to gray %d (want <= 68)", canvasBlack.R)
+	}
+
+	sidebarBlack := renderSample(color.RGBA{R: 0, G: 0, B: 0, A: 255}, MaterialSidebar, ui.RGB(249, 250, 251), true)
+	if sidebarBlack.R > 150 {
+		t.Fatalf("light single-layer sidebar over black washed out to %d (want <= 150)", sidebarBlack.R)
+	}
+
+	// Verify light-mode MaterialAlphaFor never boosts to 85-95% opaque white fog.
+	secondary := Color(theme.SecondaryInk(false))
+	for _, mat := range []Material{MaterialSidebar, MaterialPanel, MaterialMenu} {
+		a := MaterialAlphaFor(ui.RGB(0, 0, 0), ui.RGB(255, 255, 255), mat, prefs, false, secondary)
+		if a > 0.75 {
+			t.Fatalf("light MaterialAlphaFor(mat=%d) over pure black = %.2f > 0.75 (excessive white fog)", mat, a)
+		}
+	}
+}

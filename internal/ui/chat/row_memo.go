@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -56,25 +57,53 @@ type chatContentMemoKey struct {
 	seq float64
 }
 
+// markdownBodyHasAsyncOrInteractiveBlocks reports whether a markdown body may
+// contain async math rendering or interactive code-block toolbars (copy timer,
+// line-wrap toggle) that cannot be safely frozen behind a static ui.Memo.
+func markdownBodyHasAsyncOrInteractiveBlocks(body string) bool {
+	if strings.Contains(body, "```") || strings.Contains(body, "~~~") ||
+		strings.HasPrefix(body, "    ") || strings.HasPrefix(body, "\t") ||
+		strings.Contains(body, "\n\n    ") || strings.Contains(body, "\n\n\t") {
+		return true
+	}
+	if strings.Contains(body, "$$") || strings.Contains(body, `\(`) || strings.Contains(body, `\[`) {
+		return true
+	}
+	if strings.Count(body, "$") >= 2 {
+		return true
+	}
+	return false
+}
+
 // chatMarkdownMemoVersion returns a stable ui.Memo version for settled
-// assistant markdown blocks that do not contain dynamic media/inspector/openui
-// elements. Keeping ContextMenu outside this memo boundary lets mygo reuse the
-// markdown layout and text nodes without being marked live.
+// assistant markdown blocks that do not contain dynamic media/inspector/openui,
+// math formulas, or code blocks. Keeping ContextMenu outside this memo boundary
+// lets mygo reuse the markdown layout and text nodes without being marked live.
 func chatMarkdownMemoVersion(ctx *ui.Context, m Model, msg session.Message, body string) (uint64, bool) {
 	if msg.Streaming || m.Inspector != nil || body == "" {
 		return 0, false
 	}
-	// Images load asynchronously and OpenUI fences host interactive widgets.
-	if strings.Contains(body, "![") || strings.Contains(body, "openui") || strings.Contains(body, "whale-ui") || strings.Contains(body, "dsh-ui") {
+	// Images and math formulas render asynchronously; OpenUI fences and code
+	// blocks host interactive controls/timers.
+	if strings.Contains(body, "![") || strings.Contains(body, "openui") || strings.Contains(body, "whale-ui") || strings.Contains(body, "dsh-ui") ||
+		markdownBodyHasAsyncOrInteractiveBlocks(body) {
 		return 0, false
 	}
 	prefs := theme.CurrentPreferences()
 	uiPrefs := ctx.Preferences()
 	tokens := design.For(ctx)
+	backdropActive := chrome.BackdropActive()
+	backdropPrefs := chrome.BackdropPreferences()
 	h := fnvOffset64
 	h = hashStr(h, msg.ID)
 	h = hashStr(h, body)
 	h = hashF32(h, m.ContentWidth)
+	h = hashU64(h, theme.Revision())
+	h = hashU64(h, design.Revision())
+	h = hashBool(h, tokens.Glass)
+	h = hashBool(h, backdropActive)
+	h = hashBool(h, backdropPrefs.Transparent)
+	h = hashF32(h, float32(backdropPrefs.Glass))
 	h = hashF32(h, prefs.Chat.Size)
 	h = hashStr(h, prefs.Chat.Family)
 	h = hashF32(h, prefs.Code.Size)
@@ -84,6 +113,11 @@ func chatMarkdownMemoVersion(ctx *ui.Context, m Model, msg session.Message, body
 	h = hashColor(h, tokens.Foreground)
 	h = hashColor(h, tokens.Background)
 	h = hashColor(h, tokens.Primary)
+	h = hashColor(h, tokens.Code)
+	h = hashColor(h, tokens.Card)
+	h = hashColor(h, tokens.Border)
+	h = hashColor(h, tokens.Muted)
+	h = hashColor(h, tokens.MutedForeground)
 	h = hashStr(h, m.ThemeID)
 	h = hashBool(h, m.SystemDark)
 	h = hashStr(h, string(i18n.Locale()))

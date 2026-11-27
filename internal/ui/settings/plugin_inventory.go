@@ -165,21 +165,67 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 	}
 }
 
-// Each inventory scope measures its own content width. Expanded cards keep
-// their peers aligned to the top, as in the source's two-column inventory.
+// Each inventory scope measures its own content width. Collapsed two-column
+// cards share uniform row height; expanded cards keep their peers aligned to
+// the top so opening one detail panel never stretches its neighbor.
 func pluginInventoryCards(c *ui.Context, a *PluginInventoryAccess, rows []plugininventory.DisplayRow, fg, muted ui.Color) {
-	grid := ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(10).AlignItems(ui.Start)
+	if len(rows) == 0 {
+		return
+	}
+	hasExpanded := false
+	for _, row := range rows {
+		if a.Snapshot.Expanded == row.Key {
+			hasExpanded = true
+			break
+		}
+	}
+	grid := ui.Grid(c).FillWidth().MinWidth(0).Gap(10)
 	width := grid.Bounds().W
 	grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
 		if bounds.W != width {
 			c.Invalidate()
 		}
 	})
+	columns := 1
+	if width > 520 {
+		columns = 2
+	}
+	grid.Columns(columns)
+	uniformHeight := columns > 1 && !hasExpanded
+	if uniformHeight {
+		rowCount := (len(rows) + columns - 1) / columns
+		rowTracks := make([]ui.Track, rowCount)
+		for i := range rowTracks {
+			rowTracks[i] = ui.Fr(1)
+		}
+		grid.RowTracks(rowTracks...)
+	}
 	grid.Children(func() {
 		for _, row := range rows {
-			pluginInventoryCard(c, a, row, width, fg, muted)
+			pluginInventoryCard(c, a, row, uniformHeight, hasExpanded, fg, muted)
 		}
 	})
+}
+
+func pluginInventoryCopy(r plugininventory.DisplayRow) (title, desc string) {
+	title, desc = r.Title, r.Description
+	key := strings.TrimPrefix(r.EntryID, "include:")
+	if key == "" {
+		key = r.Module
+	}
+	if key == "tool-schedule" || title == "tool-schedule" {
+		if i18n.Speaks("zh") {
+			if title == "" || title == "tool-schedule" {
+				title = "定时提醒工具"
+			}
+			if desc == "" || desc == "Model-facing reminder management tools" {
+				desc = "让 AI 创建、查看和管理定时提醒与周期任务。"
+			}
+		} else if title == "tool-schedule" {
+			title = "Scheduled reminders"
+		}
+	}
+	return title, desc
 }
 
 func inventoryChevron(c *ui.Context, open bool, ink ui.Color) {
@@ -221,27 +267,34 @@ func inventoryRowState(r plugininventory.DisplayRow) string {
 	return inventoryEnablement(r.Enabled)
 }
 
-func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, width float32, fg, muted ui.Color) {
+func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, uniformHeight, hasExpanded bool, fg, muted ui.Color) {
 	open := a.Snapshot.Expanded == r.Key
+	title, desc := pluginInventoryCopy(r)
 	stroke := modelInputBorder(c)
 	if r.Phase == "failed" || r.MetadataError != "" {
 		stroke = c.Theme().Danger
 	}
-	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.667, stroke).Radius(20).Background(modelWell(c).Alpha(.8)).Clip().Label(r.Title)
-	if width > 520 {
-		card.Width((width - 10) / 2)
+	var card ui.Element
+	if uniformHeight {
+		// 1-column Grid with Fr(1) body row measures full natural height during
+		// outer-grid row sizing and stretches the clickable toggle button to the
+		// full equalized card height.
+		card = ui.Grid(c.Key("inventory-card-"+r.Key)).Columns(1).RowTracks(ui.Fr(1), ui.FitContent()).MinWidth(0).Border(.667, stroke).Radius(20).Background(modelWell(c).Alpha(.8)).Clip().Label(title)
 	} else {
-		card.FillWidth()
+		card = ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.667, stroke).Radius(20).Background(modelWell(c).Alpha(.8)).Clip().Label(title)
+	}
+	if !open && hasExpanded {
+		card.AlignSelf(ui.Start)
 	}
 	card.Children(func() {
-		button := ui.ButtonBase(c.Key("inventory-toggle-"+r.Key)).Label(r.Title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).Padding(design.Sp(3), design.Sp(3.5)).Cursor(ui.CursorPointer)
+		button := ui.ButtonBase(c.Key("inventory-toggle-"+r.Key)).Label(title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).AlignItems(ui.Stretch).Padding(design.Sp(3), design.Sp(3.5)).Cursor(ui.CursorPointer)
 		if button.Hovered() || open {
 			button.Background(tk(c).Accent.Alpha(0.5))
 		}
 		button.Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(2).PassThrough().Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, r.Title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
+					ui.Text(c, title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
 					// 0.3.13 marks only the exceptions: a pill for a disabled, failed or
 					// preset-provided entry, nothing for an ordinary enabled one.
 					if r.Enabled != "enabled" || r.Phase == "failed" || len(r.ProvidedBy) > 0 {
@@ -250,14 +303,17 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 					}
 					inventoryCardChevron(c, open, muted)
 				})
-				if r.Description != "" {
-					text := ui.Text(c, r.Description).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+				if desc != "" {
+					text := ui.Text(c, desc).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 					if !open {
 						text.MaxLines(2)
 					}
 				}
 				subtitle := strings.TrimPrefix(r.EntryID, "include:")
-				if subtitle != "" && subtitle != r.Title {
+				if subtitle != "" && subtitle != title {
+					if uniformHeight {
+						ui.Box(c).Grow(1).MinHeight(0)
+					}
 					ui.Row(c).FillWidth().MinWidth(0).Padding(6, 0, 0, 0).Children(func() {
 						ui.Text(c, subtitle).SingleLine().MinWidth(0).Font(fonttheme.RenderPreferences().Code.Family).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).
 							TextColor(fonttheme.Color(modelColors(c).Secondary)).Padding(1, 6).Background(fonttheme.Color(modelColors(c).SelectorFill)).Radius(4).Tooltip(r.EntryID)

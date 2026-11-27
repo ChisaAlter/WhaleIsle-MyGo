@@ -22,13 +22,16 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color) {
 			Content:  func() {},
 		}).Size(36, 36).Shrink(0).Padding(0).Radius(design.RadiusXL).
 			BorderWidth(0).Center().Label(label).Tooltip(label)
-		if pressed || b.Hovered() {
-			b.Background(tok(c).Accent)
+		t := tok(c)
+		if pressed {
+			b.Background(sbSelectedBg(t))
+		} else if b.Hovered() {
+			b.Background(sbHoverBg(t))
 		} else {
 			b.Background(ui.Transparent)
 		}
 		if icon != nil {
-			b.Children(func() { ui.Icon(c, icon).Size(design.IconMD, design.IconMD).TextColor(fg) })
+			b.Children(func() { ui.Icon(c, icon).Size(design.IconMD, design.IconMD).TextColor(sbRowInk(t, pressed, fg)) })
 		}
 		if b.Clicked() && action != nil {
 			action()
@@ -40,7 +43,7 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color) {
 	toggle.Children(func() {
 		if !toggle.Hovered() && !toggle.Focused() {
 			if mark := chrome.BrandAvatar(); mark != nil {
-				ui.Image(c, mark).Size(38, 38).Fit(ui.Contain)
+				ui.Image(c, mark).Size(36, 36).Fit(ui.Contain)
 				return
 			}
 		}
@@ -55,7 +58,7 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color) {
 		for _, entry := range sidebarPanelRows(m) {
 			entry := entry
 			panelBtn := button("sidebar-rail-panel:builtin:"+entry.id, entry.label, nil, entry.run != nil, m.ActivePanel == entry.active, entry.run)
-			panelBtn.Children(func() { sidebarPanelIcon(c, entry.id, fg) })
+			panelBtn.Children(func() { sidebarPanelIcon(c, entry.id, sbRowInk(tok(c), m.ActivePanel == entry.active, fg)) })
 		}
 	})
 	ui.Box(c).Height(12).Shrink(0)
@@ -71,7 +74,9 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color) {
 		button("sidebar-rail-search", i18n.T(i18n.KeySidebarSearch), sidebarRailIcons["search"], m.OnToggle != nil && m.SearchQuery != nil, false, func() {
 			// Only this explicit search gesture requests focus on expansion.
 			// An unrelated layout/terminal change must not focus the input.
-			*m.SearchFocus = true
+			if m.SearchFocus != nil {
+				*m.SearchFocus = true
+			}
 			if m.WorkspaceMenuOpen != nil {
 				*m.WorkspaceMenuOpen = false
 			}

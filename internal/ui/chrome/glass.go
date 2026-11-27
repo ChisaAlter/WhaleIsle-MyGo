@@ -36,22 +36,26 @@ const (
 )
 
 const (
-	// maxCanvasSolidity caps the canvas fill so glass 100% still lets the
+	// maxCanvasSolidity caps the dark canvas fill so glass 100% still lets the
 	// wallpaper show through the main chat (MAX_WALLPAPER_CANVAS_SOLIDITY).
 	maxCanvasSolidity = 45.0
+	// maxCanvasSolidityLight caps the light canvas white veil so wallpapers
+	// keep at least 74% dynamic range and never fog out to gray.
+	maxCanvasSolidityLight = 26.0
 	// menuSolidityLight and menuSolidityDark are --dsw-menu-surface-fill: a
 	// menu keeps its own fill instead of following the glass slider.
 	menuSolidityLight = 0.58
 	menuSolidityDark  = 0.45
-	// maskLight and maskDark are --dsw-alias-bg-mask-1, the dim the wallpaper
-	// layer paints over the image so text keeps contrast.
-	maskLight = 0.24
+	// maskLight and maskDark are the dim mask painted over the wallpaper image.
+	// Light mode keeps 0 dim mask so highlights and chroma stay clear instead of
+	// creating veiling glare when combined with light translucent surfaces.
+	maskLight = 0.0
 	maskDark  = 0.5
 )
 
-// MaskAlpha is the dim the wallpaper layer paints over the image, so text over
-// the bare wallpaper keeps its contrast: 0.24 in light and 0.5 in dark, as
-// --dsw-alias-bg-mask-1 says. The transparent theme drops it.
+// MaskAlpha is the dim the wallpaper layer paints over the image: 0 in light
+// (preserving wallpaper highlights and saturation without veiling glare) and
+// 0.5 in dark (--dsw-alias-bg-mask-1). The transparent theme drops it.
 func MaskAlpha(dark bool) float32 {
 	if dark {
 		return maskDark
@@ -59,10 +63,26 @@ func MaskAlpha(dark bool) float32 {
 	return maskLight
 }
 
-// canvasSolidity is the main canvas fill as a fraction, capped so the wallpaper
-// always shows through the main chat.
+// canvasSolidity is the dark main canvas fill as a fraction, capped so the
+// wallpaper always shows through the main chat.
 func canvasSolidity(glass float64) float32 {
 	return min(float32(maxCanvasSolidity/100), canvasSolidityUncapped(clampPercent(glass))/100)
+}
+
+// canvasSolidityLight is the light main canvas fill as a fraction: at Glass=80
+// it paints 24% white (retaining 76% of the wallpaper's dynamic range).
+func canvasSolidityLight(glass float64) float32 {
+	k := clampPercent(glass)
+	var pct float64
+	switch {
+	case k <= 40:
+		pct = k * 0.20
+	case k <= 80:
+		pct = 8 + (k-40)*0.40
+	default:
+		pct = math.Min(maxCanvasSolidityLight, 24+(k-80)*0.10)
+	}
+	return float32(pct / 100)
 }
 
 // sidebarSolidity sits halfway between the uncapped canvas curve and the glass
@@ -70,6 +90,26 @@ func canvasSolidity(glass float64) float32 {
 func sidebarSolidity(glass float64) float32 {
 	k := clampPercent(glass)
 	return (float32(k) + canvasSolidityUncapped(k)) / 200
+}
+
+// sidebarSolidityLight is the light single-layer sidebar fill: at Glass=80 it
+// paints 40% white and still reaches 100% at Glass=100.
+func sidebarSolidityLight(glass float64) float32 {
+	k := clampPercent(glass)
+	if k <= 80 {
+		return float32(k * 0.50 / 100)
+	}
+	return float32((40 + (k-80)*3.0) / 100)
+}
+
+// panelSolidityLight is the light single-layer panel fill (composer card, right
+// pane, dialogs): at Glass=80 it paints 58% white instead of 80% opaque white.
+func panelSolidityLight(glass float64) float32 {
+	k := clampPercent(glass)
+	if k <= 80 {
+		return float32(k * 0.725 / 100)
+	}
+	return float32((58 + (k-80)*2.1) / 100)
 }
 
 // canvasSolidityUncapped is canvasSolidity before the cap, as a percent: the
@@ -107,6 +147,9 @@ func MaterialAlpha(m Material, p wallpapers.Preferences, dark bool) float32 {
 	}
 	switch m {
 	case MaterialCanvas:
+		if !dark {
+			return canvasSolidityLight(p.Glass)
+		}
 		return canvasSolidity(p.Glass)
 	case MaterialSidebar:
 		// A hidden sidebar mask paints the canvas fill instead of an extra
@@ -114,8 +157,14 @@ func MaterialAlpha(m Material, p wallpapers.Preferences, dark bool) float32 {
 		if p.HideSidebarMask {
 			return 0
 		}
+		if !dark {
+			return sidebarSolidityLight(p.Glass)
+		}
 		return sidebarSolidity(p.Glass)
 	default:
+		if !dark {
+			return panelSolidityLight(p.Glass)
+		}
 		return float32(clampPercent(p.Glass) / 100)
 	}
 }
@@ -752,12 +801,12 @@ func AcrylicCanvasAlpha(p wallpapers.Preferences) float32 {
 	return float32(math.Round(100*math.Pow(uncapped, 1.5)) / 100)
 }
 
-// MenuSolidity returns the reference menu surface fill opacity for p.Glass:
-// light max(g*0.875, g*2.1-110)/100, dark max(g*0.8, g*2.75-175)/100.
+// MenuSolidity returns the menu surface fill opacity for p.Glass:
+// light max(g*0.80, g*1.8-80)/100 (0.64 at g=80), dark max(g*0.8, g*2.75-175)/100.
 func MenuSolidity(p wallpapers.Preferences, dark bool) float32 {
 	g := clampPercent(p.Glass)
 	if dark {
 		return float32(math.Max(g*0.8, g*2.75-175) / 100)
 	}
-	return float32(math.Max(g*0.875, g*2.1-110) / 100)
+	return float32(math.Max(g*0.80, g*1.8-80) / 100)
 }

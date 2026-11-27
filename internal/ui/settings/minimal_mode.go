@@ -67,7 +67,7 @@ func minimalModePane(c *ui.Context, m *MinimalModeAccess, fg, muted ui.Color) {
 	if m == nil || m.Enabled == nil {
 		return
 	}
-	block := ui.Column(c.Key("appearance-minimal-mode")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
+	block := ui.Column(c.Key("appearance-minimal-mode")).FillWidth().MinWidth(0).Gap(12)
 	settingsSearchTarget(c, "appearance-minimal-mode", providerCopy("极简模式", "Minimal mode"), block)
 	failure := ui.Local(block, "error", func() settingsRefusal { return settingsRefusal{} })
 	block.Children(func() {

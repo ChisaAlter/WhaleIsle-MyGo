@@ -576,39 +576,57 @@ func discoveryView(c *ui.Context, p *page) {
 	catalogCategories(c, p)
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 		pagekit.Caption(c, marketText(i18n.T(i18n.KeyW4MarketSort), "Sort"))
-		sortOptions := []coss.SelectOption{
-			{Value: "catalog", Label: marketText(i18n.T(i18n.KeyW4MarketCatalogOrder), "Catalog order")},
-			{Value: "stars", Label: marketText(i18n.T(i18n.KeyW4MarketMostStars), "Most stars")},
-			{Value: "newest", Label: marketText(i18n.T(i18n.KeyW4MarketNewest), "Newest")},
+		sortChoices := []struct{ id, label string }{
+			{"catalog", marketText(i18n.T(i18n.KeyW4MarketCatalogOrder), "Catalog order")},
+			{"stars", marketText(i18n.T(i18n.KeyW4MarketMostStars), "Most stars")},
+			{"newest", marketText(i18n.T(i18n.KeyW4MarketNewest), "Newest")},
 		}
-		sortVal := d.Sort
-		if sortVal == "" {
-			sortVal = "catalog"
+		sortOptions := make([]coss.SelectOption, 0, len(sortChoices))
+		sortLabel := sortChoices[0].label
+		for _, ch := range sortChoices {
+			sortOptions = append(sortOptions, coss.SelectOption{Value: ch.label, Label: ch.label})
+			if d.Sort == ch.id {
+				sortLabel = ch.label
+			}
 		}
-		if coss.Select(c, &sortVal, sortOptions, coss.SelectOptions{
+		if coss.Select(c, &sortLabel, sortOptions, coss.SelectOptions{
 			Size:  coss.InputSM,
 			Label: marketText(i18n.T(i18n.KeyW4MarketSort), "Sort"),
 			Key:   "market-sort",
 		}).Width(180).MaxWidthPercent(100).Changed() {
-			m.Store.SetSort(sortVal)
+			for _, ch := range sortChoices {
+				if sortLabel == ch.label {
+					m.Store.SetSort(ch.id)
+					break
+				}
+			}
 		}
 
 		pagekit.Caption(c, marketText(i18n.T(i18n.KeyW4MarketPublished), "Listed"))
-		periodOptions := []coss.SelectOption{
-			{Value: "all", Label: marketText(i18n.T(i18n.KeyW4MarketAnyTime), "All time")},
-			{Value: "7", Label: marketText(i18n.T(i18n.KeyW4MarketLast7Days), "Last 7 days")},
-			{Value: "30", Label: marketText(i18n.T(i18n.KeyW4MarketLast30Days), "Last 30 days")},
+		periodChoices := []struct{ id, label string }{
+			{"all", marketText(i18n.T(i18n.KeyW4MarketAnyTime), "All time")},
+			{"7", marketText(i18n.T(i18n.KeyW4MarketLast7Days), "Last 7 days")},
+			{"30", marketText(i18n.T(i18n.KeyW4MarketLast30Days), "Last 30 days")},
 		}
-		periodVal := d.Period
-		if periodVal == "" {
-			periodVal = "all"
+		periodOptions := make([]coss.SelectOption, 0, len(periodChoices))
+		periodLabel := periodChoices[0].label
+		for _, ch := range periodChoices {
+			periodOptions = append(periodOptions, coss.SelectOption{Value: ch.label, Label: ch.label})
+			if d.Period == ch.id {
+				periodLabel = ch.label
+			}
 		}
-		if coss.Select(c, &periodVal, periodOptions, coss.SelectOptions{
+		if coss.Select(c, &periodLabel, periodOptions, coss.SelectOptions{
 			Size:  coss.InputSM,
 			Label: marketText(i18n.T(i18n.KeyW4MarketPublished), "Listed"),
 			Key:   "market-period",
 		}).Width(180).MaxWidthPercent(100).Changed() {
-			m.Store.SetPeriod(periodVal)
+			for _, ch := range periodChoices {
+				if periodLabel == ch.label {
+					m.Store.SetPeriod(ch.id)
+					break
+				}
+			}
 		}
 
 		compatLabel := marketText("仅原生可用", "Native compatible only")

@@ -14,6 +14,17 @@ import (
 type StartPlan struct {
 	Plan
 	PatchFiles []string
+	// ACPMounted reports whether the dsh-acp-agents overlay is part of this launch.
+	ACPMounted bool
+}
+
+func hasACPOverlay(patches []string) bool {
+	for _, p := range patches {
+		if filepath.Base(p) == "desktop-acp.patch.yml" {
+			return true
+		}
+	}
+	return false
 }
 
 // PlanStart prepares overlays/junctions under the web profile and resolves
@@ -78,7 +89,7 @@ func PlanStart(o LaunchOptions, prep PrepareOptions, port int) (StartPlan, error
 	}
 	plan.Args = buildLaunchArgs(o, port, plan.prefixArgs, plan.preloadRoot)
 	plan.Env = childEnv(o)
-	return StartPlan{Plan: plan, PatchFiles: o.PatchFiles}, nil
+	return StartPlan{Plan: plan, PatchFiles: o.PatchFiles, ACPMounted: hasACPOverlay(o.PatchFiles)}, nil
 }
 
 func prepareWhaleUIHost(home string) (string, error) {

@@ -254,9 +254,11 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 		}
 	}
 	shown := header.Hovered() || header.FocusWithin() || header.MenuOpen()
-	actions := ui.Row(c.Key("workspace-actions:" + g.Key)).Height(20).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(3.75))
+	actions := ui.Row(c.Key("workspace-actions:" + g.Key)).Absolute().Right(8).Top(7).Height(20).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(3.75))
 	if !shown {
-		actions.Absolute().Right(8).Top(7).Opacity(0)
+		actions.Opacity(0)
+	} else {
+		actions.Draw(sbActionOverlayDraw(tok(c), false, true))
 	}
 	actions.Children(func() {
 		wsName := session.WorkspaceDisplayTitle(g.Workspace.Title, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))

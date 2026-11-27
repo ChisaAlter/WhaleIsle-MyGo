@@ -261,7 +261,9 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 			if p.Transparent {
 				return
 			}
-			painter.Fill(r, ui.RGBA(0, 0, 0, MaskAlpha(s.dark)), 0)
+			if alpha := MaskAlpha(s.dark); alpha > 0 {
+				painter.Fill(r, ui.RGBA(0, 0, 0, alpha), 0)
+			}
 		}
 	}
 	// Strict gate: a preset or colours alone must never paint; only an explicit

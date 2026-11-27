@@ -40,13 +40,30 @@ func TestTabStripRendersChipsNotGlyphState(t *testing.T) {
 	}
 }
 
-// TestTabStripCloseOnlyOnTheActiveTab keeps the close control off inactive tabs
-// until they are hovered, so a quiet strip is not a row of close boxes.
+// TestTabStripCloseSlotReservesWidthWithoutHoverShift keeps the close control
+// visually hidden on inactive tabs at rest (Opacity 0) while reserving its
+// 18×18 slot so hovering an inactive tab never pushes sibling tabs horizontally.
 func TestTabStripCloseOnlyOnTheActiveTab(t *testing.T) {
 	m, _ := tabStripFixture()
 	tt := ui.NewTester(func(c *ui.Context) {
 		paintTabs(c, m, ui.RGB(24, 24, 24), ui.RGB(120, 120, 120))
 	}, 720, 120)
+	alphaBefore, ok1 := tt.Find("alpha.go")
+	betaBefore, ok2 := tt.Find("beta.md")
+	if !ok1 || !ok2 {
+		t.Fatalf("missing tab labels: %v", tt.Texts())
+	}
+	// Hover the inactive tab (alpha.go) and assert zero horizontal shift of
+	// both tabs and their labels.
+	tt.Move(alphaBefore.X+alphaBefore.W/2, alphaBefore.Y+alphaBefore.H/2)
+	tt.Frame()
+	alphaAfter, _ := tt.Find("alpha.go")
+	betaAfter, _ := tt.Find("beta.md")
+	if alphaAfter != alphaBefore || betaAfter != betaBefore {
+		t.Fatalf("hovering inactive tab shifted tab geometry: alpha %+v -> %+v, beta %+v -> %+v",
+			alphaBefore, alphaAfter, betaBefore, betaAfter)
+	}
+	// Both tabs keep their close slot in the tree so hover never inserts nodes.
 	closeLabel := i18n.T(i18n.KeySurfacesFilesClose)
 	shown := 0
 	for _, text := range tt.Texts() {
@@ -54,8 +71,8 @@ func TestTabStripCloseOnlyOnTheActiveTab(t *testing.T) {
 			shown++
 		}
 	}
-	if shown != 1 {
-		t.Fatalf("expected one close control (active tab), got %d: %v", shown, tt.Texts())
+	if shown != 2 {
+		t.Fatalf("expected 2 reserved close slots, got %d: %v", shown, tt.Texts())
 	}
 }
 

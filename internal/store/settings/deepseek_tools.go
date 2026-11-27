@@ -3,6 +3,7 @@ package settings
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 )
 
@@ -125,7 +126,9 @@ func (s *Store) RefreshDeepSeekKey(ctx context.Context, ref string) {
 	s.unlockPublish()
 	s.fire()
 	go func() {
-		described, err := DescribeCredentials(ctx, client, []string{ref})
+		callCtx, cancel := withDefaultRPCTimeout(ctx)
+		defer cancel()
+		described, err := DescribeCredentials(callCtx, client, []string{ref})
 		s.mu.Lock()
 		if generation != s.generation || s.client != client {
 			s.unlockPublish()
@@ -133,7 +136,9 @@ func (s *Store) RefreshDeepSeekKey(ctx context.Context, ref string) {
 		}
 		s.deepSeekKeyLoading = false
 		if err != nil {
-			s.deepSeekKeyErr = err.Error()
+			if !errors.Is(err, context.Canceled) {
+				s.deepSeekKeyErr = err.Error()
+			}
 		} else {
 			value := described[ref]
 			s.deepSeekKeyErr, s.deepSeekKeyConfigured, s.deepSeekKeyWritable = "", value.Configured, value.Writable

@@ -5,15 +5,29 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
 	"sync"
+	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/state"
 )
+
+const defaultSettingsRPCTimeout = 45 * time.Second
+
+func withDefaultRPCTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, defaultSettingsRPCTimeout)
+}
 
 // Namespace is one settings form from describe.
 type Namespace struct {
@@ -428,6 +442,16 @@ func (s *Store) SetDraft(key, value string) {
 
 // RefreshDescribe loads settings/describe on a background goroutine.
 func (s *Store) RefreshDescribe(ctx context.Context) {
+	s.refreshDescribe(ctx, false)
+}
+
+// RefreshDescribeBackground refreshes settings/describe without revoking an
+// already-accepted Host description if the refresh encounters a transient error.
+func (s *Store) RefreshDescribeBackground(ctx context.Context) {
+	s.refreshDescribe(ctx, true)
+}
+
+func (s *Store) refreshDescribe(ctx context.Context, background bool) {
 	s.mu.Lock()
 	client := s.client
 	generation := s.generation
@@ -435,22 +459,27 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		s.unlockPublish()
 		return
 	}
-	s.loading = true
+	alreadyDescribed := s.describedClient == client
+	if !background || !alreadyDescribed {
+		s.loading = true
+		s.err = nil
+	}
 	s.describeRequest++
 	req := s.describeRequest
-	if s.describedClient != client {
+	if !alreadyDescribed {
 		s.describedClient = nil
 	}
-	s.err = nil
 	s.unlockPublish()
 	s.fire()
 
 	go func() {
+		callCtx, cancel := withDefaultRPCTimeout(ctx)
+		defer cancel()
 		var out api.SettingsDescribeValue
-		err := client.Call(ctx, "settings/describe", nil, &out)
+		err := client.Call(callCtx, "settings/describe", nil, &out)
 		defaults := PermissionDefaults{}
 		if err == nil {
-			defaults = loadPermissionDefaults(ctx, client, out)
+			defaults = loadPermissionDefaults(callCtx, client, out)
 		}
 
 		s.mu.Lock()
@@ -460,8 +489,11 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		}
 		s.loading = false
 		if err != nil {
-			s.describedClient = nil
-			s.err = err
+			sameHost := s.describedClient == client
+			if !(sameHost && (background || errors.Is(err, context.Canceled))) {
+				s.describedClient = nil
+				s.err = err
+			}
 			s.unlockPublish()
 			s.fire()
 			return
@@ -469,17 +501,20 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		s.hasDocument = out.HasDocument
 		s.writable = out.Writable
 		s.permissionDefaults = defaults
+		sameHost := s.describedClient == client
 		nsList := make([]Namespace, 0, len(out.Namespaces))
 		for _, item := range out.Namespaces {
 			fields, fErr := BuildFields(item.Schema)
 			if fErr != nil {
-				s.describedClient = nil
-				s.err = fErr
+				if !background || !sameHost {
+					s.describedClient = nil
+					s.err = fErr
+				}
 				s.unlockPublish()
 				s.fire()
 				return
 			}
-			nsList = append(nsList, Namespace{
+			nextNS := Namespace{
 				NS:          item.Ns,
 				Revision:    item.Revision,
 				Fields:      fields,
@@ -489,7 +524,15 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 				User:        append(json.RawMessage(nil), item.User...),
 				HasSecrets:  hasSetSecrets(item.Secrets),
 				SecretPaths: configuredSecretPaths(item.Secrets),
-			})
+			}
+			// Never let an in-flight describe response regress a namespace that
+			// already landed a higher revision on the same Host.
+			if sameHost {
+				if cur := s.findNamespaceLocked(item.Ns); cur != nil && cur.Revision > nextNS.Revision {
+					nextNS = *cur
+				}
+			}
+			nsList = append(nsList, nextNS)
 		}
 		s.namespaces = nsList
 		s.onboardingCredentialEpoch++

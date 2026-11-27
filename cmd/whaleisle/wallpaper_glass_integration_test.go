@@ -533,8 +533,8 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 				if gotTokens.Input != ui.RGBA(0, 0, 0, 0.095) {
 					t.Fatalf("light Input = %+v, want rgba(0,0,0,0.095)", gotTokens.Input)
 				}
-				if gotTokens.MutedForeground != ui.RGB(97, 102, 107) ||
-					gotTokens.SidebarForeground != ui.RGB(72, 76, 82) {
+				if gotTokens.MutedForeground != ui.RGB(63, 68, 74) ||
+					gotTokens.SidebarForeground != ui.RGB(44, 49, 56) {
 					t.Fatalf("light foreground contrast tokens diverged: mutedFg=%+v sidebarFg=%+v",
 						gotTokens.MutedForeground, gotTokens.SidebarForeground)
 				}
@@ -617,7 +617,7 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	}
 
 	// 2. Verify Windows Acrylic curve (g=80% -> 0.30 canvas, ShowThroughAlpha sidebar,
-	// 0.80 card, 0.64 dark popover) and light menu opacity (g=80% -> 0.70).
+	// 0.80 card, 0.64 dark popover) and light menu opacity (g=80% -> 0.64).
 	prefs := wallpapers.Defaults()
 	prefs.Glass = 80
 	if got := acrylicCanvasAlpha(prefs); math.Abs(float64(got)-0.30) > 0.001 {
@@ -626,8 +626,8 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	if got := darkGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
 		t.Fatalf("darkGlassMenuAlpha(80) = %.4f, want 0.64", got)
 	}
-	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.70) > 0.001 {
-		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.70", got)
+	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
+		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.64", got)
 	}
 
 	filter := glassSurfaceFilter(designGlassSignature{
@@ -956,34 +956,48 @@ func TestWallpaperPrecedenceAndTransparentThemeContract(t *testing.T) {
 		t.Fatalf("expected Transparent=true to be inert without wallpaper, got Background.A=0")
 	}
 
-	// 2. Wallpaper image takes precedence over gradient, applies dim mask
-	// (0.24 light / 0.50 dark), and Transparent=true drops the mask only when
-	// a wallpaper is active.
-	if math.Abs(float64(chrome.MaskAlpha(false)-0.24)) > 1e-6 || math.Abs(float64(chrome.MaskAlpha(true)-0.50)) > 1e-6 {
+	// 2. Wallpaper image takes precedence over gradient: light mode keeps zero
+	// dim mask so light wallpapers stay crisp, dark mode applies a 0.50 dim mask,
+	// and Transparent=true drops dark mode's dim mask when a wallpaper is active.
+	if math.Abs(float64(chrome.MaskAlpha(false)-0)) > 1e-6 || math.Abs(float64(chrome.MaskAlpha(true)-0.50)) > 1e-6 {
 		t.Fatalf("unexpected MaskAlpha values: light=%v dark=%v", chrome.MaskAlpha(false), chrome.MaskAlpha(true))
 	}
 	stripedURL := testStripedWallpaperURL(t, 120, 80)
 	opaquePrefs := prefs
 	opaquePrefs.Transparent = false
-	paintOne := func(p wallpapers.Preferences) color.RGBA {
+	paintOne := func(p wallpapers.Preferences, dark bool) color.RGBA {
+		var th *ui.Theme
+		if dark {
+			th = ui.DarkTheme()
+		} else {
+			th = ui.LightTheme()
+		}
+		empty := color.RGBA{R: th.Background.R, G: th.Background.G, B: th.Background.B, A: th.Background.A}
 		tt := ui.NewTester(func(c *ui.Context) {
-			c.SetTheme(ui.LightTheme())
+			c.SetTheme(th)
 			ui.Box(c).Fill().Draw(chrome.WallpaperBackgroundPainter(stripedURL, p, false))
 		}, 120, 80)
 		for i := 0; i < 60; i++ {
 			tt.Frame()
 			px := tt.Image().RGBAAt(10, 10)
-			if px != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) && px != (color.RGBA{A: 255}) {
+			if px != empty && px != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) && px != (color.RGBA{A: 255}) {
 				return px
 			}
 			time.Sleep(5 * time.Millisecond)
 		}
 		return tt.Image().RGBAAt(10, 10)
 	}
-	dimPx := paintOne(opaquePrefs)
-	transPx := paintOne(prefs)
-	if dimPx == (color.RGBA{R: 255, G: 255, B: 255, A: 255}) || int(transPx.R)+int(transPx.G)+int(transPx.B) <= int(dimPx.R)+int(dimPx.G)+int(dimPx.B) {
-		t.Fatalf("expected Transparent=true to drop 0.24 dim mask over wallpaper: dim=%+v trans=%+v", dimPx, transPx)
+	darkDimPx := paintOne(opaquePrefs, true)
+	darkTransPx := paintOne(prefs, true)
+	darkEmpty := ui.DarkTheme().Background
+	darkEmptyRGBA := color.RGBA{R: darkEmpty.R, G: darkEmpty.G, B: darkEmpty.B, A: darkEmpty.A}
+	if darkDimPx == darkEmptyRGBA || int(darkTransPx.R)+int(darkTransPx.G)+int(darkTransPx.B) <= int(darkDimPx.R)+int(darkDimPx.G)+int(darkDimPx.B) {
+		t.Fatalf("expected Transparent=true to drop 0.50 dark dim mask over wallpaper: dim=%+v trans=%+v", darkDimPx, darkTransPx)
+	}
+	lightOpaquePx := paintOne(opaquePrefs, false)
+	lightTransPx := paintOne(prefs, false)
+	if lightOpaquePx != lightTransPx {
+		t.Fatalf("expected light wallpaper to apply no dim mask regardless of Transparent: opaque=%+v trans=%+v", lightOpaquePx, lightTransPx)
 	}
 
 	// 3. Turning off the optional glass theme switch disables backdrop & glass sampling.

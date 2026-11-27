@@ -269,12 +269,14 @@ func sidebarBrand(c *ui.Context, m Model, platform string) {
 
 var newSessionIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.37091 11.2501C1.58745 9.89288 1.32067 8.29835 1.61969 6.76006C1.91872 5.22177 2.76342 3.8433 3.99826 2.87846C5.2331 1.91362 6.77494 1.42737 8.33988 1.50925C9.90482 1.59113 11.3875 2.23562 12.5149 3.32406C13.6425 4.41269 14.3387 5.87206 14.4754 7.4334C14.612 8.99474 14.18 10.5529 13.2587 11.8209C12.3375 13.0888 10.9891 13.9813 9.46194 14.3337C8.18691 14.628 6.85895 14.5294 5.64989 14.0605C5.1712 13.8748 4.76962 13.4932 4.26534 13.3967C3.67413 13.2835 2.95257 13.5598 2.03794 14.3337"/><path d="M8 5V11M5 8H11"/></svg>`))
 
-// The title stays centered over the full button while its right edge fades
-// before the configured shortcut, matching SidebarRoot's label mask.
 func newSessionButton(c *ui.Context, m Model) {
 	t := tok(c)
 	fg := t.Foreground
 	label := i18n.T(i18n.KeySidebarNewSessionFallback)
+	tip := label
+	if sc := strings.TrimSpace(m.NewSessionShortcut); sc != "" {
+		tip = label + " (" + sc + ")"
+	}
 	if theme.ResolvedSkin(m.ThemeID, m.SystemDark) == theme.SkinCodex {
 		btn := coss.Button(c, "", coss.ButtonOptions{
 			Variant: coss.ButtonGhost,
@@ -283,10 +285,10 @@ func newSessionButton(c *ui.Context, m Model) {
 			Key:     "sidebar-new-session",
 			Content: func() {},
 		}).FillWidth().Height(32).Radius(design.RadiusMD).Margin(design.Sp(0.5), 0, design.Sp(1.5), 0).
-			Padding(0, design.Sp(2)).BorderWidth(0).Justify(ui.Start).Gap(design.Sp(2)).TextColor(fg)
+			Padding(0, design.Sp(2)).BorderWidth(0).Justify(ui.Start).Gap(design.Sp(2)).TextColor(fg).Tooltip(tip)
 		btn.Children(func() {
-			ui.Icon(c, newSessionIcon).Size(design.IconSM, design.IconSM).TextColor(fg)
-			ui.Text(c, label).FontSize(13).FontWeight(design.WeightMedium).TextColor(fg)
+			ui.Icon(c, newSessionIcon).Key("sidebar-new-icon").Size(design.IconSM, design.IconSM).Shrink(0).TextColor(fg)
+			ui.Text(c, label).Key("sidebar-new-label").FontSize(13).FontWeight(design.WeightMedium).SingleLine().TextColor(fg)
 		})
 		if btn.Clicked() {
 			m.OnCreate()
@@ -302,62 +304,12 @@ func newSessionButton(c *ui.Context, m Model) {
 	}).FillWidth().Height(38).Radius(design.RadiusXL).
 		Margin(design.Sp(1), design.Sp(0.5), 0, design.Sp(0.5)).MaxWidth(252).
 		TextColor(fg).FontSize(fs(14)).FontWeight(design.WeightMedium).
-		Padding(design.Sp(2), design.Sp(3), design.Sp(2), design.Sp(3))
-	showShortcut := m.NewSessionShortcut != "" && (btn.Hovered() || btn.FocusVisible())
-	font := ui.Font{Family: c.Theme().Font, Size: fs(14), Weight: design.WeightMedium}
-	type newSessionLayoutCache struct {
-		label, shortcut, family string
-		size                    float32
-		title                   *ui.TextLayout
-		titleW, titleH          float32
-		shortcutW               float32
-	}
-	cache := ui.Local(btn, "sidebar-new-session-layouts", func() newSessionLayoutCache { return newSessionLayoutCache{} })
-	if cache.title == nil || cache.label != label || cache.family != font.Family || cache.size != font.Size {
-		cache.title = ui.ShapeTextLine(label, font, 0)
-		cache.titleW, cache.titleH = cache.title.Size()
-		cache.label, cache.family, cache.size = label, font.Family, font.Size
-		cache.shortcut = ""
-	}
-	title, titleW, titleH := cache.title, cache.titleW, cache.titleH
-	shortcutW := float32(0)
-	if showShortcut {
-		if cache.shortcut != m.NewSessionShortcut {
-			cache.shortcut = m.NewSessionShortcut
-			cache.shortcutW, _ = ui.ShapeTextLine(m.NewSessionShortcut, ui.Font{Family: font.Family, Size: font.Size, Weight: design.WeightNormal}, 0).Size()
-		}
-		shortcutW = cache.shortcutW
-	}
-	fadeBg := t.Popover
-	if t.IsDark() {
-		fadeBg = t.Input.Alpha(0.64).Over(t.Sidebar)
-	} else if btn.Hovered() || btn.Pressed() {
-		fadeBg = t.Accent.Alpha(0.5).Over(t.Popover)
-	}
+		Padding(design.Sp(2), design.Sp(3), design.Sp(2), design.Sp(3)).
+		Justify(ui.Center).AlignItems(ui.Center).Gap(design.Sp(1.5)).Tooltip(tip)
 	btn.Children(func() {
-		mask := ui.Box(c.Key("sidebar-new-label")).Grow(1).MinWidth(0).Height(22).PassThrough()
-		mask.Draw(func(p *ui.Painter, r ui.Rect) {
-			x := r.X + (r.W+shortcutW-titleW-20)/2
-			p.Clip(r, 0, func() {
-				p.Icon(newSessionIcon, ui.Rect{X: x, Y: r.Y + (r.H-14)/2, W: 14, H: 14}, fg)
-				p.TextLayout(title, x+20, r.Y+(r.H-titleH)/2, fg)
-				if showShortcut {
-					fade := min(design.Sp(4), r.W)
-					if fade > 0 {
-						p.FillGradient(
-							ui.Rect{X: r.X + r.W - fade, Y: r.Y, W: fade, H: r.H},
-							ui.LinearGradient{From: fadeBg.Alpha(0), To: fadeBg, Angle: 90},
-							0,
-						)
-					}
-				}
-			})
-		})
-		if showShortcut {
-			ui.Text(c, m.NewSessionShortcut).Role(ui.RoleNone).Width(shortcutW).Shrink(1).MinWidth(0).SingleLine().
-				FontSize(font.Size).FontWeight(design.WeightNormal).FixedLineHeight(22).TextColor(fg).PassThrough().
-				ObserveLayout(func(r ui.Rect) { shortcutW = r.W })
-		}
+		ui.Icon(c, newSessionIcon).Key("sidebar-new-icon").Size(14, 14).Shrink(0).TextColor(fg)
+		ui.Text(c, label).Key("sidebar-new-label").Role(ui.RoleNone).FontSize(fs(14)).FontWeight(design.WeightMedium).
+			FixedLineHeight(22).SingleLine().TextColor(fg).PassThrough()
 	})
 	if btn.Clicked() {
 		m.OnCreate()
@@ -402,12 +354,21 @@ func View(c *ui.Context, m Model) {
 	m.sidebarDrag = ui.Local(root, "sidebar-drag-state", func() sidebarDragState { return sidebarDragState{} })
 	fill := t.Sidebar
 	glassHairline := false
+	sidebarBackdropFill := func() {
+		mat := chrome.MaterialSidebar
+		base := fill
+		if chrome.BackdropPreferences().HideSidebarMask {
+			mat = chrome.MaterialCanvas
+			base = t.Background
+		}
+		chrome.GlassSurface(root, base, mat).Radius(0)
+	}
 	if skinLayout.Active() {
 		if m.Collapsed && skinLayout.Skin == theme.SkinCodex {
 			fill = t.Background
 		}
 		if skinLayout.Skin != theme.SkinCodex && chrome.BackdropActive() {
-			chrome.GlassSurface(root, fill, chrome.MaterialSidebar).Radius(0)
+			sidebarBackdropFill()
 			glassHairline = true
 		} else {
 			root.Background(fill).Radius(0)
@@ -416,7 +377,7 @@ func View(c *ui.Context, m Model) {
 			})
 		}
 	} else if chrome.BackdropActive() {
-		chrome.GlassSurface(root, fill, chrome.MaterialSidebar).Radius(0)
+		sidebarBackdropFill()
 		glassHairline = true
 	} else {
 		root.Background(fill).Radius(0)
@@ -481,7 +442,7 @@ func View(c *ui.Context, m Model) {
 					}
 				}
 				ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, design.Sp(0.5), design.Sp(2), design.Sp(0.5)).Gap(design.Sp(0.5)).Children(func() {
-					nav := func(id, key string, drawIcon func(), label string, fn func(), contextMenu func(*ui.Menu)) {
+					nav := func(id, key string, drawIcon func(ui.Color), label string, fn func(), contextMenu func(*ui.Menu)) {
 						row := coss.Button(c, "", coss.ButtonOptions{
 							Variant: coss.ButtonGhost,
 							Size:    coss.ButtonMD,
@@ -494,7 +455,6 @@ func View(c *ui.Context, m Model) {
 						active := m.ActivePanel == id
 						if active {
 							row.Background(sbSelectedBg(t))
-							sbActiveIndicator(row, t)
 						} else if row.Hovered() || row.FocusVisible() {
 							row.Background(sbHoverBg(t))
 						} else {
@@ -503,17 +463,18 @@ func View(c *ui.Context, m Model) {
 						if skinLayout.Skin == theme.SkinCodex {
 							row.Padding(design.Sp(1.5), design.Sp(2)).MinHeight(32)
 						}
+						ink := sbRowInk(t, active, fg)
 						row.Children(func() {
 							ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 								if drawIcon != nil {
-									drawIcon()
+									drawIcon(ink)
 								}
 								lineHeight := fs(22)
 								if skinLayout.Active() {
 									lineHeight = 20
 								}
-								ui.Text(c, label).FontSize(skinLayout.SidebarFont).
-									FixedLineHeight(lineHeight).TextColor(fg).Grow(1)
+								ui.Text(c, label).FontSize(skinLayout.SidebarFont).FontWeight(design.WeightMedium).
+									FixedLineHeight(lineHeight).TextColor(ink).Grow(1)
 							})
 						})
 						if contextMenu != nil {
@@ -537,7 +498,7 @@ func View(c *ui.Context, m Model) {
 								}
 							}
 						}
-						nav(panel.active, "builtin:"+panel.id, func() { sidebarPanelIcon(c, panel.id, fg) }, panel.label, panel.run, menu)
+						nav(panel.active, "builtin:"+panel.id, func(ink ui.Color) { sidebarPanelIcon(c, panel.id, ink) }, panel.label, panel.run, menu)
 					}
 				})
 				menuOpen := &workspaceMenuFB
@@ -634,10 +595,10 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	}).Description(hint).FillWidth().Height(32).Radius(design.RadiusMD).
 		BorderWidth(0).Padding(0, design.Sp(2), 0, design.Sp(2)+float32(depth)*design.Sp(3)).Clip().AlignItems(ui.Center)
 	revealSessionSearchRow(row, m, it.SessionID)
+	showActions := row.Hovered() || row.FocusWithin() || row.MenuOpen()
 	if selected {
 		row.Background(sbSelectedBg(t))
-		sbActiveIndicator(row, t)
-	} else if row.Hovered() || row.FocusWithin() || row.MenuOpen() {
+	} else if showActions {
 		row.Background(sbHoverBg(t))
 	} else {
 		row.Background(ui.Transparent)
@@ -647,8 +608,9 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 		row.ContextMenu(menu)
 	}
 	hoverPressed := row.Pressed()
+	titleInk := sbRowInk(t, selected, fg)
 	row.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(0).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Height(32).AlignItems(ui.Center).Gap(0).Children(func() {
 			if status == "" && !it.Blank {
 				if len(tasks) > 0 {
 					sessionScheduleMark(c, len(tasks), muted)
@@ -658,7 +620,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			} else {
 				sessionStatusSlot(c, status, muted)
 			}
-			title := sessionTitleCell(c, row, it.SessionID, label, fg)
+			title := sessionTitleCell(c, row, it.SessionID, label, titleInk)
 			if m.sessionHover != nil {
 				m.sessionHover.dragging = m.sessionHover.dragging || title.Dragging()
 			}
@@ -674,8 +636,11 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 				}
 			}
 			if !it.Blank {
-				showActions := row.Hovered() || row.FocusWithin() || row.MenuOpen()
-				if !showActions {
+				trailing := ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(0)
+				if showActions {
+					trailing.Invisible()
+				}
+				trailing.Children(func() {
 					if m.pinnedSection {
 						ui.Text(c, m.sessionContext).Label("Workspace " + it.SessionID).MaxWidth(64).MinWidth(0).
 							FontSize(fs(10)).FixedLineHeight(16).TextColor(muted).SingleLine().Tooltip(m.sessionContext)
@@ -686,10 +651,12 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 							sessionPinIndicator(c, it.SessionID, muted)
 						}
 					}
-				}
-				actions := ui.Row(c).Key("session-actions-" + it.SessionID).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(0.5))
+				})
+				actions := ui.Row(c).Key("session-actions-" + it.SessionID).Absolute().Right(0).Top(0).Bottom(0).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(0.5))
 				if !showActions {
-					actions.Absolute().Right(design.Sp(1)).Opacity(0)
+					actions.Opacity(0)
+				} else {
+					actions.Draw(sbActionOverlayDraw(t, selected, true))
 				}
 				actions.Children(func() {
 					more := coss.Button(c, "", coss.ButtonOptions{
@@ -701,16 +668,14 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 					}).Tooltip(workspaceText("会话操作", "Session actions")).Size(design.Sp(6), design.Sp(6)).Padding(0).
 						BorderWidth(0).TextColor(muted).Center().Menu(menu)
 					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.Sp(3.5), design.Sp(3.5)).TextColor(muted) })
-					if showActions {
-						sessionRowAction(c, "archive-"+it.SessionID, menuArchiveArtwork, i18n.T(i18n.KeySidebarArchive),
-							i18n.T(i18n.KeySidebarArchive), muted, archiveActionPtr(&m, it))
-						pinArt := menuPinArtwork
-						if it.Pinned {
-							pinArt = sessionPinArtwork
-						}
-						sessionRowAction(c, "pin-"+it.SessionID, pinArt, sessionPinLabel(it.Pinned),
-							sessionPinTip(it.Pinned), muted, pinActionPtr(&m, it))
+					sessionRowAction(c, "archive-"+it.SessionID, menuArchiveArtwork, i18n.T(i18n.KeySidebarArchive),
+						i18n.T(i18n.KeySidebarArchive), muted, !showActions, archiveActionPtr(&m, it))
+					pinArt := menuPinArtwork
+					if it.Pinned {
+						pinArt = sessionPinArtwork
 					}
+					sessionRowAction(c, "pin-"+it.SessionID, pinArt, sessionPinLabel(it.Pinned),
+						sessionPinTip(it.Pinned), muted, !showActions, pinActionPtr(&m, it))
 				})
 			}
 		})

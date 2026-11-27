@@ -250,7 +250,7 @@ func (rt *engine) memoKeep(r *memoRegion, e *node, print *memoPrint) bool {
 		return false
 	case !samePrint(&r.print, print):
 		return false
-	case rt.drag != nil, rt.incoming != nil, rt.scrollDrag.st != nil && rt.inRegion(rt.scrollDrag.st, r.id):
+	case rt.drag != nil, rt.incoming != nil, rt.scrollDrag.st != nil && (rt.scrollDrag.st == e.st || rt.inRegion(rt.scrollDrag.st, r.id)):
 		return false
 	case rt.pressed != nil && rt.inRegion(rt.pressed, r.id):
 		return false
@@ -258,7 +258,7 @@ func (rt *engine) memoKeep(r *memoRegion, e *node, print *memoPrint) bool {
 		return false
 	case rt.selection.scope != 0 && rt.inRegion(rt.states[rt.selection.scope], r.id):
 		return false
-	case rt.wheelID != 0 && (rt.wheelRemainX != 0 || rt.wheelRemainY != 0) && rt.inRegion(rt.states[rt.wheelID], r.id):
+	case rt.wheelID != 0 && (rt.wheelRemainX != 0 || rt.wheelRemainY != 0) && (rt.wheelID == e.id || rt.inRegion(rt.states[rt.wheelID], r.id)):
 		return false
 	case rt.memoTransitionBusy(r):
 		return false
@@ -736,7 +736,13 @@ func (rt *engine) noteCommit(e *node, clip Rect, m *commitMarks) {
 	r.focusOrder = append(r.focusOrder[:0], rt.focusOrder[m.focus:]...)
 	r.focusScopes = append(r.focusScopes[:0], rt.focusScopes[m.focus:]...)
 	r.labels = append(r.labels[:0], rt.labels[m.labels:]...)
+	if !r.scrollsAsCommitted() {
+		r.described = false
+	}
 	r.scrolls = r.scrolls[:0]
+	if e.scrolls() {
+		r.scrolls = append(r.scrolls, scrollMark{e.st, e.st.scrollX, e.st.scrollY})
+	}
 	for _, n := range r.nodes {
 		if n.scrolls() {
 			r.scrolls = append(r.scrolls, scrollMark{n.st, n.st.scrollX, n.st.scrollY})

@@ -22,7 +22,7 @@ func interfaceProjectPreference(c *ui.Context, a *ProjectPreferenceAccess, fg, m
 	title := "Project"
 	bodyPreferenceRow(c, "interface-project", title, providerCopy("让一个主对话带领智能体团队，按需求清单持续完成一个目录里的开发。", "Let one lead conversation guide an agent team through a running list of requirements in a directory."), fg, muted, func() {
 		value := state.Enabled
-		if ui.Switch(c.Key("interface-project-toggle"), &value).Label(title).Disabled(state.Busy || a.OnSet == nil).Changed() && a.OnSet != nil {
+		if coss.Switch(c, &value, "", coss.CheckOptions{Key: "interface-project-toggle", Label: title, Disabled: state.Busy || a.OnSet == nil}).Changed() && a.OnSet != nil {
 			a.OnSet(value)
 		}
 	})

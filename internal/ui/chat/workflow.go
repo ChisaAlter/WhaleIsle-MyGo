@@ -210,9 +210,12 @@ func paintWorkflowMember(c *ui.Context, member workflowrun.Member, label string,
 				paintWorkflowStateDot(c, member.Status)
 			})
 			labelWrap := ui.Row(c).Grow(1).MinWidth(0).Height(size+10).Padding(0, design.Sp(0.5)).Radius(design.Sp(1)).AlignItems(ui.Center)
-			if row.FocusVisible() {
-				labelWrap.Border(design.BorderWidth, t.Ring)
-			}
+			focusVisible := row.FocusVisible()
+			labelWrap.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				if focusVisible && r.W > 1 && r.H > 1 {
+					p.Stroke(ui.Rect{X: r.X + 0.5, Y: r.Y + 0.5, W: r.W - 1, H: r.H - 1}, t.Ring, design.Sp(1), design.BorderWidth)
+				}
+			})
 			labelWrap.Children(func() {
 				text := ui.Text(c, label).Grow(1).MinWidth(0).MaxLines(1).FontSize(size).FixedLineHeight(size + 10).TextColor(t.MutedForeground)
 				if available {

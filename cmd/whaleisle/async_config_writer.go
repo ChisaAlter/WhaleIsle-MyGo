@@ -278,6 +278,22 @@ func (s *mainState) enqueueConfigMerge(store *config.Store, fn func(*config.Conf
 	s.configWriterFor(store).EnqueueMerge(fn)
 }
 
+// flushExistingConfigWriter flushes pending debounced edits for store only if
+// an async writer already exists for it, preserving CAS conflict behavior when
+// no async writes were queued.
+func (s *mainState) flushExistingConfigWriter(store *config.Store) error {
+	if store == nil {
+		return nil
+	}
+	s.configWriterMu.Lock()
+	w := s.configWriter
+	s.configWriterMu.Unlock()
+	if w != nil && w.store == store {
+		return w.Flush()
+	}
+	return nil
+}
+
 // flushPendingConfigWrites drains all debounced async persistence layers
 // (session workspace preferences, workspace view preferences, general async
 // config writer, and config.Store async writes) in dependency order before

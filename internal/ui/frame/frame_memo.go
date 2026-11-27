@@ -5,11 +5,15 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chat"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 const (
@@ -113,20 +117,36 @@ func resolvedMenuShortcutLabels(bindings map[string]string) map[string]string {
 	return labels
 }
 
-func heroHeadlineMemoVersion(m Model) uint64 {
+type heroTrackState struct {
+	initialized bool
+	lastColW    float32
+	lastOuterW  float32
+	lastBottom  bool
+	animUntil   time.Time
+}
+
+func heroHeadlineMemoVersion(m Model, outerW float32) uint64 {
 	h := frameFNVOffset64
 	h = frameHashStr(h, m.ThemeID)
 	h = frameHashBool(h, m.SystemDark)
 	h = frameHashStr(h, string(i18n.Locale()))
 	h = frameHashStr(h, m.HostPlaceholder)
+	h = frameHashU64(h, theme.Revision())
+	h = frameHashU64(h, design.Revision())
+	h = frameHashBool(h, chrome.BackdropActive())
+	h = frameHashF32(h, outerW)
 	return h
 }
 
-func settlingSkeletonMemoVersion(m Model) uint64 {
+func settlingSkeletonMemoVersion(m Model, outerW float32) uint64 {
 	h := frameFNVOffset64
 	h = frameHashStr(h, m.ThemeID)
 	h = frameHashBool(h, m.SystemDark)
 	h = frameHashStr(h, string(i18n.Locale()))
+	h = frameHashU64(h, theme.Revision())
+	h = frameHashU64(h, design.Revision())
+	h = frameHashBool(h, chrome.BackdropActive())
+	h = frameHashF32(h, outerW)
 	return h
 }
 

@@ -2,12 +2,16 @@ package settings
 
 import (
 	"math"
+	"time"
 	"whaleisle/internal/desktop/voicecapture"
 	"whaleisle/internal/desktop/voiceinput"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
 )
+
+const voiceMeterPollInterval = 33 * time.Millisecond
 
 // VoiceInputDeviceView is the microphone row in the existing voice plugin
 // settings. The application owns SetActive while that page/window is visible.
@@ -15,7 +19,10 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 	if microphone == nil {
 		return
 	}
-	state := microphone.Snapshot()
+	voiceInputDeviceStateView(c, microphone.Snapshot(), microphone.Select, microphone.Refresh, nil)
+}
+
+func voiceInputDeviceStateView(c *ui.Context, state voiceinput.MicrophoneState, onSelect func(voicecapture.Device), onRefresh func(), schedule func(time.Duration)) {
 	text := func(zh, en string) string {
 		if i18n.Locale() == "en" {
 			return en
@@ -32,45 +39,45 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 	root.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, text("麦克风", "Input device")).FontSize(13)
-			selected := state.Selected.ID
 			choices := append([]voicecapture.Device{{}}, state.Devices...)
 			if state.Selected.ID != "" && state.Missing {
 				choices = append(choices, state.Selected)
 			}
-			parts := ui.SelectBase(c, &choice.Value)
-			caption := state.Selected.Label
-			if selected == "" {
-				caption = text("系统默认麦克风", "System microphone")
-			}
-			if state.Missing {
-				caption += text(" — 不可用", " — unavailable")
-			}
-			parts.Trigger.Label(text("选择麦克风", "Select microphone")).Grow(1).MinWidth(0).Disabled(state.Loading).Children(func() {
-				ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine()
-				ui.Text(c, "▾")
-			})
-			parts.Popup(func(panel ui.Element) {
-				for _, device := range choices {
-					label := device.Label
-					if device.ID == "" {
-						label = text("系统默认麦克风", "System microphone")
-					}
-					if label == "" {
-						label = text("未命名麦克风", "Unnamed microphone")
-					}
-					parts.Item(device.ID).Label(label).Disabled(state.Missing && device.ID == state.Selected.ID).Children(func() { ui.Text(c, label) })
+			opts := make([]coss.SelectOption, 0, len(choices))
+			for _, device := range choices {
+				label := device.Label
+				if device.ID == "" {
+					label = text("系统默认麦克风", "System microphone")
 				}
+				if label == "" {
+					label = text("未命名麦克风", "Unnamed microphone")
+				}
+				if state.Missing && device.ID == state.Selected.ID {
+					label += text(" — 不可用", " — unavailable")
+				}
+				opts = append(opts, coss.SelectOption{
+					Value:    device.ID,
+					Label:    label,
+					Disabled: state.Missing && device.ID == state.Selected.ID,
+				})
+			}
+			changed := false
+			ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+				changed = coss.Select(c, &choice.Value, opts, coss.SelectOptions{
+					Label:    text("选择麦克风", "Select microphone"),
+					Disabled: state.Loading,
+				}).FillWidth().Changed()
 			})
-			if parts.Trigger.Changed() {
+			if changed && onSelect != nil {
 				for _, device := range choices {
 					if device.ID == choice.Value {
-						microphone.Select(device)
+						onSelect(device)
 						break
 					}
 				}
 			}
-			if kButtonDisabled(c, text("刷新", "Refresh"), state.Loading).Clicked() {
-				microphone.Refresh()
+			if kButtonDisabled(c, text("刷新", "Refresh"), state.Loading).Clicked() && onRefresh != nil {
+				onRefresh()
 			}
 		})
 		if state.Active && !state.Missing && !state.Loading && state.Error == "" {
@@ -84,7 +91,11 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 					ui.Box(c).Width(8).Height(12).Radius(2).Background(color)
 				}
 			})
-			c.Services().Invalidate()
+			if schedule != nil {
+				schedule(voiceMeterPollInterval)
+			} else {
+				c.After(voiceMeterPollInterval)
+			}
 		}
 		settingsAlert(c, "voice_input:89", state.Error != "", providerCopy("没能保存语音输入设置，请重试。", "The voice input setting was not saved. Try again."), state.Error)
 	})

@@ -10,7 +10,6 @@ import (
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // toolsCard is one bordered section card of the workspace page, matching the
@@ -38,7 +37,6 @@ func ensureToolsLoaded(c *ui.Context, m Model) {
 // viewActiveCard is the installed settings.active card: a status dot, the
 // current machine's identity and connection facts, then 取消当前/忘记指纹.
 func viewActiveCard(c *ui.Context, m Model, border ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	s := m.Machines.Snapshot().Value
 	muted := c.Theme().TextMuted
 	var current *struct{ name, host string }
@@ -103,10 +101,10 @@ func viewActiveCard(c *ui.Context, m Model, border ui.Color) {
 		}
 		if s.CurrentID != "" {
 			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if widgets.Button(c, colors, label("取消当前", "Clear active"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				if coss.Button(c, label("取消当前", "Clear active"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 					m.Machines.Select("")
 				}
-				if widgets.Button(c, colors, label("忘记指纹", "Forget key"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				if coss.Button(c, label("忘记指纹", "Forget key"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 					m.Machines.ForgetHostKey()
 				}
 			})
@@ -117,7 +115,6 @@ func viewActiveCard(c *ui.Context, m Model, border ui.Color) {
 // viewSSHConfigCard lists importable ~/.ssh/config aliases; hidden when empty,
 // as the installed card only mounts with entries.
 func viewSSHConfigCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	s := m.Machines.Snapshot().Value
 	if !s.Tools.Loaded || len(s.Tools.SSHEntries) == 0 {
 		return
@@ -144,7 +141,7 @@ func viewSSHConfigCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color
 					caption += ")"
 				}
 				ui.Text(c, caption).Font("monospace").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
-				if widgets.Button(c, colors, label("导入", "Import"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				if coss.Button(c, label("导入", "Import"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 					d, err := entry.Draft()
 					if err != nil {
 						e.ForwardError = errcopy.Sentence(err)
@@ -161,7 +158,6 @@ func viewSSHConfigCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color
 // viewForwardsCard is the installed forwards card: a needsMachine gate, one row
 // per rule with a state tag and start/stop/remove, then the inline add row.
 func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	s := m.Machines.Snapshot().Value
 	muted := c.Theme().TextMuted
 	toolsCard(c, "remote-forwards-card", border, func() {
@@ -192,10 +188,10 @@ func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color)
 					state, action, actionLabel = label("运行中", "Running"), "stop", label("停止", "Stop")
 				}
 				ui.Text(c, state).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				if widgets.Button(c, colors, actionLabel, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				if coss.Button(c, actionLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 					m.Machines.ForwardAction(f.ID, action)
 				}
-				if widgets.Button(c, colors, label("移除", "Remove"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				if coss.Button(c, label("移除", "Remove"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 					m.Machines.ForwardAction(f.ID, "remove")
 				}
 			})
@@ -222,7 +218,7 @@ func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color)
 				coss.Input(c, &e.Forward.TargetPort, coss.InputOptions{Size: coss.InputMD, Placeholder: label("目标端口", "Target port"), Disabled: s.Busy})
 			})
 			coss.Checkbox(c, &e.Forward.AutoStart, label("自动启动", "Auto start"), coss.CheckOptions{Disabled: s.Busy || e.Forward.Direction == "reverse"})
-			if widgets.Button(c, colors, label("添加转发", "Add forward"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || strings.TrimSpace(e.Forward.ListenPort) == "").Clicked() {
+			if coss.Button(c, label("添加转发", "Add forward"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy || strings.TrimSpace(e.Forward.ListenPort) == ""}).Clicked() {
 				d := e.Forward
 				if d.Direction == "reverse" {
 					d.AutoStart = false
@@ -241,7 +237,6 @@ func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color)
 // viewAuditCard is the installed audit card: a title, a show/hide toggle and
 // the log tail (or its empty/disabled states).
 func viewAuditCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	s := m.Machines.Snapshot().Value
 	muted := c.Theme().TextMuted
 	toolsCard(c, "remote-audit-card", border, func() {
@@ -250,7 +245,7 @@ func viewAuditCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
 			if e.ShowAudit {
 				caption = label("收起审计日志", "Hide audit log")
 			}
-			if widgets.Button(c, colors, caption, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+			if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: s.Busy}).Clicked() {
 				e.ShowAudit = !e.ShowAudit
 				if e.ShowAudit {
 					m.Machines.LoadAudit()

@@ -21,8 +21,8 @@ func TestWorkspaceRowActionsGiveRestingTitleFullWidthAndPreserveTargets(t *testi
 	if !moreOK || !createOK || more.W != 16 || more.H != 16 || create.W != 16 || create.H != 16 || more.X+more.W+15 != create.X {
 		t.Fatalf("workspace glyph geometry more=%+v create=%+v", more, create)
 	}
-	if rest.W-hover.W != 47 || rest.X != hover.X || rest.H != hover.H {
-		t.Fatalf("resting title reserved actions: rest=%+v hover=%+v", rest, hover)
+	if rest != hover {
+		t.Fatalf("hover shifted workspace title seat: rest=%+v hover=%+v", rest, hover)
 	}
 	if err := tt.Click(fmt.Sprintf(workspaceText("在“%s”中新建会话", "New session in “%s”"), "Workspace A full title")); err != nil {
 		t.Fatal(err)
