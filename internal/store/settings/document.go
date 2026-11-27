@@ -89,5 +89,5 @@ func (s *Store) OnEmitMaybeRefresh(ctx context.Context, emit dsh.EventsEmit) {
 	s.mu.Lock()
 	s.lastAction = "settings document updated"
 	s.unlockPublish()
-	s.RefreshDescribe(ctx)
+	s.refreshDescribe(ctx, true)
 }

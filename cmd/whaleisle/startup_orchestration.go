@@ -194,7 +194,7 @@ func bootProgressOnly(cur, next harness.Status) bool {
 		cur.Endpoint == next.Endpoint && cur.Err == nil && next.Err == nil && cur.Source == next.Source &&
 		cur.Attempt == next.Attempt && cur.RuntimeFailure == next.RuntimeFailure && cur.Recovery == next.Recovery &&
 		cur.RecoveryActive == next.RecoveryActive && cur.RecoveryScheduled == next.RecoveryScheduled &&
-		cur.RecoveryCancelled == next.RecoveryCancelled
+		cur.RecoveryCancelled == next.RecoveryCancelled && cur.ACPMounted == next.ACPMounted
 }
 
 func reportDesktopReady(client *dsh.Client) {

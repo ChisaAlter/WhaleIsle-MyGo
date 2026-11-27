@@ -4,18 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 	assistantctl "whaleisle/internal/app/assistant"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 	assistantui "whaleisle/internal/ui/assistant"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/frame"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) assistantService() *assistantctl.Service {
@@ -60,8 +67,179 @@ func (s *mainState) gateAssistantNavigation(m *frame.Model) {
 	}
 }
 
-func (s *mainState) openWhaleFromSidebar(_ *mygo.Window) {
-	s.assistantService().OpenWhaleFromSidebar()
+func (s *mainState) openWhaleFromSidebar(win *mygo.Window) {
+	s.dshMu.Lock()
+	client := s.dshClient
+	s.dshMu.Unlock()
+	s.mu.Lock()
+	ep, bootState := s.bootStatus.Endpoint, s.bootStatus.State
+	sessions := s.sessions
+	cfgStore := s.cfgStore
+	if win == nil {
+		win = s.win
+	}
+	s.mu.Unlock()
+	if cfgStore == nil || !s.effectiveConfigFor(cfgStore).WhaleAssistantEnabled {
+		s.assistantService().OpenWhaleFromSidebar()
+		return
+	}
+	if bootState != harness.Ready || client == nil || sessions == nil {
+		s.assistantService().OpenWhaleFromSidebar()
+		return
+	}
+
+	// If the live Host already lists a healthy Whale session, switch directly
+	// through the canonical service so the user gets immediate navigation.
+	snap := sessions.Published().Value
+	liveWhaleID := ""
+	for _, item := range snap.Items {
+		if item.Presentation != nil && item.Presentation.Owner == "dsh-whale:assistant" && strings.TrimSpace(item.SessionID) != "" {
+			liveWhaleID = strings.TrimSpace(item.SessionID)
+			break
+		}
+	}
+	if liveWhaleID != "" && !(snap.SelectedID == liveWhaleID && snap.HistoryError != nil) {
+		s.mu.Lock()
+		s.whaleOpening = false
+		s.whaleOpenErr = ""
+		s.whaleOpenGen++
+		s.mu.Unlock()
+		s.assistantService().OpenWhaleFromSidebar()
+		return
+	}
+
+	// Avoid selecting an unverified disk session ID before Host confirms or
+	// creates it (which otherwise causes session/not-found and a blank canvas).
+	s.revealMainConversation()
+	s.mu.Lock()
+	s.whaleOpening = true
+	s.whaleOpenErr = ""
+	s.whaleOpenGen++
+	gen := s.whaleOpenGen
+	s.mu.Unlock()
+	if win != nil {
+		win.Invalidate()
+	}
+
+	rpc := s.pluginRPCClient(ep)
+	svc := s.assistantService()
+	asst := svc.AssistantStore()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		result, err := rpc.WhaleEnsureTyped(ctx)
+		sid := strings.TrimSpace(result.SessionID)
+		if err == nil && sid == "" {
+			err = errors.New(i18n.T(i18n.KeyCmdCanonicalSessionMissing))
+		}
+		apply := func() {
+			s.dshMu.Lock()
+			stillCurrent := s.dshClient == client
+			s.dshMu.Unlock()
+			s.mu.Lock()
+			if !stillCurrent || s.whaleOpenGen != gen {
+				s.mu.Unlock()
+				return
+			}
+			s.whaleOpening = false
+			if err != nil {
+				s.whaleOpenErr = errcopy.Under(i18n.Pick("打开鲸鱼娘对话", "Opening Whale assistant"), err)
+				s.mu.Unlock()
+				if win != nil {
+					win.Invalidate()
+				}
+				return
+			}
+			s.whaleOpenErr = ""
+			s.resumePendingSession = ""
+			s.mu.Unlock()
+			s.revokePhoneGit()
+			_, whaleName, whaleHome := svc.WhalePersistedInfo()
+			sessions.EnsureSessionPresentation(sid, "dsh-whale:assistant", whaleName, whaleHome)
+			// If this exact ID previously failed with session/not-found, clear
+			// selection first so Select(sid) restarts history/follow cleanly.
+			if cur := sessions.Published().Value; cur.SelectedID == sid && cur.HistoryError != nil {
+				sessions.Select("")
+			}
+			sessions.Select(sid)
+			if asst != nil {
+				asst.SetSessionID(sid)
+			}
+			if !sessions.SelectionSummary().ListLoading {
+				sessions.RefreshList(context.Background())
+			}
+			if win != nil {
+				win.Invalidate()
+			}
+		}
+		if win != nil && !win.IsDestroyed() {
+			win.Update(apply)
+		} else {
+			apply()
+		}
+	}()
+}
+
+func (s *mainState) renderWhaleConversationStatus(c *ui.Context, win *mygo.Window) {
+	s.mu.Lock()
+	opening := s.whaleOpening
+	openErr := s.whaleOpenErr
+	sessions := s.sessions
+	s.mu.Unlock()
+
+	whaleHistoryBroken := false
+	if sessions != nil {
+		snap := sessions.Published().Value
+		if snap.SelectedID != "" {
+			isWhale := strings.HasPrefix(snap.SelectedID, "session-whale-")
+			if !isWhale {
+				for _, item := range snap.Items {
+					if item.SessionID == snap.SelectedID && item.Presentation != nil && item.Presentation.Owner == "dsh-whale:assistant" {
+						isWhale = true
+						break
+					}
+				}
+			}
+			if isWhale && snap.HistoryError != nil && len(snap.Messages) == 0 {
+				whaleHistoryBroken = true
+			} else if !isWhale && openErr != "" && !opening {
+				s.mu.Lock()
+				s.whaleOpenErr = ""
+				s.mu.Unlock()
+				openErr = ""
+			}
+		}
+	}
+	if !opening && openErr == "" && !whaleHistoryBroken {
+		return
+	}
+	t := design.For(c)
+	ui.Column(c.Key("whale-conversation-status")).FillWidth().Padding(design.Sp(3), design.Sp(6)).Gap(design.Sp(2)).Children(func() {
+		if opening {
+			coss.Alert(c, "", i18n.Pick("正在初始化鲸鱼娘对话…", "Initializing Whale assistant conversation…"), coss.AlertOptions{
+				Variant: coss.AlertInfo,
+				Key:     "whale-opening-alert",
+			})
+			return
+		}
+		msg := openErr
+		if msg == "" {
+			msg = i18n.Pick("鲸鱼娘会话尚未就绪或已被重置，点击下方按钮重新初始化。", "The Whale assistant session is unavailable or was reset. Click below to reinitialize it.")
+		}
+		coss.Alert(c, "", msg, coss.AlertOptions{
+			Variant: coss.AlertWarning,
+			Key:     "whale-recovery-alert",
+		})
+		ui.Row(c).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+			if coss.Button(c, i18n.Pick("重新打开鲸鱼娘对话", "Retry Whale assistant"), coss.ButtonOptions{
+				Variant: coss.ButtonOutline,
+				Size:    coss.ButtonSM,
+			}).Clicked() {
+				s.openWhaleFromSidebar(win)
+			}
+			ui.Text(c, i18n.Pick("将自动同步或新建常驻对话。", "Syncs or creates the persistent assistant session automatically.")).FontSize(design.TextXS.Size).TextColor(t.MutedForeground)
+		})
+	})
 }
 
 func (s *mainState) assistantWhaleSettingsModel(ep harness.Endpoint) assistantui.WhaleSettingsModel {

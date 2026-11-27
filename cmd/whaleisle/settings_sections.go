@@ -87,6 +87,7 @@ func (s *mainState) leaveSettingsSection(m settings.Model, section settings.Sect
 	if m.Store != nil {
 		m.Store.LeaveServedForms()
 		m.Store.LeaveProviderForms()
+		m.Store.ClearTransientErrors()
 	}
 	credential := s.settingsReferencedCredentials.Snapshot()
 	if !credential.Busy {

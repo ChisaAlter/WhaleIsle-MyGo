@@ -10,7 +10,7 @@ func (s *mainState) conversationViewTabsHidden(snapshot settingsstore.ViewState)
 		return !on
 	}
 	if s.cfgStore != nil {
-		return s.cfgStore.Get().HideChatViewTabs
+		return s.effectiveConfigFor(s.cfgStore).HideChatViewTabs
 	}
 	return false
 }
@@ -27,7 +27,7 @@ func (s *mainState) saveInterfacePreferences() {
 			s.desktopDraft.showViewTabs = on
 		} else if !fallback && s.cfgStore != nil {
 			// An unresolved or unsupported Host cannot authorize the hidden draft.
-			s.desktopDraft.showViewTabs = !s.cfgStore.Get().HideChatViewTabs
+			s.desktopDraft.showViewTabs = !s.effectiveConfigFor(s.cfgStore).HideChatViewTabs
 		}
 	}
 	s.saveDesktopConfig()

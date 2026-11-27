@@ -16,13 +16,20 @@ func (s *mainState) setLocalePreference(locale string) (string, error) {
 		s.mu.Unlock()
 		return i18n.Locale(), errors.New(i18n.T(i18n.KeyCmdConfigStoreNotReady))
 	}
-	accepted := locale
-	if accepted != i18n.LocaleEN && accepted != i18n.LocaleZH {
-		accepted = s.effectiveConfigFor(cfgStore).Locale
+	accepted := i18n.Language(locale)
+	if accepted != "en" && accepted != "zh" {
+		accepted = i18n.Language(s.effectiveConfigFor(cfgStore).Locale)
+		if accepted != "en" && accepted != "zh" {
+			accepted = "zh"
+		}
 	}
 	s.desktopDraft.locale = accepted
+	win := s.win
 	s.mu.Unlock()
 	i18n.SetLocale(accepted)
 	s.enqueueConfigUpdate(cfgStore, func(c *config.Config) { c.Locale = accepted })
+	if win != nil {
+		win.Invalidate()
+	}
 	return accepted, nil
 }

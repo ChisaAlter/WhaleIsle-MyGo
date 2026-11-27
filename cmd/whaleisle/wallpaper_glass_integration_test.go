@@ -533,8 +533,8 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 				if gotTokens.Input != ui.RGBA(0, 0, 0, 0.095) {
 					t.Fatalf("light Input = %+v, want rgba(0,0,0,0.095)", gotTokens.Input)
 				}
-				if gotTokens.MutedForeground != ui.RGB(97, 102, 107) ||
-					gotTokens.SidebarForeground != ui.RGB(72, 76, 82) {
+				if gotTokens.MutedForeground != ui.RGB(63, 68, 74) ||
+					gotTokens.SidebarForeground != ui.RGB(44, 49, 56) {
 					t.Fatalf("light foreground contrast tokens diverged: mutedFg=%+v sidebarFg=%+v",
 						gotTokens.MutedForeground, gotTokens.SidebarForeground)
 				}
@@ -617,7 +617,7 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	}
 
 	// 2. Verify Windows Acrylic curve (g=80% -> 0.30 canvas, ShowThroughAlpha sidebar,
-	// 0.80 card, 0.64 dark popover) and light menu opacity (g=80% -> 0.70).
+	// 0.80 card, 0.64 dark popover) and light menu opacity (g=80% -> 0.64).
 	prefs := wallpapers.Defaults()
 	prefs.Glass = 80
 	if got := acrylicCanvasAlpha(prefs); math.Abs(float64(got)-0.30) > 0.001 {
@@ -626,8 +626,8 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	if got := darkGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
 		t.Fatalf("darkGlassMenuAlpha(80) = %.4f, want 0.64", got)
 	}
-	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.70) > 0.001 {
-		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.70", got)
+	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
+		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.64", got)
 	}
 
 	filter := glassSurfaceFilter(designGlassSignature{

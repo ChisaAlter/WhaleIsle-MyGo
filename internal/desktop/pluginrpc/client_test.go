@@ -3,6 +3,7 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -267,5 +268,29 @@ func TestCallRejectsNonLoopbackBaseURL(t *testing.T) {
 		if err := c.Call(context.Background(), "dsh-whale", "assistant/ensure", map[string]any{}, nil); err == nil {
 			t.Fatalf("expected base URL rejection for %q", base)
 		}
+	}
+}
+
+func TestCallReturnsStructuredHTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_, _ = w.Write([]byte("method not allowed"))
+	}))
+	defer srv.Close()
+
+	c := &Client{BaseURL: srv.URL}
+	err := c.Call(context.Background(), "dsh-acp-agents", "catalog", map[string]any{}, nil)
+	if err == nil {
+		t.Fatal("expected HTTP 405 error")
+	}
+	var httpErr *HTTPError
+	if !errors.As(err, &httpErr) {
+		t.Fatalf("expected *HTTPError, got %T (%v)", err, err)
+	}
+	if httpErr.StatusCode != http.StatusMethodNotAllowed || httpErr.Plugin != "dsh-acp-agents" || httpErr.Method != "catalog" {
+		t.Fatalf("unexpected HTTPError fields: %+v", httpErr)
+	}
+	if got := err.Error(); got != "pluginrpc: HTTP 405: method not allowed" {
+		t.Fatalf("Error() = %q, want backward-compatible format", got)
 	}
 }

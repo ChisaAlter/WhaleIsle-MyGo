@@ -428,6 +428,10 @@ func (s *Store) SetDraft(key, value string) {
 
 // RefreshDescribe loads settings/describe on a background goroutine.
 func (s *Store) RefreshDescribe(ctx context.Context) {
+	s.refreshDescribe(ctx, false)
+}
+
+func (s *Store) refreshDescribe(ctx context.Context, background bool) {
 	s.mu.Lock()
 	client := s.client
 	generation := s.generation
@@ -435,13 +439,16 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		s.unlockPublish()
 		return
 	}
-	s.loading = true
+	alreadyDescribed := s.describedClient == client
+	if !background || !alreadyDescribed {
+		s.loading = true
+		s.err = nil
+	}
 	s.describeRequest++
 	req := s.describeRequest
-	if s.describedClient != client {
+	if !alreadyDescribed {
 		s.describedClient = nil
 	}
-	s.err = nil
 	s.unlockPublish()
 	s.fire()
 
@@ -460,8 +467,10 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		}
 		s.loading = false
 		if err != nil {
-			s.describedClient = nil
-			s.err = err
+			if !background || s.describedClient != client {
+				s.describedClient = nil
+				s.err = err
+			}
 			s.unlockPublish()
 			s.fire()
 			return
@@ -469,17 +478,20 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		s.hasDocument = out.HasDocument
 		s.writable = out.Writable
 		s.permissionDefaults = defaults
+		sameHost := s.describedClient == client
 		nsList := make([]Namespace, 0, len(out.Namespaces))
 		for _, item := range out.Namespaces {
 			fields, fErr := BuildFields(item.Schema)
 			if fErr != nil {
-				s.describedClient = nil
-				s.err = fErr
+				if !background || !sameHost {
+					s.describedClient = nil
+					s.err = fErr
+				}
 				s.unlockPublish()
 				s.fire()
 				return
 			}
-			nsList = append(nsList, Namespace{
+			nextNS := Namespace{
 				NS:          item.Ns,
 				Revision:    item.Revision,
 				Fields:      fields,
@@ -489,7 +501,15 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 				User:        append(json.RawMessage(nil), item.User...),
 				HasSecrets:  hasSetSecrets(item.Secrets),
 				SecretPaths: configuredSecretPaths(item.Secrets),
-			})
+			}
+			// Never let an in-flight describe response regress a namespace that
+			// already landed a higher revision on the same Host.
+			if sameHost {
+				if cur := s.findNamespaceLocked(item.Ns); cur != nil && cur.Revision > nextNS.Revision {
+					nextNS = *cur
+				}
+			}
+			nsList = append(nsList, nextNS)
 		}
 		s.namespaces = nsList
 		s.onboardingCredentialEpoch++

@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"slices"
 	"time"
 	"whaleisle/internal/desktop/acp"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/harness"
 	"whaleisle/internal/ui/settings"
 )
 
@@ -17,8 +20,33 @@ type acpPanelState struct {
 	registry                []acp.RegistryAgent
 	selected, error, status string
 	loaded, busy            bool
+	unavailable             bool
 	cancel                  context.CancelFunc
 	generation              uint64
+}
+
+func isPluginNotMountedError(err error) bool {
+	var httpErr *pluginrpc.HTTPError
+	return errors.As(err, &httpErr) && (httpErr.StatusCode == 404 || httpErr.StatusCode == 405)
+}
+
+func (s *mainState) acpUnavailableLocked(client *dsh.Client) bool {
+	if s.acpPanel.unavailable {
+		return true
+	}
+	if client == nil {
+		return false
+	}
+	if s.bootStatus.State == harness.Ready && !s.bootStatus.ACPMounted {
+		return true
+	}
+	if s.cfgStore != nil {
+		disabled := s.effectiveConfigFor(s.cfgStore).DisabledPlugins
+		if slices.Contains(disabled, "dsh-acp") || slices.Contains(disabled, "dsh-acp-agents") {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *mainState) acpCurrentClient() *dsh.Client {
@@ -34,6 +62,10 @@ func (s *mainState) acpSettingsAccess() *settings.ACPAccess {
 			s.acpPanel.cancel()
 		}
 		s.acpPanel = acpPanelState{owner: client, generation: s.acpPanel.generation + 1}
+	}
+	if s.acpUnavailableLocked(client) {
+		s.mu.Unlock()
+		return nil
 	}
 	p := s.acpPanel
 	s.mu.Unlock()
@@ -83,7 +115,7 @@ func (s *mainState) runACP(method string, payload map[string]any) {
 	}
 	client := s.acpCurrentClient()
 	s.mu.Lock()
-	if client == nil || s.acpPanel.owner != client || s.acpPanel.busy {
+	if client == nil || s.acpPanel.owner != client || s.acpPanel.busy || s.acpUnavailableLocked(client) {
 		s.mu.Unlock()
 		return
 	}
@@ -122,7 +154,13 @@ func (s *mainState) runACP(method string, payload map[string]any) {
 		s.acpPanel.loaded = true
 		s.acpPanel.cancel = nil
 		if err != nil {
-			s.acpPanel.error = errcopy.Under(acpActionLead(method), err)
+			if isPluginNotMountedError(err) {
+				s.acpPanel.unavailable = true
+				s.acpPanel.error = ""
+				s.acpPanel.status = ""
+			} else {
+				s.acpPanel.error = errcopy.Under(acpActionLead(method), err)
+			}
 		} else {
 			if method == "agent/registry-search" {
 				s.acpPanel.registry = registry
@@ -133,7 +171,7 @@ func (s *mainState) runACP(method string, payload map[string]any) {
 				s.acpPanel.selected = selected
 			}
 			if method != "catalog" {
-				s.acpPanel.status = "操作已完成"
+				s.acpPanel.status = resumeText("操作已完成", "Action completed")
 			}
 		}
 		poll := false

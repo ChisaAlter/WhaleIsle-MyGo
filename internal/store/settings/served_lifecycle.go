@@ -18,3 +18,27 @@ func (s *Store) LeaveServedForms() {
 	s.unlockPublish()
 	s.fire()
 }
+
+// ClearTransientErrors clears page-level form and immediate preference errors
+// when leaving a settings section or closing settings, preventing a failure on
+// one page from polluting unrelated pages. Initial describe failures (when the
+// current Host has not been described yet) are preserved until explicit retry.
+func (s *Store) ClearTransientErrors() {
+	s.mu.Lock()
+	changed := false
+	if s.describedClient == s.client && s.err != nil {
+		s.err = nil
+		changed = true
+	}
+	if len(s.preferenceErrors) > 0 {
+		s.preferenceErrors = nil
+		changed = true
+	}
+	if changed {
+		s.viewStale = true
+	}
+	s.unlockPublish()
+	if changed {
+		s.fire()
+	}
+}

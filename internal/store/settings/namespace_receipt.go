@@ -43,9 +43,24 @@ func namespaceWriteLanded(out api.SettingsNamespaceView, patch map[string]json.R
 		return value, true
 	}
 	same := func(path []string, raw json.RawMessage) bool {
-		got, ok := read(layer, path)
 		var wanted any
-		return ok && json.Unmarshal(raw, &wanted) == nil && reflect.DeepEqual(got, wanted)
+		if json.Unmarshal(raw, &wanted) != nil {
+			return false
+		}
+		if len(out.User) == 0 {
+			got, ok := read(out.Value, path)
+			return ok && reflect.DeepEqual(got, wanted)
+		}
+		if got, ok := read(out.User, path); ok {
+			return reflect.DeepEqual(got, wanted)
+		}
+		// Host config-editor prunes overrides that equal the inherited base layer,
+		// leaving the key absent from out.User while both out.Base and out.Value
+		// hold the requested value. If out.Base differs from wanted (for example a
+		// refused provider creation where base is {} and user is {}), this stays false.
+		baseVal, baseOK := read(out.Base, path)
+		effVal, effOK := read(out.Value, path)
+		return baseOK && effOK && reflect.DeepEqual(baseVal, wanted) && reflect.DeepEqual(effVal, wanted)
 	}
 	for key, value := range patch {
 		if !same([]string{key}, value) {

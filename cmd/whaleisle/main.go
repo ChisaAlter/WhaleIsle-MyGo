@@ -343,6 +343,9 @@ type mainState struct {
 	sshConnectEpoch                         uint64
 	sshConnectCancel                        context.CancelFunc
 	whaleCatalog                            whaleCatalogState
+	whaleOpening                            bool
+	whaleOpenErr                            string
+	whaleOpenGen                            uint64
 	desktopDraft                            desktopConfigDraft
 	desktopSaveErr                          string
 	desktopLastAction                       string
@@ -692,7 +695,7 @@ func (s *mainState) seedDesktopDraft() {
 	if s.cfgStore == nil {
 		return
 	}
-	cfg := s.cfgStore.Get()
+	cfg := s.effectiveConfigFor(s.cfgStore)
 	s.desktopDraft = desktopConfigDraft{
 		harnessAutoRestart:        cfg.HarnessAutoRestart,
 		harnessRestartMaxAttempts: strconv.Itoa(cfg.HarnessRestartMaxAttempts),
@@ -746,6 +749,7 @@ func (s *mainState) saveDesktopConfig() {
 		return
 	}
 	prepared := newValidatedDesktopDraft(s.desktopDraft, port, restartPolicy, s.hostAppearanceAccepted)
+	_ = s.flushExistingConfigWriter(s.cfgStore)
 	err = s.cfgStore.Update(func(c *config.Config) {
 		prepared.apply(c)
 	})
@@ -754,7 +758,7 @@ func (s *mainState) saveDesktopConfig() {
 		s.desktopLastAction = ""
 		return
 	}
-	cfg := s.cfgStore.Get()
+	cfg := s.effectiveConfigFor(s.cfgStore)
 	s.desktopDraft.workspace, s.desktopDraft.workspaceSeed = cfg.Workspace, cfg.Workspace
 	if config.RestartPreferencesFrom(cfg) != restartPolicy {
 		s.desktopSaveErr = i18n.T(i18n.KeyCmdRestartPolicyNotSaved)
@@ -1215,7 +1219,7 @@ func (s *mainState) syncHarnessFromConfig() {
 	if store == nil || sup == nil {
 		return
 	}
-	cfg := store.Get()
+	cfg := s.effectiveConfigFor(store)
 	sup.SetSkipUserPlugins(cfg.SkipUserPlugins)
 	sup.SetPrepareOptions(harness.PrepareOptions{
 		DisabledPlugins: cfg.DisabledPlugins,
@@ -1811,11 +1815,12 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	// A retained interaction store still owns the previous Host's refresh hook.
 	// SetAutoAllow publishes synchronously; that hook may re-enter mainState.
 	if interactionConfig != nil {
-		inter.SetAutoAllow(interactionConfig.Get().AutoAllowTools)
+		inter.SetAutoAllow(s.effectiveConfigFor(interactionConfig).AutoAllowTools)
 	}
 	var refreshQueued atomic.Bool
 	var viewTabsHydrated atomic.Bool
 	var inventoryReleased atomic.Bool
+	var modelCatalogRetried atomic.Bool
 	var wasStreaming atomic.Bool
 	flushRefresh := func() {
 		s.noteNativeUIActivity()
@@ -1859,6 +1864,11 @@ func (s *mainState) syncDialogue(st harness.Status) {
 				if s.marketCoordinator().WorkspaceReady(client) {
 					inventoryReleased.Store(true)
 				}
+			}
+		}
+		if v.ClientReady && v.SelectedModel != "" && len(v.ModelLabels) == 0 && v.ModelsErr == nil && !sessions.ModelCatalogPending() {
+			if modelCatalogRetried.CompareAndSwap(false, true) {
+				sessions.RefreshModelCatalog(ctx)
 			}
 		}
 		streaming := v.PromptBusy || v.StopTurnSeq != 0
@@ -2102,6 +2112,9 @@ func (s *mainState) runDSH(ctx context.Context, startupGen uint64, client *dsh.C
 						}
 						if sessions != nil {
 							sessions.OnEmit(eventsOwner, emit)
+							if emit.Event == "llm/adapters-updated" || emit.Event == "credentials/reference-updated" || emit.Event == "llm/providers-updated" {
+								sessions.RefreshModelCatalog(ctx)
+							}
 						}
 					})
 				},
@@ -4110,7 +4123,7 @@ func mainView(c *ui.Context) {
 				wantWallpaperChoices := (desktopActive || appearanceActive) && !embeddedActive
 				var restartPolicy *config.RestartPreferences
 				if (desktopActive || aboutActive) && !embeddedActive && state.cfgStore != nil {
-					savedPolicy := config.RestartPreferencesFrom(state.cfgStore.Get())
+					savedPolicy := config.RestartPreferencesFrom(state.effectiveConfigFor(state.cfgStore))
 					restartPolicy = &savedPolicy
 				}
 				desktopFields := settings.DesktopFields{
@@ -4205,7 +4218,7 @@ func mainView(c *ui.Context) {
 						OnOpenUpdatePreferences: func() { state.navigateMainRoute(routeUpdatePreferences) },
 					}
 				}
-				accountSection := &settings.AccountAccess{}
+				var accountSection *settings.AccountAccess
 				if accountActive && !embeddedActive {
 					usageSnap := usagestore.ViewState{}
 					if usageStore != nil {
@@ -4284,7 +4297,17 @@ func mainView(c *ui.Context) {
 						},
 					}
 				} else if usageStore != nil {
-					accountSection.Status = usageStore.Snapshot().Value.AccountStatus
+					usageSnap := usageStore.Snapshot().Value
+					status := usageSnap.AccountStatus
+					if status == "" && (strings.TrimSpace(usageSnap.Name) != "" || strings.TrimSpace(usageSnap.Email) != "") {
+						status = "credential-stored"
+					}
+					accountSection = &settings.AccountAccess{
+						ClientReady: usageSnap.ClientReady,
+						Status:      status,
+						Email:       usageSnap.Email,
+						Name:        usageSnap.Name,
+					}
 				}
 				credentialsSection := &settings.CredentialsAccess{}
 				if credsActive && !embeddedActive {
@@ -6053,6 +6076,14 @@ func mainView(c *ui.Context) {
 							}
 						},
 						OnPickHeroWorkspace: func() {
+							if sessions != nil {
+								if req := sessions.Published().Value.WorkspaceNavigation; req != nil && req.Mode == "pick" {
+									if !req.Busy {
+										sessions.CancelWorkspaceNavigation(req.Token)
+									}
+									return
+								}
+							}
 							state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
 						},
 						WorkspacePickerAnchor: &state.workspacePickerAnchor,
