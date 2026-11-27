@@ -61,7 +61,6 @@ const (
 // normal font stack. Claude's CSS places Inter before custom interface fonts
 // and fixes conversation prose independently of user font selections.
 func FontForSkin(p Preferences, skin string, role SkinFontRole) FontPreference {
-	EnsureSkinFonts()
 	var font FontPreference
 	switch role {
 	case SkinProseFont:
@@ -74,6 +73,7 @@ func FontForSkin(p Preferences, skin string, role SkinFontRole) FontPreference {
 	if skin != SkinClaude {
 		return font
 	}
+	EnsureSkinFonts()
 	if role == SkinInterfaceFont {
 		if !strings.HasPrefix(font.Family, `"Inter", `) {
 			font.Family = `"Inter", ` + font.Family
