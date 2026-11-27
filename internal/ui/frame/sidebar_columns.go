@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
@@ -192,8 +193,16 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 			main.Transition(shellTrackTransition)
 		}
 		main.Children(center)
-		border := tk(c).Border
-		div.Draw(func(p *ui.Painter, r ui.Rect) { design.DrawHairline(p, r, true, border) })
+		t := tk(c)
+		border := t.Border
+		canvasFill := frameCanvasFill(t)
+		splitBackdrop := chrome.BackdropActive()
+		div.Draw(func(p *ui.Painter, r ui.Rect) {
+			if splitBackdrop && canvasFill.A > 0 {
+				p.Fill(r, canvasFill, 0)
+			}
+			design.DrawHairline(p, r, true, border)
+		})
 		if !open {
 			drag.active = false
 			return

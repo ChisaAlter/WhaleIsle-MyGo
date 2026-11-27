@@ -26,6 +26,17 @@ type Painter struct {
 	// elements painting with an opaque background around the one painting.
 	opaque bool
 	under  []Rect
+	seam   borderSeam
+}
+
+type borderSeamEdge struct {
+	dip float32
+	px  float32
+	on  bool
+}
+
+type borderSeam struct {
+	top, right, bottom, left borderSeamEdge
 }
 
 // continuousCorners curves rounded corners as Apple does, on macOS, where
@@ -100,6 +111,27 @@ func (p *Painter) snap(r Rect) scene.Rect {
 	x0, y0 := round(r.X*s), round(r.Y*s)
 	x1, y1 := round((r.X+r.W)*s), round((r.Y+r.H)*s)
 	return scene.Rect{X: x0, Y: y0, W: x1 - x0, H: y1 - y0}
+}
+
+// snapBox snaps r to device pixels and closes any 1px subpixel seam against an
+// ancestor's Blink-floored physical border without altering DIP layout boxes.
+func (p *Painter) snapBox(r Rect) scene.Rect {
+	d := p.snap(r)
+	if p.seam.left.on && abs32(r.X-p.seam.left.dip) < 0.01 && d.X > p.seam.left.px {
+		d.W += d.X - p.seam.left.px
+		d.X = p.seam.left.px
+	}
+	if p.seam.top.on && abs32(r.Y-p.seam.top.dip) < 0.01 && d.Y > p.seam.top.px {
+		d.H += d.Y - p.seam.top.px
+		d.Y = p.seam.top.px
+	}
+	if p.seam.right.on && abs32(r.X+r.W-p.seam.right.dip) < 0.01 && d.X+d.W < p.seam.right.px {
+		d.W = p.seam.right.px - d.X
+	}
+	if p.seam.bottom.on && abs32(r.Y+r.H-p.seam.bottom.dip) < 0.01 && d.Y+d.H < p.seam.bottom.px {
+		d.H = p.seam.bottom.px - d.Y
+	}
+	return d
 }
 
 func round(v float32) float32 { return float32(math.Round(float64(v))) }
@@ -214,9 +246,12 @@ func (p *Painter) elementBody(e *node) {
 		}
 	}
 	savedClip := p.clip
+	savedSeam := p.seam
 	if clips {
-		inner, rad := e.clipRect()
-		p.pushClip(inner, rad)
+		p.pushElementClip(e, box)
+	}
+	if scene.HasBorder(e.border) {
+		p.enterBorderSeam(e, box)
 	}
 	if !clips || p.clip.W > 0 && p.clip.H > 0 {
 		if e.ghosts {
@@ -241,6 +276,7 @@ func (p *Painter) elementBody(e *node) {
 			}
 		}
 	}
+	p.seam = savedSeam
 	if clips {
 		p.popClip()
 		p.clip = savedClip
@@ -304,6 +340,61 @@ func (e *node) clipRect() (Rect, [4]float32) {
 	return r, rad
 }
 
+// pushElementClip pushes e's inner clip rect directly in snapped device pixels
+// using p.borders(e.border), keeping the clip edge bit-exact with the painted
+// border across all fractional DPI scales (125%, 150%, 175%, 250%).
+func (p *Painter) pushElementClip(e *node, box Rect) {
+	d := p.snapBox(box)
+	bw := p.borders(e.border)
+	r := scene.Rect{
+		X: d.X + bw[3],
+		Y: d.Y + bw[0],
+		W: max(d.W-bw[1]-bw[3], 0),
+		H: max(d.H-bw[0]-bw[2], 0),
+	}
+	inner := Rect{X: r.X / p.scale, Y: r.Y / p.scale, W: r.W / p.scale, H: r.H / p.scale}
+	var rad [4]float32
+	all := e.flags&(flagScrollX|flagScrollY) != 0 || e.flags&flagClip == flagClip
+	if all {
+		for i, side := range [4][2]int{{0, 3}, {0, 1}, {2, 1}, {2, 3}} {
+			rad[i] = max(e.radius[i]*p.scale-max(bw[side[0]], bw[side[1]]), 0)
+		}
+	} else {
+		const far = 1e6
+		if e.flags&flagClipX == 0 {
+			r.X, r.W = -far, 2*far
+			inner.X, inner.W = -far, 2*far
+		}
+		if e.flags&flagClipY == 0 {
+			r.Y, r.H = -far, 2*far
+			inner.Y, inner.H = -far, 2*far
+		}
+	}
+	p.clip = intersect(p.clip, inner)
+	p.s.Ops = append(p.s.Ops, scene.Op{Kind: scene.OpPushClip, Rect: r, Radii: rad, Continuous: continuousCorners})
+}
+
+func (p *Painter) enterBorderSeam(e *node, box Rect) {
+	d := p.snapBox(box)
+	bw := p.borders(e.border)
+	if e.border[3] > 0 {
+		lay, px := e.x+e.border[3], d.X+bw[3]
+		p.seam.left = borderSeamEdge{dip: lay, px: px, on: round(lay*p.scale) > px}
+	}
+	if e.border[0] > 0 {
+		lay, px := e.y+e.border[0], d.Y+bw[0]
+		p.seam.top = borderSeamEdge{dip: lay, px: px, on: round(lay*p.scale) > px}
+	}
+	if e.border[1] > 0 {
+		lay, px := e.x+e.w-e.border[1], d.X+d.W-bw[1]
+		p.seam.right = borderSeamEdge{dip: lay, px: px, on: round(lay*p.scale) < px}
+	}
+	if e.border[2] > 0 {
+		lay, px := e.y+e.h-e.border[2], d.Y+d.H-bw[2]
+		p.seam.bottom = borderSeamEdge{dip: lay, px: px, on: round(lay*p.scale) < px}
+	}
+}
+
 // linePixels converts a positive border or divider width in DIPs to whole
 // device pixels: hairline widths up to 1 DIP floor to whole pixels (at least
 // 1px), matching Blink so 1 DIP stays 1px at 100%–175% DPI and steps to 2px at
@@ -361,7 +452,7 @@ func (p *Painter) background(e *node, box Rect, withBorder bool) {
 	if !visible && !border {
 		return
 	}
-	op := scene.Op{Kind: scene.OpFill, Rect: p.snap(box), Radii: p.radii(e.radius), Continuous: continuousCorners, Color: e.bg.scene(), Opacity: p.opacity}
+	op := scene.Op{Kind: scene.OpFill, Rect: p.snapBox(box), Radii: p.radii(e.radius), Continuous: continuousCorners, Color: e.bg.scene(), Opacity: p.opacity}
 	var bc Color // the border's, if op draws it
 	if border {
 		op.Border, op.BorderColor, op.Dashed = p.borders(e.border), e.borderC.scene(), e.borderStyle == BorderDashed
@@ -386,7 +477,7 @@ func (p *Painter) background(e *node, box Rect, withBorder bool) {
 
 // border paints e's border alone.
 func (p *Painter) border(e *node, box Rect) {
-	p.s.Ops = append(p.s.Ops, scene.Op{Kind: scene.OpFill, Rect: p.snap(box), Radii: p.radii(e.radius), Continuous: continuousCorners, Opacity: p.opacity,
+	p.s.Ops = append(p.s.Ops, scene.Op{Kind: scene.OpFill, Rect: p.snapBox(box), Radii: p.radii(e.radius), Continuous: continuousCorners, Opacity: p.opacity,
 		Border: p.borders(e.border), BorderColor: e.borderC.scene(), Dashed: e.borderStyle == BorderDashed, Wide: p.wide(Color{}, Color{}, e.borderC)})
 }
 

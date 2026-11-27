@@ -132,3 +132,112 @@ func TestFontSizePillArrowsStayGhostTransparentOnFrost(t *testing.T) {
 		t.Fatalf("font size arrow painted background patch on FrostSurface: arrowCorner=%v pillNeighbor=%v (diff=%d)", arrowCorner, pillNeighbor, diff)
 	}
 }
+
+// TestSettingsGlassSwitchThumbAndFocusContrast verifies that in frosted glass
+// mode (where t.Background is translucent ~24–30%), switch knobs stay crisp
+// opaque with >= 3.5:1 contrast on the ON track, keyboard focus rings reach
+// WCAG >= 3:1 on light/dark glass panels, and selected Appearance color-scheme
+// tiles render a >= 3:1 1px border.
+func TestSettingsGlassSwitchThumbAndFocusContrast(t *testing.T) {
+	t.Cleanup(func() { design.SetGlass(false, nil) })
+	design.SetGlass(true, func(s design.Scheme, p *design.Palette) {
+		if s == design.Dark {
+			p.Background = ui.RGBA(21, 21, 23, 0.30)
+		} else {
+			p.Background = ui.RGBA(255, 255, 255, 0.24)
+		}
+	})
+
+	for _, tc := range []struct {
+		name     string
+		dark     bool
+		accent   ui.Color
+		backdrop ui.Color
+	}{
+		{"light-glass", false, ui.Hex("#4176e6"), ui.RGB(208, 220, 229)},
+		{"dark-glass", true, ui.Hex("#7aaaff"), ui.RGB(32, 34, 40)},
+		{"dark-neutral-gray", true, ui.Hex("#52525b"), ui.RGB(32, 34, 40)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, kind := range []string{"settingsPreferenceSwitch", "settingsToggle"} {
+				t.Run(kind, func(t *testing.T) {
+					on := true
+					tt := ui.NewTester(func(c *ui.Context) {
+						if tc.dark {
+							c.SetTheme(ui.DarkTheme())
+							design.Bind(c, design.Dark, tc.accent, ui.Color{})
+						} else {
+							c.SetTheme(ui.LightTheme())
+							design.Bind(c, design.Light, tc.accent, ui.Color{})
+						}
+						ui.Column(c).Fill().Padding(24).Background(tc.backdrop).Children(func() {
+							if kind == "settingsPreferenceSwitch" {
+								settingsPreferenceSwitch(c, &on, settingsSwitchLabelled).Label("Glass switch")
+							} else {
+								settingsToggle(c, "Glass switch", &on, false)
+							}
+						})
+					}, 160, 100)
+					tt.Key(0, ui.KeyTab)
+					tt.Frame()
+					rect, ok := tt.Find("Glass switch")
+					if !ok {
+						t.Fatalf("%s bounds missing", kind)
+					}
+					img := tt.Image()
+					// 1. Opaque switch knob center (x+21, y+9) must achieve >= 3.5:1 on ON track.
+					knobPx := img.RGBAAt(int(rect.X)+21, int(rect.Y)+9)
+					knobCol := ui.RGBA(knobPx.R, knobPx.G, knobPx.B, 1)
+					if c := design.Contrast(knobCol, tc.accent); c < 3.5 {
+						t.Fatalf("%s glass ON thumb %v on track %v contrast %.2f < 3.5", kind, knobPx, tc.accent, c)
+					}
+					// 2. Stroked keyboard focus ring above track must achieve WCAG >= 3.0:1 on glass backdrop.
+					ringPx := img.RGBAAt(int(rect.X+rect.W/2), int(rect.Y-design.RingOffset-design.RingWidth/2))
+					ringCol := ui.RGBA(ringPx.R, ringPx.G, ringPx.B, 1)
+					if c := design.Contrast(ringCol, tc.backdrop); c < 3.0 {
+						t.Fatalf("%s glass focus ring %v on backdrop %v contrast %.2f < 3.0", kind, ringPx, tc.backdrop, c)
+					}
+				})
+			}
+
+			// 3. Appearance selected color-scheme card 1px border must reach WCAG >= 3.0:1.
+			selectedTheme := theme.IDDeepseekLight
+			if tc.dark {
+				selectedTheme = theme.IDDeepseekDark
+			}
+			ttApp := ui.NewTester(func(c *ui.Context) {
+				if tc.dark {
+					c.SetTheme(ui.DarkTheme())
+					design.Bind(c, design.Dark, tc.accent, ui.Color{})
+				} else {
+					c.SetTheme(ui.LightTheme())
+					design.Bind(c, design.Light, tc.accent, ui.Color{})
+				}
+				ui.Column(c).Fill().Padding(16).Background(tc.backdrop).Children(func() {
+					appearancePane(c, Model{
+						ThemeID:    selectedTheme,
+						SystemDark: tc.dark,
+						Appearance: &AppearanceAccess{
+							Theme:      &selectedTheme,
+							OnSetTheme: func(string) error { return nil },
+						},
+					}, tk(c).Foreground, tk(c).MutedForeground)
+				})
+			}, 720, 260)
+			ttApp.Frame()
+			cardLabel := providerCopy("浅色", "Light")
+			if tc.dark {
+				cardLabel = providerCopy("深色", "Dark")
+			}
+			cardRect, ok := ttApp.Find(cardLabel)
+			if !ok {
+				t.Fatalf("%s missing selected scheme tile %q: %v", tc.name, cardLabel, ttApp.Texts())
+			}
+			borderPx := ttApp.Image().RGBAAt(int(cardRect.X+cardRect.W/2), int(cardRect.Y))
+			borderCol := ui.RGBA(borderPx.R, borderPx.G, borderPx.B, 1)
+			if c := design.Contrast(borderCol, tc.backdrop); c < 3.0 {
+				t.Fatalf("%s selected appearance card 1px border %v on backdrop %v contrast %.2f < 3.0", tc.name, borderPx, tc.backdrop, c)
+			}
+		})
+	}
+}

@@ -594,3 +594,61 @@ func TestGlassRimAndSeparator150DPIPhysicalPixelPrecision(t *testing.T) {
 		}
 	}
 }
+
+func TestCossInputSliderAndSwitchWCAGContrastAndOpaqueThumbInGlass(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, func(s design.Scheme, p *design.Palette) {
+		if s == design.Dark {
+			p.Background = ui.RGBA(21, 21, 23, 0.30)
+		} else {
+			p.Background = ui.RGBA(255, 255, 255, 0.24)
+		}
+	})
+
+	for _, tc := range []struct {
+		name   string
+		dark   bool
+		accent ui.Color
+		bg     ui.Color
+	}{
+		{"light-deepseek", false, ui.Hex("#4176e6"), ui.RGB(208, 220, 229)},
+		{"dark-deepseek", true, ui.Hex("#7aaaff"), ui.RGB(32, 34, 40)},
+		{"dark-neutral-gray", true, ui.Hex("#52525b"), ui.RGB(32, 34, 40)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			val := "hello"
+			on := true
+			var inRect, swRect ui.Rect
+			tt := ui.NewTester(func(c *ui.Context) {
+				setTheme(c, tc.dark)
+				scheme := design.Light
+				if tc.dark {
+					scheme = design.Dark
+				}
+				design.Bind(c, scheme, tc.accent, ui.Color{})
+				ui.Column(c).Fill().Background(tc.bg).Padding(16).Gap(12).Children(func() {
+					inRect = Input(c, &val, InputOptions{Label: "Probe input"}).Bounds()
+					swRect = Switch(c, &on, "", CheckOptions{Label: "Probe switch"}).Bounds()
+				})
+			}, 260, 140)
+			tt.Frame()
+			tt.Key(0, ui.KeyTab)
+			tt.Frame()
+			img := tt.Image()
+			// Focused input 1px border (outer control sits 1 DIP above inner TextInputBase)
+			// must reach >= 3:1 against the glass panel backdrop.
+			borderPx := img.RGBAAt(int(inRect.X+inRect.W/2), int(inRect.Y)-1)
+			borderCol := ui.RGBA(borderPx.R, borderPx.G, borderPx.B, 1)
+			if c := design.Contrast(borderCol, tc.bg); c < 3.0 {
+				t.Fatalf("%s focused Input border %v on %v contrast %.2f < 3.0", tc.name, borderPx, tc.bg, c)
+			}
+			// Switch ON thumb in glass mode must stay opaque with >= 3.5:1 against Primary track.
+			// Track is 30x18; ON thumb sits at [x+13, x+29], center x+21, y+9.
+			thumbPx := img.RGBAAt(int(swRect.X)+21, int(swRect.Y)+9)
+			thumbCol := ui.RGBA(thumbPx.R, thumbPx.G, thumbPx.B, 1)
+			if c := design.Contrast(thumbCol, tc.accent); c < 3.5 {
+				t.Fatalf("%s glass Switch ON thumb %v on track %v contrast %.2f < 3.5", tc.name, thumbPx, tc.accent, c)
+			}
+		})
+	}
+}

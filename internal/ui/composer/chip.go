@@ -59,12 +59,12 @@ func composerCardFill(t *design.Tokens) ui.Color {
 }
 
 const (
-	composerFocusBorderAlphaLight = float32(0.55)
-	composerFocusBorderAlphaDark  = float32(0.62)
+	composerFocusBorderAlphaLight = float32(0.95)
+	composerFocusBorderAlphaDark  = float32(0.88)
 	composerFocusHaloSpread       = float32(2)
 	composerFocusHaloBlur         = float32(2)
-	composerFocusHaloAlphaLight   = float32(0.20)
-	composerFocusHaloAlphaDark    = float32(0.24)
+	composerFocusHaloAlphaLight   = float32(0.22)
+	composerFocusHaloAlphaDark    = float32(0.26)
 )
 
 // composerFocusBase returns the full-opacity focus hue so the composer card's

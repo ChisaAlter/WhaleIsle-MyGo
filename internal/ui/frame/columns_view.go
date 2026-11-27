@@ -146,7 +146,12 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func(), hasSha
 			drag.active = false
 		}
 		t := tk(c)
+		splitBackdrop := frameSplitBackdropColumns(m)
+		canvasFill := frameCanvasFill(t)
 		div.Draw(func(p *ui.Painter, r ui.Rect) {
+			if splitBackdrop && canvasFill.A > 0 {
+				p.Fill(r, canvasFill, 0)
+			}
 			color := t.Border
 			if held || handle.Hovered() {
 				color = t.Primary

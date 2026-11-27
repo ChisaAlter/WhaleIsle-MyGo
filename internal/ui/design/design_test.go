@@ -21,24 +21,42 @@ func TestPalettesMatchSpec(t *testing.T) {
 
 func TestAccentOverrideIsReadable(t *testing.T) {
 	for _, accent := range []ui.Color{
-		ui.Hex("#4176e6"), ui.Hex("#7aaaff"), ui.Hex("#ffff00"), ui.Hex("#777777"), ui.Hex("#000000"), ui.Hex("#ffffff"), ui.Hex("#e11d48"),
+		ui.Hex("#4176e6"), ui.Hex("#4d6bfe"), ui.Hex("#7aaaff"), ui.Hex("#52525b"), ui.Hex("#ffff00"), ui.Hex("#777777"), ui.Hex("#000000"), ui.Hex("#ffffff"), ui.Hex("#e11d48"),
 	} {
 		for _, s := range []Scheme{Light, Dark} {
 			tk := Resolve(s, accent, ui.Color{})
-			wantRing := accent.Alpha(0.36)
-			if s == Dark {
-				wantRing = accent.Alpha(0.42)
-			}
+			wantRing := AccessibleRing(s, accent)
 			if tk.Primary != accent || tk.Ring != wantRing || tk.SidebarRing != wantRing {
 				t.Fatalf("scheme %d accent %v: primary=%v ring=%v sidebarRing=%v wantRing=%v", s, accent, tk.Primary, tk.Ring, tk.SidebarRing, wantRing)
 			}
 			if c := Contrast(tk.PrimaryForeground, tk.Primary); c < 4.5 {
 				t.Fatalf("accent %v foreground %v contrast %.2f", accent, tk.PrimaryForeground, c)
 			}
+			bg := Base(s).Background
+			glassBg := ui.Color{R: 208, G: 220, B: 229, A: 255}
+			if s == Dark {
+				glassBg = ui.Color{R: 32, G: 34, B: 40, A: 255}
+			}
+			if c := Contrast(tk.Ring.Over(bg), bg); c < 3.0 {
+				t.Fatalf("scheme %d accent %v ring %v on solid bg %v contrast %.2f < 3.0", s, accent, tk.Ring, bg, c)
+			}
+			if c := Contrast(tk.Ring.Over(glassBg), glassBg); c < 3.0 {
+				t.Fatalf("scheme %d accent %v ring %v on glass bg %v contrast %.2f < 3.0", s, accent, tk.Ring, glassBg, c)
+			}
 		}
 	}
-	if tk := Resolve(Light, ui.Transparent, ui.Color{}); tk.Primary != cossLight.Primary {
-		t.Fatalf("transparent accent should keep coss primary")
+	for _, s := range []Scheme{Light, Dark} {
+		tk := Resolve(s, ui.Transparent, ui.Color{})
+		if tk.Primary != Base(s).Primary {
+			t.Fatalf("scheme %d transparent accent should keep coss primary", s)
+		}
+		bg := Base(s).Background
+		if c := Contrast(tk.Ring.Over(bg), bg); c < 3.0 {
+			t.Fatalf("scheme %d neutral default ring %v on %v contrast %.2f < 3.0", s, tk.Ring, bg, c)
+		}
+		if c := Contrast(tk.SidebarRing.Over(bg), bg); c < 3.0 {
+			t.Fatalf("scheme %d neutral default sidebar ring %v on %v contrast %.2f < 3.0", s, tk.SidebarRing, bg, c)
+		}
 	}
 }
 

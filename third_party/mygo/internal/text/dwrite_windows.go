@@ -1464,6 +1464,10 @@ func (e *dwrite) register(data []byte, family string) error {
 			delete(e.faces, k)
 		}
 	}
+	for k, fb := range e.fallbacks {
+		release(fb)
+		delete(e.fallbacks, k)
+	}
 	return nil
 }
 

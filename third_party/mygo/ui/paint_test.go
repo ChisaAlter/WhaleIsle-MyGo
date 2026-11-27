@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"image"
+	"image/color"
 	"math"
 	"testing"
 
@@ -255,6 +256,97 @@ func TestOneDIPBordersAndDividersPhysicalPixels(t *testing.T) {
 		}
 		if redRows != int(tc.want1px) {
 			t.Errorf("scale %.2f: rendered 1 DIP top border is %d px thick, want %d px", tc.scale, redRows, int(tc.want1px))
+		}
+	}
+}
+
+// TestBorderOneClipNoGapAtFractionalDPI pins that a Border(1, blue).Clip()
+// container with a flush red child over a green backdrop renders [G B... R...]
+// with zero 1px green inner-gap bleed across 100%/125%/150%/175%/200%/250% DPI
+// and across all subpixel x/y parities on all four sides.
+func TestBorderOneClipNoGapAtFractionalDPI(t *testing.T) {
+	green := RGB(20, 200, 40)
+	blue := RGB(20, 60, 230)
+	red := RGB(230, 30, 30)
+	classify := func(c color.RGBA) byte {
+		switch {
+		case c.G > 140 && c.R < 80 && c.B < 100:
+			return 'G'
+		case c.B > 150 && c.R < 80 && c.G < 120:
+			return 'B'
+		case c.R > 160 && c.G < 80 && c.B < 80:
+			return 'R'
+		default:
+			return '?'
+		}
+	}
+
+	scales := []struct {
+		scale  float32
+		wantPx int
+	}{
+		{1.0, 1},
+		{1.25, 1},
+		{1.5, 1},
+		{1.75, 1},
+		{2.0, 2},
+		{2.5, 2},
+	}
+
+	for _, sc := range scales {
+		for _, off := range []float32{10, 11, 12, 13} {
+			for _, nested := range []bool{false, true} {
+				var innerRect Rect
+				tt := coreNewTester(func(c *context) {
+					coreBox(c).Fill().Background(green).Children(func() {
+						coreBox(c).Absolute().Left(off).Top(off).Size(40, 40).Border(1, blue).Clip().Children(func() {
+							if nested {
+								coreRow(c).Fill().Children(func() {
+									innerRect = coreBox(c).Fill().Background(red).Bounds()
+								})
+							} else {
+								innerRect = coreBox(c).Fill().Background(red).Bounds()
+							}
+						})
+					})
+				}, 80, 80)
+				tt.SetScale(sc.scale)
+				tt.Frame()
+				// Layout remains DIP-invariant across fractional DPI scales.
+				if innerRect.W != 38 || innerRect.H != 38 {
+					t.Fatalf("scale=%.2f off=%g nested=%v layout drifted from DIP-invariant 38x38: %+v", sc.scale, off, nested, innerRect)
+				}
+
+				img := tt.Image()
+				x0 := int(round(off * sc.scale))
+				x1 := int(round((off + 40) * sc.scale))
+				y0 := int(round(off * sc.scale))
+				y1 := int(round((off + 40) * sc.scale))
+				midX := (x0 + x1) / 2
+				midY := (y0 + y1) / 2
+
+				checkRun := func(side string, sample func(i int) color.RGBA, n int) {
+					t.Helper()
+					if got := classify(sample(-1)); got != 'G' {
+						t.Fatalf("scale=%.2f off=%g nested=%v %s outside=%c (%v), want G", sc.scale, off, nested, side, got, sample(-1))
+					}
+					for i := 0; i < sc.wantPx; i++ {
+						if got := classify(sample(i)); got != 'B' {
+							t.Fatalf("scale=%.2f off=%g nested=%v %s border[%d]=%c (%v), want B", sc.scale, off, nested, side, i, got, sample(i))
+						}
+					}
+					for i := sc.wantPx; i < sc.wantPx+4 && i < n; i++ {
+						if got := classify(sample(i)); got != 'R' {
+							t.Fatalf("scale=%.2f off=%g nested=%v %s inner[%d]=%c (%v), want R (1px seam bleed!)", sc.scale, off, nested, side, i, got, sample(i))
+						}
+					}
+				}
+
+				checkRun("left", func(i int) color.RGBA { return img.RGBAAt(x0+i, midY) }, x1-x0)
+				checkRun("right", func(i int) color.RGBA { return img.RGBAAt(x1-1-i, midY) }, x1-x0)
+				checkRun("top", func(i int) color.RGBA { return img.RGBAAt(midX, y0+i) }, y1-y0)
+				checkRun("bottom", func(i int) color.RGBA { return img.RGBAAt(midX, y1-1-i) }, y1-y0)
+			}
 		}
 	}
 }

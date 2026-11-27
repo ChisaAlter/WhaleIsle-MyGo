@@ -194,7 +194,14 @@ func Switch(c *ui.Context, on *bool, label string, o CheckOptions) ui.Element {
 			}
 		}
 		track.Children(func() {
-			th := ui.Box(c).Size(w, thumb).Radius(design.RadiusFull).Background(t.Background).Margin(0, 0, 0, x)
+			thumbCol := t.Background
+			if thumbCol.A < 255 {
+				thumbCol = design.Base(t.Scheme).Background
+			}
+			if design.Contrast(thumbCol, t.Primary) < 3.5 {
+				thumbCol = design.ReadableOn(t.Primary)
+			}
+			th := ui.Box(c).Size(w, thumb).Radius(design.RadiusFull).Background(thumbCol).Margin(0, 0, 0, x)
 			var ts shadowList
 			ts.scale(design.ShadowSm, black, 0.05)
 			finish(th, &ts, nil)
@@ -537,17 +544,14 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 			bc = t.Background
 		}
 		if focus {
+			bc = t.Ring
+			base := t.Ring
+			base.A = 255
 			a := design.InputRingAlpha
 			if dark {
-				a = 0.48
+				a = 0.26
 			}
-			if t.Ring.A < 255 {
-				a = 0.50
-				if dark {
-					a = 0.65
-				}
-			}
-			p.Shadow(k, size/2, 0, 0, 1, design.InputRingWidth, t.Ring.Alpha(a))
+			p.Shadow(k, size/2, 0, 0, 1, design.InputRingWidth, base.Alpha(a))
 		} else if !dragging {
 			p.Shadow(k, size/2, 0, 1, 2, 0, black.Alpha(0.05))
 		}

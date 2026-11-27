@@ -353,7 +353,6 @@ func View(c *ui.Context, m Model) {
 	m.workspaceWatermarks = ui.Local(root, "workspace-watermarks", func() workspaceWatermarkState { return workspaceWatermarkState{} })
 	m.sidebarDrag = ui.Local(root, "sidebar-drag-state", func() sidebarDragState { return sidebarDragState{} })
 	fill := t.Sidebar
-	glassHairline := false
 	sidebarBackdropFill := func() {
 		mat := chrome.MaterialSidebar
 		base := fill
@@ -369,7 +368,6 @@ func View(c *ui.Context, m Model) {
 		}
 		if skinLayout.Skin != theme.SkinCodex && chrome.BackdropActive() {
 			sidebarBackdropFill()
-			glassHairline = true
 		} else {
 			root.Background(fill).Radius(0)
 			root.DrawOver(func(p *ui.Painter, r ui.Rect) {
@@ -378,18 +376,10 @@ func View(c *ui.Context, m Model) {
 		}
 	} else if chrome.BackdropActive() {
 		sidebarBackdropFill()
-		glassHairline = true
 	} else {
 		root.Background(fill).Radius(0)
-		if t.Glass {
-			glassHairline = true
-		}
 	}
 	root.Children(func() {
-		if glassHairline {
-			ui.Box(c.Key("sidebar-glass-hairline")).Absolute().Right(0).Top(0).Bottom(0).Width(1).
-				BorderWidth(0, design.BorderWidth*0.5, 0, 0).BorderColor(border).PassThrough()
-		}
 		if m.Collapsed {
 			rail := ui.Column(c.Key("sidebar-rail-content")).FillWidth().Grow(1).MinHeight(0)
 			if !c.Preferences().ReduceMotion {

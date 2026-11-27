@@ -140,8 +140,7 @@ func modelCandidateRow(c *ui.Context, key string, candidate providerdiscovery.Ca
 		row.Background(t.Muted)
 	}
 	if focused {
-		row.Shadow(0, 0, 0, design.RingOffset, t.Background).
-			Shadow(0, 0, 0, design.RingOffset+design.RingWidth, t.Ring)
+		row.Shadow(0, 0, 0, design.RingWidth, t.Ring)
 	}
 	row.Children(func() {
 		box := ui.Box(c).Size(16, 16).Radius(4).Center().Shrink(0)

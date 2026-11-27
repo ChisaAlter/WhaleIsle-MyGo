@@ -30,18 +30,31 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 	if copied {
 		c.After(copiedUntil.Sub(c.Now()))
 	}
-	top := max(float32(0), scrollY-4)
+	rawTop := max(float32(0), scrollY-4)
+	clampedTop := func(h float32) float32 {
+		if h > 0 {
+			return min(rawTop, max(float32(0), h-42))
+		}
+		return rawTop
+	}
 	// A sticky banner cannot leave the bottom of its code-card ancestor.
 	bounds := ui.Local(root, "bounds", func() ui.Rect { return ui.Rect{} })
-	root.ObserveLayout(func(r ui.Rect) { *bounds = r })
-	if bounds.H > 0 {
-		top = min(top, max(float32(0), bounds.H-42))
-	}
+	inv := c.Services().Invalidate
+	root.ObserveLayout(func(r ui.Rect) {
+		prevH := bounds.H
+		*bounds = r
+		if r.H != prevH && rawTop > max(float32(0), r.H-42) && inv != nil {
+			inv()
+		}
+	})
 	// A flow spacer reserves 42px while the overlaid banner follows the owner's
 	// scroll offset, keeping the source in its original document position.
 	// When scrolled (top > 0), shifting codeClip down by +top and codeContent
 	// back up by -top clips code lines cleanly below the sticky banner without
 	// changing card height or painting an opaque patch over translucent glass.
+	// Applying the clamped displacement in OffsetAfterLayout (after ObserveLayout
+	// writes bounds.H on the same frame) prevents a blank first frame when a
+	// short block mounts with a large scrollY.
 	root.Children(func() {
 		ui.Box(c).Height(42).Shrink(0)
 		spans := toolCodeSpans(language, code, st)
@@ -53,15 +66,13 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 			}
 		}
 		codeClip := ui.Box(c.Key("code-clip")).FillWidth().MinWidth(0).Shrink(0).Clip()
-		if top > 0 {
-			clipTop := top
-			codeClip.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: clipTop} })
+		if rawTop > 0 {
+			codeClip.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: clampedTop(bounds.H)} })
 		}
 		codeClip.Children(func() {
 			codeContent := ui.Box(c.Key("code-content")).FillWidth().MinWidth(0).Shrink(0)
-			if top > 0 {
-				contentOffset := -top
-				codeContent.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: contentOffset} })
+			if rawTop > 0 {
+				codeContent.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: -clampedTop(bounds.H)} })
 			}
 			codeContent.Children(func() {
 				if *wrap {
@@ -71,15 +82,18 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 				}
 			})
 		})
-		banner := ui.Row(c.Key("banner")).Absolute().Top(top).Left(0).Right(0).Height(42).Padding(10, 18, 8, 22).
+		banner := ui.Row(c.Key("banner")).Absolute().Top(0).Left(0).Right(0).Height(42).Padding(10, 18, 8, 22).
 			Gap(12).AlignItems(ui.Center).Radius(16, 16, 0, 0).Label(codeLabel(st))
+		if rawTop > 0 {
+			banner.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: clampedTop(bounds.H)} })
+		}
 		// Keep banner transparent in both opaque and glass modes: root paints
 		// the card surface while codeClip prevents scrolled lines from bleeding
 		// behind the sticky controls. Draw a 1px hairline when stuck.
-		if top > 0 {
+		if rawTop > 0 {
 			divider := st.Muted.Alpha(0.16)
 			banner.DrawOver(func(p *ui.Painter, r ui.Rect) {
-				if r.W <= 0 || r.H <= 0 || divider.A == 0 {
+				if clampedTop(bounds.H) <= 0 || r.W <= 0 || r.H <= 0 || divider.A == 0 {
 					return
 				}
 				px := float32(1)

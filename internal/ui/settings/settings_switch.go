@@ -28,7 +28,7 @@ func settingsPreferenceSwitch(c *ui.Context, value *bool, style settingsSwitchSt
 	handle := ui.Local(switcher, "switch-handle", func() ui.Handle { return ui.Handle{} })
 	switcher.Bind(handle)
 	position := switcher.AnimateWith("settings-switch-thumb", b01(*value), design.MotionFast, design.EaseInOut)
-	off, on, thumb, ring := t.Input, t.Primary, t.Background, t.Ring
+	off, on, thumb, ring := t.Input, t.Primary, switchThumbColor(t), t.Ring
 	shadow := design.TW.Black.Alpha(0.05)
 	switcher.DisabledOpacity(design.OpacityDisabled)
 	switcher.Draw(func(p *ui.Painter, bounds ui.Rect) {

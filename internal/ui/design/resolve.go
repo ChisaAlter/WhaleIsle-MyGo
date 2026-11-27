@@ -46,12 +46,47 @@ func Base(s Scheme) Palette {
 	return cossLight
 }
 
+// AccessibleRing returns an opaque 1px focus/selection stroke color derived
+// from accent that satisfies WCAG 2.1 SC 1.4.11 (>= 3:1 non-text contrast)
+// against both the scheme's solid canvas and typical frosted glass surfaces.
+// Accents that already meet the floor are returned unchanged.
+func AccessibleRing(s Scheme, accent ui.Color) ui.Color {
+	base := accent
+	if base.A == 0 {
+		base = Base(s).Ring
+	}
+	base.A = 255
+	bg := Base(s).Background
+	glassBg := ui.Color{R: 208, G: 220, B: 229, A: 255}
+	pole := ui.Color{A: 255} // black in light mode
+	if s == Dark {
+		glassBg = ui.Color{R: 32, G: 34, B: 40, A: 255}
+		pole = ui.Color{R: 255, G: 255, B: 255, A: 255}
+	}
+	ok := func(c ui.Color) bool {
+		return Contrast(c, bg) >= 3.6 && Contrast(c, glassBg) >= 3.1
+	}
+	if ok(base) {
+		return base
+	}
+	lo, hi := float32(0), float32(1)
+	for range 14 {
+		mid := (lo + hi) / 2
+		if ok(base.Mix(pole, mid)) {
+			hi = mid
+		} else {
+			lo = mid
+		}
+	}
+	return base.Mix(pole, hi)
+}
+
 // Resolve returns the tokens of scheme with accent as primary, ring and the
 // sidebar's primary/ring. onAccent is the Host theme's on-accent foreground
 // (--dsw-alias-label-primary-foreground): upstream DSH decides what reads on
 // its accent, so it wins when present; a computed ReadableOn pick is the
 // fallback for an empty foreground. A transparent accent keeps coss's own
-// primary.
+// primary while ensuring ring contrast meets WCAG 3:1.
 func Resolve(s Scheme, accent, onAccent ui.Color) Tokens {
 	t := Tokens{Palette: Base(s), Scheme: s}
 	if accent.A > 0 {
@@ -60,13 +95,12 @@ func Resolve(s Scheme, accent, onAccent ui.Color) Tokens {
 		if fg.A == 0 {
 			fg = ReadableOn(accent)
 		}
-		ringAlpha := float32(0.36)
-		if s == Dark {
-			ringAlpha = 0.42
-		}
-		ring := accent.Alpha(ringAlpha)
+		ring := AccessibleRing(s, accent)
 		t.Primary, t.PrimaryForeground, t.Ring = accent, fg, ring
 		t.SidebarPrimary, t.SidebarPrimaryForeground, t.SidebarRing = accent, fg, ring
+	} else {
+		t.Ring = AccessibleRing(s, t.Ring)
+		t.SidebarRing = AccessibleRing(s, t.SidebarRing)
 	}
 	if g := glass.Load(); g != nil && g.enabled && g.filter != nil {
 		t.Glass = true

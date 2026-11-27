@@ -33,7 +33,7 @@ func settingsToggle(c *ui.Context, title string, value *bool, disabled bool) ui.
 	}
 	x := toggle.AnimateWith("settings-toggle-thumb", b01(on)*(toggleKnob-4), design.MotionFast, design.EaseInOut)
 	focus := toggle.FocusVisible() && !disabled
-	thumb, ring := t.Background, t.Ring
+	thumb, ring := switchThumbColor(t), t.Ring
 	shadow := design.TW.Black.Alpha(0.05)
 	// The track and the thumb are painted, not laid out: a child box would take
 	// the pointer hit before the button sees it and the switch would stop
@@ -55,6 +55,17 @@ func settingsToggle(c *ui.Context, title string, value *bool, disabled bool) ui.
 		p.Fill(knob, thumb, toggleKnob/2)
 	})
 	return toggle
+}
+
+func switchThumbColor(t *design.Tokens) ui.Color {
+	bg := t.Background
+	if bg.A < 255 {
+		bg = design.Base(t.Scheme).Background
+	}
+	if design.Contrast(bg, t.Primary) >= 3.5 {
+		return bg
+	}
+	return design.ReadableOn(t.Primary)
 }
 
 func b01(on bool) float32 {

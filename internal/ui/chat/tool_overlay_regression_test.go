@@ -97,3 +97,49 @@ func TestTerminalCopyButtonTransparentBackground(t *testing.T) {
 		t.Fatalf("clipboard=%q want %q", tt.Clipboard(), "hello world")
 	}
 }
+
+// TestToolCodeBlockFirstFrameMountWithLargeScrollYNotBlank verifies that
+// mounting a short 3-line ToolCodeBlock with a large initial scrollY (200)
+// clamps the sticky banner and code clip on the very first frame so neither
+// the Copy button nor the code content disappears.
+func TestToolCodeBlockFirstFrameMountWithLargeScrollYNotBlank(t *testing.T) {
+	code := "alpha := 1\nbeta := 2\ngamma := 3"
+	tt := ui.NewTester(func(c *ui.Context) {
+		st := transcriptMarkdownStyleFor(c, 13)
+		st.FG = ui.RGB(230, 20, 20)
+		st.CodeBG = ui.RGB(250, 250, 250)
+		ui.Column(c).Fill().Background(ui.RGB(255, 255, 255)).Children(func() {
+			markdown.ToolCodeBlock(c, "go", code, st, 200)
+		})
+	}, 360, 240)
+	// Single initial frame only: clamping must already take effect on frame 1.
+	tt.Frame()
+
+	copyRect, ok := tt.Find("Copy code")
+	if !ok {
+		copyRect, ok = tt.Find("复制代码")
+	}
+	if !ok {
+		copyRect, ok = tt.Find("Copy")
+	}
+	if !ok || copyRect.W <= 0 || copyRect.H <= 0 {
+		t.Fatalf("first-frame Copy button missing or clipped to zero: ok=%v rect=%+v texts=%v", ok, copyRect, tt.Texts())
+	}
+	// Banner height is 42, card height for 3 lines is ~125; Copy button must sit inside the card.
+	if copyRect.Y >= 140 {
+		t.Fatalf("first-frame sticky banner escaped bottom of short code card: copyRect=%+v", copyRect)
+	}
+	img := tt.Image()
+	redPixels := 0
+	for y := 0; y < img.Bounds().Dy(); y++ {
+		for x := 0; x < img.Bounds().Dx(); x++ {
+			px := img.RGBAAt(x, y)
+			if int(px.R) > int(px.G)+40 && int(px.R) > int(px.B)+40 {
+				redPixels++
+			}
+		}
+	}
+	if redPixels == 0 {
+		t.Fatal("first-frame ToolCodeBlock rendered blank with large initial scrollY=200")
+	}
+}
