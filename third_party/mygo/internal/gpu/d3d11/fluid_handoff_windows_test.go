@@ -87,7 +87,7 @@ func TestFluidHardwareTwoDeviceHandoff(t *testing.T) {
 	fluidHardwareAcquire(t, producer.outputMutex, 1)
 	func() {
 		defer func() {
-			if hr := call(producer.outputMutex, fluidReleaseSync, 1); hr != 0 {
+			if hr := call1(producer.outputMutex, fluidReleaseSync, 1); hr != 0 {
 				t.Errorf("release contended frame: %#x", uint32(hr))
 			}
 		}()
@@ -188,7 +188,7 @@ func fluidHardwareAcquire(t *testing.T, mutex uintptr, key uintptr) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		hr := call(mutex, fluidAcquireSync, key, 0)
+		hr := call2(mutex, fluidAcquireSync, key, 0)
 		if hr == 0 {
 			return
 		}
@@ -205,16 +205,16 @@ func fluidHardwarePixels(t *testing.T, consumer *Renderer, source *texture) []by
 	t.Helper()
 	var staging uintptr
 	desc := texture2DDesc{Width: uint32(source.w), Height: uint32(source.h), MipLevels: 1, ArraySize: 1, Format: formatR8G8B8A8Unorm, SampleCount: 1, Usage: 3, CPUAccessFlags: 0x20000}
-	if hr := call(consumer.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&staging))); failed(hr) {
+	if hr := call3(consumer.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&staging))); failed(hr) {
 		t.Fatalf("test-owned staging: %#x", uint32(hr))
 	}
 	defer free(&staging)
-	call(consumer.ctx, 47, staging, source.tex)
+	call2(consumer.ctx, 47, staging, source.tex)
 	var mapped mapped
-	if hr := call(consumer.ctx, ctxMap, staging, 0, 1, 0, uintptr(unsafe.Pointer(&mapped))); failed(hr) {
+	if hr := call5(consumer.ctx, ctxMap, staging, 0, 1, 0, uintptr(unsafe.Pointer(&mapped))); failed(hr) {
 		t.Fatalf("read test-owned GPU copy: %#x", uint32(hr))
 	}
-	defer call(consumer.ctx, ctxUnmap, staging, 0)
+	defer call2(consumer.ctx, ctxUnmap, staging, 0)
 	pixels := make([]byte, source.w*source.h*4)
 	for y := 0; y < source.h; y++ {
 		copy(pixels[y*source.w*4:(y+1)*source.w*4], unsafe.Slice((*byte)(ptr(mapped.Data+uintptr(y)*uintptr(mapped.RowPitch))), source.w*4))

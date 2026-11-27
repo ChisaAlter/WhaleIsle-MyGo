@@ -80,3 +80,78 @@ func TestSurfaceShouldDeferPaint(t *testing.T) {
 		t.Fatal("SetFramePacer(nil) did not clear deferred state")
 	}
 }
+
+type countingFramePacer struct {
+	handle    uintptr
+	tokens    int
+	acquired  bool
+	tryCalls  int
+	markCalls int
+}
+
+func (p *countingFramePacer) WaitHandle() uintptr { return p.handle }
+func (p *countingFramePacer) TryAcquireFrame() bool {
+	p.tryCalls++
+	if p.acquired {
+		return true
+	}
+	if p.tokens > 0 {
+		p.tokens--
+		p.acquired = true
+		return true
+	}
+	return false
+}
+func (p *countingFramePacer) MarkFrameReady() {
+	p.markCalls++
+	p.acquired = true
+}
+
+func TestSurfaceBypassPathsConsumeReadyToken(t *testing.T) {
+	b := New()
+	b.inMainLoop = true
+	w := &window{b: b}
+	s := &surface{w: w}
+	p := &countingFramePacer{handle: 0x5678, tokens: 1}
+	s.SetFramePacer(p)
+
+	cases := []struct {
+		name  string
+		setup func()
+		clean func()
+	}{
+		{"immediatePaint", func() { s.immediatePaint = true }, func() { s.immediatePaint = false }},
+		{"deferredForce", func() { s.deferredForce = true }, func() { s.deferredForce = false }},
+		{"inSizeMove", func() { w.inSizeMove = true }, func() { w.inSizeMove = false }},
+		{"inMenu", func() { w.inMenu = true }, func() { w.inMenu = false }},
+		{"outsideMainLoop", func() { b.inMainLoop = false }, func() { b.inMainLoop = true }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p.tokens = 1
+			p.acquired = false
+			prevCalls := p.tryCalls
+
+			tc.setup()
+			deferred := s.shouldDeferPaint()
+			tc.clean()
+
+			if deferred {
+				t.Fatalf("%s: should not defer paint", tc.name)
+			}
+			if p.tryCalls == prevCalls {
+				t.Fatalf("%s: bypass path skipped TryAcquireFrame", tc.name)
+			}
+			if !p.acquired || p.tokens != 0 {
+				t.Fatalf("%s: expected ready token consumed (acquired=%v tokens=%d)", tc.name, p.acquired, p.tokens)
+			}
+			// Simulate Present completing and releasing 1 token back.
+			p.acquired = false
+			p.tokens++
+			if p.tokens != 1 {
+				t.Fatalf("%s: token count drifted to %d, want 1", tc.name, p.tokens)
+			}
+		})
+	}
+}

@@ -35,6 +35,27 @@ type Blur struct {
 	// Dither adds 8-bit triangular Interleaved Gradient Noise (±0.5/255)
 	// before output to eliminate banding in dark smooth gradients.
 	Dither bool
+	// Tint is an optional color blended over the blurred backdrop in the same
+	// shader pass, eliminating a separate fill pass. When TintMix is zero and
+	// Tint.A > 0, Tint's alpha (Tint.A / 255) is used as the mix factor.
+	// Zero value leaves the blurred backdrop untinted.
+	Tint ui.Color
+	// TintMix explicitly sets the blend factor [0, 1] of Tint over the blurred
+	// backdrop in the same shader pass. Zero falls back to Tint.A / 255 (which
+	// is 0 when Tint is unset, preserving backward compatibility).
+	TintMix float32
+	// LuminosityOffset shifts each blurred RGB channel by this offset (scaled
+	// by backdrop alpha) before tinting, e.g. +0.03 to lift or -0.03 to deepen.
+	// Zero leaves luminosity unchanged.
+	LuminosityOffset float32
+}
+
+func (b Blur) effectiveTintMix() float32 {
+	mix := b.TintMix
+	if mix == 0 && b.Tint.A > 0 {
+		mix = float32(b.Tint.A) / 255
+	}
+	return min(max(mix, 0), 1)
 }
 
 // PaintMaterial paints the blur over box, rounded by radii.
@@ -50,6 +71,12 @@ func (b Blur) String() string {
 	}
 	if b.Saturation != 0 {
 		s += fmt.Sprintf(" saturate(%g%%)", math.Round(float64(1+b.Saturation)*1000)/10)
+	}
+	if b.LuminosityOffset != 0 {
+		s += fmt.Sprintf(" lum(%+g)", b.LuminosityOffset)
+	}
+	if mix := b.effectiveTintMix(); mix > 0 {
+		s += fmt.Sprintf(" tint(#%02x%02x%02x %g%%)", b.Tint.R, b.Tint.G, b.Tint.B, math.Round(float64(mix)*1000)/10)
 	}
 	if b.Dither {
 		s += " dither"
@@ -134,8 +161,15 @@ func paintBlur(p *ui.Painter, box ui.Rect, radii [4]float32, b Blur) {
 	if !held {
 		return
 	}
-	if b.Saturation != 0 || b.Dither {
-		last.Params[2], last.Params[3] = blurTone{saturation: b.Saturation, dither: b.Dither}.params()
+	mix := b.effectiveTintMix()
+	if b.Saturation != 0 || b.LuminosityOffset != 0 || mix > 0 || b.Dither {
+		last.Params[2], last.Params[3] = blurTone{
+			saturation: b.Saturation,
+			offset:     b.LuminosityOffset,
+			mix:        mix,
+			color:      [3]float32{float32(b.Tint.R) / 255, float32(b.Tint.G) / 255, float32(b.Tint.B) / 255},
+			dither:     b.Dither,
+		}.params()
 	}
 	effect(lastRect, last)
 }

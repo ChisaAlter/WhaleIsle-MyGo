@@ -101,7 +101,7 @@ func resizeSettles(t *testing.T, r *Renderer) {
 		}
 		const scGetSourceSize = 30 // IDXGISwapChain2
 		var sw, sh uint32
-		call(r.swapChain2, scGetSourceSize, uintptr(unsafe.Pointer(&sw)), uintptr(unsafe.Pointer(&sh)))
+		call2(r.swapChain2, scGetSourceSize, uintptr(unsafe.Pointer(&sw)), uintptr(unsafe.Pointer(&sh)))
 		want := [2]int{r.w, r.h}
 		if r.composed {
 			want = [2]int{r.bw, r.bh}

@@ -27,6 +27,12 @@ type Fluid struct {
 	outputMutex, outputShared                           uintptr
 	width, height                                       int
 	velocityFormat, dyeFormat, scalarFormat             uint32
+	scratch                                             struct {
+		none   [2]uintptr
+		views  [2]uintptr
+		vp     viewport
+		params [3][4]float32
+	}
 }
 
 // NewFluid uses the SDK's D3D11 loader/compiler. Shader failure is returned;
@@ -68,7 +74,7 @@ func NewFluid() (_ *Fluid, err error) {
 			return nil, e
 		}
 		var shader uintptr
-		hr := call(f.device, method, uintptr(unsafe.Pointer(&code[0])), uintptr(len(code)), 0, uintptr(unsafe.Pointer(&shader)))
+		hr := call4(f.device, method, uintptr(unsafe.Pointer(&code[0])), uintptr(len(code)), 0, uintptr(unsafe.Pointer(&shader)))
 		if failed(hr) {
 			return nil, fmt.Errorf("fluid: create %s: %#x", entry, uint32(hr))
 		}
@@ -79,7 +85,7 @@ func NewFluid() (_ *Fluid, err error) {
 		}
 	}
 	desc := bufferDesc{ByteWidth: 48, BindFlags: bindConstantBuffer}
-	if hr := call(f.device, devCreateBuffer, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&f.constants))); failed(hr) {
+	if hr := call3(f.device, devCreateBuffer, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&f.constants))); failed(hr) {
 		return nil, fmt.Errorf("fluid: constants: %#x", uint32(hr))
 	}
 	for i, out := range []*uintptr{&f.linear, &f.nearest} {
@@ -87,20 +93,20 @@ func NewFluid() (_ *Fluid, err error) {
 		if i == 1 {
 			sampler.Filter = 0
 		}
-		if hr := call(f.device, devCreateSamplerState, uintptr(unsafe.Pointer(&sampler)), uintptr(unsafe.Pointer(out))); failed(hr) {
+		if hr := call2(f.device, devCreateSamplerState, uintptr(unsafe.Pointer(&sampler)), uintptr(unsafe.Pointer(out))); failed(hr) {
 			return nil, fmt.Errorf("fluid: sampler: %#x", uint32(hr))
 		}
 	}
 	rs := rasterizerDesc{FillMode: 3, CullMode: 1, DepthClip: 1}
-	if hr := call(f.device, devCreateRasterizerState, uintptr(unsafe.Pointer(&rs)), uintptr(unsafe.Pointer(&f.raster))); failed(hr) {
+	if hr := call2(f.device, devCreateRasterizerState, uintptr(unsafe.Pointer(&rs)), uintptr(unsafe.Pointer(&f.raster))); failed(hr) {
 		return nil, fmt.Errorf("fluid: raster: %#x", uint32(hr))
 	}
-	call(f.ctx, ctxIASetPrimitiveTopology, 4) // triangle list, SV_VertexID fullscreen triangle
-	call(f.ctx, ctxVSSetShader, f.vs, 0, 0)
-	call(f.ctx, ctxPSSetConstantBuffers, 0, 1, uintptr(unsafe.Pointer(&f.constants)))
+	call1(f.ctx, ctxIASetPrimitiveTopology, 4) // triangle list, SV_VertexID fullscreen triangle
+	call3(f.ctx, ctxVSSetShader, f.vs, 0, 0)
+	call3(f.ctx, ctxPSSetConstantBuffers, 0, 1, uintptr(unsafe.Pointer(&f.constants)))
 	samplers := [2]uintptr{f.linear, f.nearest}
-	call(f.ctx, ctxPSSetSamplers, 0, 2, uintptr(unsafe.Pointer(&samplers[0])))
-	call(f.ctx, ctxRSSetState, f.raster)
+	call3(f.ctx, ctxPSSetSamplers, 0, 2, uintptr(unsafe.Pointer(&samplers[0])))
+	call1(f.ctx, ctxRSSetState, f.raster)
 	return f, nil
 }
 
@@ -108,7 +114,7 @@ func (f *Fluid) format(formats ...uint32) (uint32, error) {
 	const required = 0x20 | 0x200 | 0x4000 // TEXTURE2D, SHADER_SAMPLE, RENDER_TARGET
 	for _, format := range formats {
 		var support uint32
-		if hr := call(f.device, 29, uintptr(format), uintptr(unsafe.Pointer(&support))); !failed(hr) && support&required == required {
+		if hr := call2(f.device, 29, uintptr(format), uintptr(unsafe.Pointer(&support))); !failed(hr) && support&required == required {
 			return format, nil
 		}
 	}
@@ -146,18 +152,18 @@ func (f *Fluid) target(width, height int, format uint32, misc ...uint32) (t text
 			free(&t.tex)
 		}
 	}()
-	if hr := call(f.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&t.tex))); failed(hr) {
+	if hr := call3(f.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&t.tex))); failed(hr) {
 		return t, fmt.Errorf("fluid: texture: %#x", uint32(hr))
 	}
-	if hr := call(f.device, devCreateShaderResourceView, t.tex, 0, uintptr(unsafe.Pointer(&t.srv))); failed(hr) {
+	if hr := call3(f.device, devCreateShaderResourceView, t.tex, 0, uintptr(unsafe.Pointer(&t.srv))); failed(hr) {
 		return t, fmt.Errorf("fluid: texture view: %#x", uint32(hr))
 	}
-	if hr := call(f.device, devCreateRenderTargetView, t.tex, 0, uintptr(unsafe.Pointer(&t.rtv))); failed(hr) {
+	if hr := call3(f.device, devCreateRenderTargetView, t.tex, 0, uintptr(unsafe.Pointer(&t.rtv))); failed(hr) {
 		return t, fmt.Errorf("fluid: target view: %#x", uint32(hr))
 	}
 	if desc.MiscFlags == 0 {
 		zero := [4]float32{}
-		call(f.ctx, ctxClearRenderTargetView, t.rtv, uintptr(unsafe.Pointer(&zero[0])))
+		call2(f.ctx, ctxClearRenderTargetView, t.rtv, uintptr(unsafe.Pointer(&zero[0])))
 	}
 	return t, nil
 }
@@ -231,19 +237,19 @@ func (f *Fluid) Resize(width, height int) error {
 }
 
 func (f *Fluid) pass(name string, dst *texture, src, aux uintptr, params [3][4]float32) {
-	none := [2]uintptr{}
-	call(f.ctx, ctxPSSetShaderResources, 0, 2, uintptr(unsafe.Pointer(&none[0])))
-	call(f.ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&dst.rtv)), 0)
-	vp := viewport{W: float32(dst.w), H: float32(dst.h), MaxDepth: 1}
-	call(f.ctx, ctxRSSetViewports, 1, uintptr(unsafe.Pointer(&vp)))
-	call(f.ctx, ctxUpdateSubresource, f.constants, 0, 0, uintptr(unsafe.Pointer(&params[0][0])), 0, 0)
-	views := [2]uintptr{src, aux}
-	call(f.ctx, ctxPSSetShaderResources, 0, 2, uintptr(unsafe.Pointer(&views[0])))
-	call(f.ctx, ctxPSSetShader, f.shaders[name], 0, 0)
-	call(f.ctx, 13, 3, 0) // ID3D11DeviceContext::Draw
+	call3(f.ctx, ctxPSSetShaderResources, 0, 2, uintptr(unsafe.Pointer(&f.scratch.none[0])))
+	call3(f.ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&dst.rtv)), 0)
+	f.scratch.vp = viewport{W: float32(dst.w), H: float32(dst.h), MaxDepth: 1}
+	call2(f.ctx, ctxRSSetViewports, 1, uintptr(unsafe.Pointer(&f.scratch.vp)))
+	f.scratch.params = params
+	call6(f.ctx, ctxUpdateSubresource, f.constants, 0, 0, uintptr(unsafe.Pointer(&f.scratch.params[0][0])), 0, 0)
+	f.scratch.views = [2]uintptr{src, aux}
+	call3(f.ctx, ctxPSSetShaderResources, 0, 2, uintptr(unsafe.Pointer(&f.scratch.views[0])))
+	call3(f.ctx, ctxPSSetShader, f.shaders[name], 0, 0)
+	call2(f.ctx, 13, 3, 0) // ID3D11DeviceContext::Draw
 	// Unbind both sides before any later resize/release/copy of these resources.
-	call(f.ctx, ctxPSSetShaderResources, 0, 2, uintptr(unsafe.Pointer(&none[0])))
-	call(f.ctx, ctxOMSetRenderTargets, 0, 0, 0)
+	call3(f.ctx, ctxPSSetShaderResources, 0, 2, uintptr(unsafe.Pointer(&f.scratch.none[0])))
+	call3(f.ctx, ctxOMSetRenderTargets, 0, 0, 0)
 }
 
 func swapFluid(pair *[2]texture) { pair[0], pair[1] = pair[1], pair[0] }
@@ -292,28 +298,28 @@ func (f *Fluid) Render(dst *image.RGBA) error {
 	if f.outputMutex == 0 || dst == nil || dst.Rect.Dx() != f.width || dst.Rect.Dy() != f.height || dst.Stride < f.width*4 {
 		return fmt.Errorf("fluid: invalid readback destination")
 	}
-	if hr := call(f.outputMutex, fluidAcquireSync, 0, 0); hr != 0 {
+	if hr := call2(f.outputMutex, fluidAcquireSync, 0, 0); hr != 0 {
 		return fmt.Errorf("fluid: readback output is unavailable: %#x", uint32(hr))
 	}
-	defer call(f.outputMutex, fluidReleaseSync, 0)
+	defer call1(f.outputMutex, fluidReleaseSync, 0)
 	if f.staging == 0 {
 		desc := texture2DDesc{Width: uint32(f.width), Height: uint32(f.height), MipLevels: 1, ArraySize: 1, Format: formatR8G8B8A8Unorm, SampleCount: 1, Usage: 3, CPUAccessFlags: 0x20000}
-		if hr := call(f.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&f.staging))); failed(hr) {
+		if hr := call3(f.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&f.staging))); failed(hr) {
 			return fmt.Errorf("fluid: diagnostic staging: %#x", uint32(hr))
 		}
 	}
 	params := [3][4]float32{{1 / float32(f.width), 1 / float32(f.height), 0, 0}}
 	f.pass("displayPS", &f.output, f.dye[0].srv, 0, params)
-	call(f.ctx, 47, f.staging, f.output.tex) // CopyResource
+	call2(f.ctx, 47, f.staging, f.output.tex) // CopyResource
 	var m mapped
-	if hr := call(f.ctx, ctxMap, f.staging, 0, 1, 0, uintptr(unsafe.Pointer(&m))); failed(hr) {
+	if hr := call5(f.ctx, ctxMap, f.staging, 0, 1, 0, uintptr(unsafe.Pointer(&m))); failed(hr) {
 		return fmt.Errorf("fluid: GPU readback: %#x", uint32(hr))
 	}
-	defer call(f.ctx, ctxUnmap, f.staging, 0)
+	defer call2(f.ctx, ctxUnmap, f.staging, 0)
 	for y := 0; y < f.height; y++ {
 		copy(dst.Pix[y*dst.Stride:y*dst.Stride+f.width*4], unsafe.Slice((*byte)(ptr(m.Data+uintptr(y)*uintptr(m.RowPitch))), f.width*4))
 	}
-	if hr := call(f.device, 39); failed(hr) {
+	if hr := call0(f.device, 39); failed(hr) {
 		return fmt.Errorf("fluid: device removed: %#x", uint32(hr))
 	}
 	return nil
@@ -321,7 +327,7 @@ func (f *Fluid) Render(dst *image.RGBA) error {
 
 func (f *Fluid) Close() {
 	if f.ctx != 0 {
-		call(f.ctx, ctxClearState)
+		call0(f.ctx, ctxClearState)
 	}
 	for _, pair := range []*[2]texture{&f.velocity, &f.dye, &f.pressure} {
 		for i := range pair {

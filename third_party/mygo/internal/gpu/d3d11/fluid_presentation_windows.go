@@ -61,14 +61,14 @@ func (f *Fluid) createOutput(width, height int) (err error) {
 		}
 	}()
 	var resource uintptr
-	if hr := call(f.output.tex, 0, uintptr(unsafe.Pointer(&fluidResourceIID)), uintptr(unsafe.Pointer(&resource))); failed(hr) {
+	if hr := call2(f.output.tex, 0, uintptr(unsafe.Pointer(&fluidResourceIID)), uintptr(unsafe.Pointer(&resource))); failed(hr) {
 		return fmt.Errorf("fluid: shared resource: %#x", uint32(hr))
 	}
 	defer free(&resource)
-	if hr := call(resource, 8, uintptr(unsafe.Pointer(&f.outputShared))); failed(hr) || f.outputShared == 0 {
+	if hr := call1(resource, 8, uintptr(unsafe.Pointer(&f.outputShared))); failed(hr) || f.outputShared == 0 {
 		return fmt.Errorf("fluid: shared output handle: %#x", uint32(hr))
 	}
-	if hr := call(f.output.tex, 0, uintptr(unsafe.Pointer(&fluidMutexIID)), uintptr(unsafe.Pointer(&f.outputMutex))); failed(hr) {
+	if hr := call2(f.output.tex, 0, uintptr(unsafe.Pointer(&fluidMutexIID)), uintptr(unsafe.Pointer(&f.outputMutex))); failed(hr) {
 		return fmt.Errorf("fluid: output mutex: %#x", uint32(hr))
 	}
 	return nil
@@ -82,10 +82,10 @@ func (f *Fluid) RenderFrame() (*FluidFrame, error) {
 	if f.outputMutex == 0 || f.width <= 0 || f.height <= 0 {
 		return nil, fmt.Errorf("fluid: output has not been sized")
 	}
-	if hr := call(f.device, 39); failed(hr) {
+	if hr := call0(f.device, 39); failed(hr) {
 		return nil, fmt.Errorf("fluid: device removed: %#x", uint32(hr))
 	}
-	hr := call(f.outputMutex, fluidAcquireSync, 0, 0)
+	hr := call2(f.outputMutex, fluidAcquireSync, 0, 0)
 	if hr == fluidWaitTimeout {
 		return nil, nil
 	}
@@ -95,11 +95,11 @@ func (f *Fluid) RenderFrame() (*FluidFrame, error) {
 	}
 	params := [3][4]float32{{1 / float32(f.width), 1 / float32(f.height), 0, 0}}
 	f.pass("displayPS", &f.output, f.dye[0].srv, 0, params)
-	call(f.ctx, ctxFlush)
-	if hr := call(f.outputMutex, fluidReleaseSync, 1); hr != 0 {
+	call0(f.ctx, ctxFlush)
+	if hr := call1(f.outputMutex, fluidReleaseSync, 1); hr != 0 {
 		return nil, fmt.Errorf("fluid: publish output: %#x", uint32(hr))
 	}
-	call(f.output.tex, 1) // One reference belongs to the receiving frame lease.
+	call0(f.output.tex, 1) // One reference belongs to the receiving frame lease.
 	return &FluidFrame{texture: f.output.tex, shared: f.outputShared, width: f.width, height: f.height}, nil
 }
 
@@ -114,19 +114,19 @@ func (r *Renderer) ImportFluidFrame(img *scene.Image, frame *FluidFrame) (ready 
 	if img == nil || frame == nil || frame.texture == 0 || frame.shared == 0 || img.W != frame.width || img.H != frame.height {
 		return false, fmt.Errorf("fluid: invalid GPU frame lease")
 	}
-	if hr := call(r.device, 39); failed(hr) {
+	if hr := call0(r.device, 39); failed(hr) {
 		return false, fmt.Errorf("fluid: presentation device removed: %#x", uint32(hr))
 	}
 	var shared, mutex uintptr
-	if hr := call(r.device, 28, frame.shared, uintptr(unsafe.Pointer(&iidID3D11Texture2D)), uintptr(unsafe.Pointer(&shared))); failed(hr) {
+	if hr := call3(r.device, 28, frame.shared, uintptr(unsafe.Pointer(&iidID3D11Texture2D)), uintptr(unsafe.Pointer(&shared))); failed(hr) {
 		return false, fmt.Errorf("fluid: import output: %#x", uint32(hr))
 	}
 	defer free(&shared)
-	if hr := call(shared, 0, uintptr(unsafe.Pointer(&fluidMutexIID)), uintptr(unsafe.Pointer(&mutex))); failed(hr) {
+	if hr := call2(shared, 0, uintptr(unsafe.Pointer(&fluidMutexIID)), uintptr(unsafe.Pointer(&mutex))); failed(hr) {
 		return false, fmt.Errorf("fluid: imported output mutex: %#x", uint32(hr))
 	}
 	defer free(&mutex)
-	hr := call(mutex, fluidAcquireSync, 1, 0)
+	hr := call2(mutex, fluidAcquireSync, 1, 0)
 	if hr == fluidWaitTimeout {
 		return false, nil
 	}
@@ -134,8 +134,8 @@ func (r *Renderer) ImportFluidFrame(img *scene.Image, frame *FluidFrame) (ready 
 		return false, fmt.Errorf("fluid: acquire published output: %#x", uint32(hr))
 	}
 	defer func() {
-		call(r.ctx, ctxFlush)
-		if hr := call(mutex, fluidReleaseSync, 0); hr != 0 && err == nil {
+		call0(r.ctx, ctxFlush)
+		if hr := call1(mutex, fluidReleaseSync, 0); hr != 0 && err == nil {
 			ready, err = false, fmt.Errorf("fluid: release imported output: %#x", uint32(hr))
 		}
 	}()
@@ -152,9 +152,9 @@ func (r *Renderer) ImportFluidFrame(img *scene.Image, frame *FluidFrame) (ready 
 		}
 		r.images[img.ID()] = target
 	}
-	var unbound uintptr
-	call(r.ctx, ctxPSSetShaderResources, 2, 1, uintptr(unsafe.Pointer(&unbound)))
-	call(r.ctx, 47, target.tex, shared) // CopyResource: GPU to GPU only.
+	r.scratch.passNone = 0
+	call3(r.ctx, ctxPSSetShaderResources, 2, 1, uintptr(unsafe.Pointer(&r.scratch.passNone)))
+	call2(r.ctx, 47, target.tex, shared) // CopyResource: GPU to GPU only.
 	target.ver, target.lastFrame = img.Version(), r.frame
 	return true, nil
 }
@@ -167,8 +167,8 @@ func (r *Renderer) ReleaseFluidImage(img *scene.Image) {
 	}
 	if target := r.images[img.ID()]; target != nil {
 		if r.ctx != 0 {
-			var unbound uintptr
-			call(r.ctx, ctxPSSetShaderResources, 2, 1, uintptr(unsafe.Pointer(&unbound)))
+			r.scratch.passNone = 0
+			call3(r.ctx, ctxPSSetShaderResources, 2, 1, uintptr(unsafe.Pointer(&r.scratch.passNone)))
 		}
 		free(&target.srv)
 		free(&target.tex)

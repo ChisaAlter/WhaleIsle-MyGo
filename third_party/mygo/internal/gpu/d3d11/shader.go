@@ -108,6 +108,6 @@ func compile(source, entry, target string) ([]byte, error) {
 // blobBytes returns the contents of an ID3DBlob, until it is released.
 func blobBytes(blob uintptr) []byte {
 	const blobGetBufferPointer, blobGetBufferSize = 3, 4
-	p, n := call(blob, blobGetBufferPointer), call(blob, blobGetBufferSize)
+	p, n := call0(blob, blobGetBufferPointer), call0(blob, blobGetBufferSize)
 	return unsafe.Slice((*byte)(ptr(p)), n)
 }
