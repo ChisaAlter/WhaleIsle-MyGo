@@ -3,7 +3,6 @@ package remote
 import (
 	"strings"
 	"whaleisle/internal/errcopy"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
@@ -36,7 +35,7 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 			a.Error = s.Error.SentenceText()
 		}
 	}
-	if widgets.Button(c, colors, label("新建远程文件夹", "New remote folder"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || !s.Bound || !s.Loaded).Clicked() {
+	if coss.Button(c, label("新建远程文件夹", "New remote folder"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: disabled || !s.Bound || !s.Loaded}).AlignSelf(ui.Start).Clicked() {
 		*a = FileActions{Key: key, Operation: "mkdir", Path: s.RootPath}
 	}
 	if a.Operation == "" {
@@ -89,7 +88,7 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 				ui.Text(c, s.Error.SentenceText()).FillWidth()
 			}
 			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
+				if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 					*a = FileActions{}
 				}
 				title := label("确认创建", "Confirm create")

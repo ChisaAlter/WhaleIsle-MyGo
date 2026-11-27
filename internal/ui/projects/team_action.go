@@ -398,23 +398,37 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 	highlightCurrent := current && len(m.Overview.Team.Members) > 1
 	inert := current || status == "failed" || status == "provisioning" || m.OnOpenMember == nil
 	borderColor := chrome.Color(colors.Border)
-	borderWidth := float32(.5)
-	if member.Error != "" || (m.State.FailedMember == member.ID && m.State.NavigationError != "") {
+	hasError := member.Error != "" || (m.State.FailedMember == member.ID && m.State.NavigationError != "")
+	if hasError {
 		borderColor = chrome.Color(colors.Danger)
 	} else if highlightCurrent {
 		borderColor = chrome.MaterialFill(chrome.Color(colors.Accent), .45)
-		borderWidth = 1
 	}
 	card := ui.Column(c.Key("project-member-card:" + member.ID)).FillWidth().MinWidth(0)
-	cardHovered := card.Hovered()
 	card.Children(func() {
-		button := ui.ButtonBase(c).Label(label).FillWidth().MinWidth(0).Padding(10, 12).Radius(theme.ContextRadii(c).SM).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(borderWidth, borderColor)
+		cardRadius := theme.ContextRadii(c).SM
+		button := ui.ButtonBase(c).Label(label).FillWidth().MinWidth(0).Padding(10, 12).Radius(cardRadius).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(.5, borderColor)
+		if highlightCurrent && !hasError {
+			accentBorder := borderColor
+			button.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				if r.W > 1 && r.H > 1 {
+					p.Stroke(ui.Rect{X: r.X + 0.5, Y: r.Y + 0.5, W: r.W - 1, H: r.H - 1}, accentBorder, cardRadius, 1)
+				}
+			})
+		}
+		tooltipParts := []string{}
 		if !inert {
-			button.Tooltip(tr("查看工作过程", "View work history")).Cursor(ui.CursorPointer)
+			tooltipParts = append(tooltipParts, tr("查看工作过程", "View work history"))
+			button.Cursor(ui.CursorPointer)
 		} else {
 			button.Cursor(ui.CursorDefault)
 		}
-		showModel := cardHovered || button.Hovered() || button.Focused()
+		if member.ModelLabel != "" {
+			tooltipParts = append(tooltipParts, tr("模型: ", "Model: ")+member.ModelLabel)
+		}
+		if len(tooltipParts) > 0 {
+			button.Tooltip(strings.Join(tooltipParts, " · "))
+		}
 		button.Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
 				ui.Row(c).Width(14).Height(theme.InterfaceSize(18)).AlignItems(ui.Center).Justify(ui.Center).Shrink(0).Children(func() {
@@ -449,9 +463,6 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 							job = tr("后台命令上次仍在运行", "Background command last seen running")
 						}
 						text += " · " + job
-					}
-					if showModel && member.ModelLabel != "" {
-						text += " · " + tr("模型: ", "Model: ") + member.ModelLabel
 					}
 					ui.Text(c, text).FillWidth().FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(muted).SingleLine().Ellipsis("…")
 					if member.Error != "" {

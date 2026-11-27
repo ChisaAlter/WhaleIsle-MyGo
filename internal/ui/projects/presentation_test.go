@@ -246,13 +246,35 @@ func TestCompactProjectRowsKeepMenusAndDirectoryIdentity(t *testing.T) {
 	if directory != "other-project" || opened != "" || m.SelectedSession != "lead-fixture" {
 		t.Fatal("directory menu changed navigation identity", directory, opened)
 	}
-	tt.Move(row.X+8, row.Y+8)
-	more, ok := tt.Find("More: " + p.Title)
-	if !ok || more.W != 28 || more.H != 28 {
-		t.Fatalf("hover menu size=%+v", more)
+	moreBefore, ok := tt.Find("More: " + p.Title)
+	if !ok || moreBefore.W != 28 || moreBefore.H != 28 {
+		t.Fatalf("resting menu slot must keep fixed 28x28 size without Width(0) jump: %+v", moreBefore)
 	}
-	if tt.HasText("Summary failed") {
-		t.Fatal("status did not yield to the hover/focus menu")
+	tt.Move(row.X+8, row.Y+8)
+	tt.Frame()
+	rowAfter, _ := tt.Find(p.Title)
+	if rowAfter != row {
+		t.Fatalf("hover shifted project title geometry: %+v -> %+v", row, rowAfter)
+	}
+	more, ok := tt.Find("More: " + p.Title)
+	if !ok || more != moreBefore {
+		t.Fatalf("hover menu moved or resized: %+v -> %+v", moreBefore, more)
+	}
+	// Visually the status text yields via Opacity(0) while preserving zero shift.
+	img := tt.Image()
+	bgPx := img.RGBAAt(int(row.X+2), int(row.Y+2))
+	statusInkFound := false
+	for y := int(status.Y + 2); y < int(status.Y+status.H-2); y++ {
+		for x := int(status.X + 2); x < int(status.X+status.W-2) && x < int(more.X-1); x++ {
+			px := img.RGBAAt(x, y)
+			if px != bgPx {
+				statusInkFound = true
+				break
+			}
+		}
+	}
+	if statusInkFound {
+		t.Fatal("status remained visually painted over the hover/focus menu")
 	}
 	saveProjectSnapshot(t, tt, "projects-sidebar-narrow.png")
 }

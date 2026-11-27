@@ -6,8 +6,6 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/coss"
-	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // GatewayEditor owns an explicit draft, so runtime polling cannot overwrite edits.
@@ -19,13 +17,12 @@ type GatewayEditor struct {
 }
 
 func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	e := m.GatewayEditor
 	if e == nil || m.OnSaveGateway == nil {
 		return
 	}
 	if !e.Open {
-		if widgets.Button(c, colors, label("编辑手机网关", "Edit phone gateway"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+		if coss.Button(c, label("编辑手机网关", "Edit phone gateway"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).AlignSelf(ui.Start).Clicked() {
 			e.Expected = config.RemoteGatewayPreferences{Mode: m.RemoteMode, Port: strconv.Itoa(m.RemotePort), BindAddress: m.RemoteBindAddress, RelayEndpoint: m.RemoteRelayEndpoint, RelayTLS: m.RemoteRelayUseTLS}
 			e.Draft = e.Expected
 			e.Error = ""
@@ -52,16 +49,18 @@ func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
 	if e.Error != "" {
 		ui.Text(c, e.Error).TextColor(fg)
 	}
-	if widgets.Button(c, colors, label("保存并重新连接", "Save and reconnect"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Disabled(m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy).Clicked() {
-		if err := m.OnSaveGateway(e.Expected, e.Draft); err != nil {
-			e.Error = errcopy.Sentence(err)
-		} else {
+	ui.Row(c).Gap(8).Children(func() {
+		if coss.Button(c, label("保存并重新连接", "Save and reconnect"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonMD, Disabled: m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy}).Clicked() {
+			if err := m.OnSaveGateway(e.Expected, e.Draft); err != nil {
+				e.Error = errcopy.Sentence(err)
+			} else {
+				e.Open = false
+				e.Error = ""
+			}
+		}
+		if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonMD}).Clicked() {
 			e.Open = false
 			e.Error = ""
 		}
-	}
-	if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}).Clicked() {
-		e.Open = false
-		e.Error = ""
-	}
+	})
 }

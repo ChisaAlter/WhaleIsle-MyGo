@@ -79,7 +79,24 @@ func paintModelSeat(c *ui.Context, m Model) {
 		panel = menuSurface(c, panel.MinWidth(240).MaxWidth(420).Padding(design.Sp(2)).Gap(design.Sp(2)).
 			AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, design.Sp(2), 0))
 		panel.Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyComposerModelUnavailable)).FontSize(design.TextSM.Size).TextColor(muted)
+			if m.Snapshot.SelectedModel != "" && !m.Snapshot.ModelSelectionBusy {
+				ui.Column(c).FillWidth().Gap(design.Sp(0.5)).Children(func() {
+					ui.Text(c, composerText("当前模型", "Current model")).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).TextColor(muted)
+					ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(design.TextSM.Size).TextColor(t.PopoverForeground)
+						if effortDisplay != "" {
+							ui.Text(c, effortDisplay).Shrink(0).SingleLine().FontSize(design.TextXS.Size).TextColor(muted)
+						}
+						cossIcon(c, coss.IconCheck, design.IconXS, t.PopoverForeground)
+					})
+				})
+				coss.Separator(c, coss.Horizontal)
+			}
+			statusText := i18n.T(i18n.KeyComposerModelUnavailable)
+			if m.Snapshot.ModelSelectionBusy {
+				statusText = i18n.T(i18n.KeyComposerModelLoading)
+			}
+			ui.Text(c, statusText).FontSize(design.TextXS.Size).TextColor(muted)
 			if m.Snapshot.ModelsErr != nil {
 				ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(design.TextXS.Size).MaxLines(3).TextColor(muted)
 			}

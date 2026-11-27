@@ -152,7 +152,8 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 		}
 		status := projectSidebarStatus(p)
 		showMenu := row.Hovered() || row.FocusWithin()
-		if status != "" && !showMenu {
+		var statusRow ui.Element
+		if status != "" {
 			ink := muted
 			if p.Lifecycle != "archived" {
 				switch p.Activity.State {
@@ -162,23 +163,29 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 					ink = ui.RGB(221, 134, 41)
 				}
 			}
-			ui.Row(c).Gap(4).MaxWidth(96).MinWidth(0).AlignItems(ui.Center).Tooltip(fmt.Sprintf("%s · %d %s · %d %s", stateLabel(p.Activity.State), p.Activity.Running, tr("进行中", "running"), p.Activity.Queued, tr("排队中", "queued"))).Children(func() {
+			statusRow = ui.Row(c).Gap(4).MaxWidth(96).MinWidth(0).AlignItems(ui.Center).Tooltip(fmt.Sprintf("%s · %d %s · %d %s", stateLabel(p.Activity.State), p.Activity.Running, tr("进行中", "running"), p.Activity.Queued, tr("排队中", "queued"))).Children(func() {
 				ui.Box(c).Size(6, 6).Shrink(0).Radius(3).Background(ink)
 				ui.Text(c, status).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(ink).MinWidth(0).SingleLine()
 			})
 		}
-		more := pIconButton(c, "project-row-menu", tr("更多：", "More: ")+p.Title, m.Busy, func() { projectIcon(c, "more", 16, muted, false) })
-		if m.presentation != nil {
-			handle := m.presentation.Rows[p.ID]
-			if handle == nil {
-				handle = &ui.Handle{}
-				m.presentation.Rows[p.ID] = handle
+		var more ui.Element
+		ui.Row(c).Absolute().Right(4).Top(0).Bottom(0).AlignItems(ui.Center).Children(func() {
+			more = pIconButton(c, "project-row-menu", tr("更多：", "More: ")+p.Title, m.Busy, func() { projectIcon(c, "more", 16, muted, false) })
+			if m.presentation != nil {
+				handle := m.presentation.Rows[p.ID]
+				if handle == nil {
+					handle = &ui.Handle{}
+					m.presentation.Rows[p.ID] = handle
+				}
+				more.Bind(handle)
 			}
-			more.Bind(handle)
-		}
-		more.Menu(menu)
-		if !showMenu && !more.Focused() {
-			more.Opacity(0).Width(0)
+			more.Menu(menu)
+		})
+		moreVisible := showMenu || more.Focused() || more.MenuOpen()
+		if !moreVisible {
+			more.Opacity(0)
+		} else if statusRow.Valid() {
+			statusRow.Opacity(0).PassThrough()
 		}
 	})
 }

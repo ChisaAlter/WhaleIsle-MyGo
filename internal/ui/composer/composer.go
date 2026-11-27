@@ -324,7 +324,8 @@ func View(c *ui.Context, m Model) {
 				if m.Inert || wsLabel == "" {
 					wsLabel = i18n.T(i18n.KeyChatHeroChooseWorkspace)
 				}
-				workspace := chip(c, false, fg).Label("Composer workspace").Padding(0, design.Sp(2), 0, design.Sp(2)).MaxWidth(360)
+				wsOpen := m.Snapshot.WorkspaceNavigation != nil && m.Snapshot.WorkspaceNavigation.Mode == "pick"
+				workspace := chip(c, wsOpen, fg).Label("Composer workspace").Padding(0, design.Sp(2), 0, design.Sp(2)).MaxWidth(360)
 				if m.WorkspacePickerAnchor != nil {
 					workspace.Bind(m.WorkspacePickerAnchor)
 				}
@@ -334,7 +335,7 @@ func View(c *ui.Context, m Model) {
 				workspace.Children(func() {
 					ui.Icon(c, folderIcon).Size(design.IconSM, design.IconSM).TextColor(muted).Shrink(0)
 					ui.Text(c, wsLabel).FontSize(design.TextSM.Size).FontWeight(design.WeightMedium).TextColor(fg).SingleLine().MaxLines(1).Shrink(1).MinWidth(0)
-					chevron(c, false)
+					chevron(c, wsOpen)
 				})
 				if workspace.Clicked() && m.OnPickHeroWorkspace != nil {
 					m.OnPickHeroWorkspace()
@@ -393,7 +394,6 @@ func View(c *ui.Context, m Model) {
 		}
 		composerCardElevation(card, t, focused, inputDisabled)
 		collapsedPill := m.Collapsed && !m.Hero && !inputDisabled
-		collapseP := CollapseProgress(c, card, collapsedPill)
 		prevFocused := ui.Local(card, "composer-collapse-prev-focused", func() bool { return false })
 		newlyFocused := focused && !*prevFocused
 		*prevFocused = focused
@@ -403,7 +403,6 @@ func View(c *ui.Context, m Model) {
 				m.OnExpandCollapsed()
 			}
 		}
-		_ = collapseP
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
 		card.Draw(func(p *ui.Painter, r ui.Rect) {
 			if chrome.BackdropActive() {
@@ -950,6 +949,7 @@ func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, skill
 					*list.Selected = 0
 				}
 			}
+			inlineAction := false
 			l := ui.List(c, list, len(items)).Rows(func(row ui.ListRow) {
 				sk := items[row.Index]
 				bg := ui.Transparent
@@ -979,6 +979,7 @@ func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, skill
 								Variant: coss.ButtonGhost,
 								Size:    coss.ButtonXS,
 							}).Clicked() {
+								inlineAction = true
 								m.OnToggleSkillModel(sk.Name, sk.UserOnly) // UserOnly ⇒ currently not model-invocable
 							}
 						}
@@ -987,6 +988,7 @@ func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, skill
 								Variant: coss.ButtonGhost,
 								Size:    coss.ButtonXS,
 							}).Clicked() {
+								inlineAction = true
 								m.OnDeleteSkill(sk.Name)
 							}
 						}
@@ -996,7 +998,7 @@ func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, skill
 					}
 				})
 			})
-			if l.Submitted() || l.Changed() {
+			if !inlineAction && l.Submitted() {
 				if list.Selected != nil && *list.Selected >= 0 && *list.Selected < len(items) {
 					applySkillPick(m, items[*list.Selected])
 				}
@@ -1177,9 +1179,19 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 		popup = popup.BottomPercent(100).Margin(0, 0, design.Sp(1), 0)
 	}
 	popup = chrome.PopoverReveal(c, menuPanelLook(c, popup.MaxHeight(height).Padding(design.Sp(1)).Gap(0)))
+	hasSections := false
+	for _, it := range items {
+		if it.section != "" {
+			hasSections = true
+			break
+		}
+	}
 	popup.Children(func() {
+		breadcrumbs := referenceBreadcrumbs(m)
 		paintReferenceBreadcrumbs(c, m, tok)
-		ui.Text(c, title).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).FixedLineHeight(design.TextXS.LineHeight).TextColor(t.MutedForeground).Padding(design.Sp(1), design.Sp(2), design.Sp(0.5), design.Sp(2))
+		if !hasSections {
+			ui.Text(c, title).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).FixedLineHeight(design.TextXS.LineHeight).TextColor(t.MutedForeground).Padding(design.Sp(1), design.Sp(2), design.Sp(0.5), design.Sp(2)).Shrink(0)
+		}
 		if kind == SuggestMention && referenceQueryActive(m) {
 			pending, failure := referenceQueryStatus(m)
 			if pending {
@@ -1207,6 +1219,13 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 		})
 		scrollActive := nav.LastSel != sel
 		nav.LastSel = sel
+		reserved := float32(34)
+		if !hasSections {
+			reserved += 22
+		}
+		if len(breadcrumbs) > 0 {
+			reserved += 26
+		}
 		coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
 			// Rows are plain buttons: the list widget paints its own accent
 			// selection over the reference's single hover fill, and the arrows and
@@ -1244,10 +1263,13 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 					}
 					itemRow.Children(func() {
 						ui.Text(c, it.label).Grow(1).MinWidth(0).SingleLine().FontSize(design.TextSM.Size).TextColor(rowFg)
-						if it.drill != "" && i == sel {
-							ui.Row(c).Shrink(0).Gap(design.Sp(0.5)).AlignItems(ui.Center).Children(func() {
+						if it.drill != "" {
+							kbd := ui.Row(c).Shrink(0).AlignItems(ui.Center).PassThrough()
+							if i != sel {
+								kbd = kbd.Opacity(0)
+							}
+							kbd.Children(func() {
 								coss.Kbd(c, "Tab")
-								ui.Icon(c, coss.IconChevronDown.SVG()).Size(design.IconXS, design.IconXS).TextColor(t.MutedForeground)
 							})
 						}
 						if it.sub != "" {
@@ -1272,10 +1294,6 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 					nav.HoveredIndex = -1
 				}
 			})
-			// Keyboard hints for the overlay; the rows above stay Tab/Enter
-			// focusable and the editor keymap handles the arrow keys.
-			ui.Text(c, i18n.T(i18n.KeyComposerMenuFooter)).FontSize(design.TextXS.Size).
-				TextColor(t.MutedForeground).Padding(design.Sp(0.5), design.Sp(1.5))
 			if !drilled && clicked >= 0 {
 				applySuggest(m, items[clicked], tok)
 				if m.State != nil {
@@ -1283,7 +1301,11 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 					m.State.EditFocus = true
 				}
 			}
-		}).FillWidth().MaxHeight(max(80, height-40))
+		}).FillWidth().MaxHeight(max(80, height-reserved)).ScrollbarsVisible(true)
+		// Keyboard hints stay pinned below the scrollable list so long menus
+		// keep both their scrollbar affordance and their key legend visible.
+		ui.Text(c, i18n.T(i18n.KeyComposerMenuFooter)).FontSize(design.TextXS.Size).
+			TextColor(t.MutedForeground).Padding(design.Sp(0.5), design.Sp(1.5)).Shrink(0)
 	})
 }
 

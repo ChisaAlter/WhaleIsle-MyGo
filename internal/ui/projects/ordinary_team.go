@@ -102,7 +102,6 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 						for index := start; index < min(start+columns, len(m.Team.Members)); index++ {
 							member := m.Team.Members[index]
 							card := ui.Column(c.Key("team-card:" + member.ID)).Grow(1).MinWidth(0)
-							cardHovered := card.Hovered()
 							card.Children(func() {
 								status := member.Phase
 								if status == "active" {
@@ -116,20 +115,34 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 								highlightCurrent := current && len(m.Team.Members) > 1
 								inert := current || status == "failed" || status == "provisioning" || m.OnOpenMember == nil
 								borderColor := chrome.Color(colors.Border)
-								borderWidth := float32(.5)
 								if member.Error != "" {
 									borderColor = chrome.Color(colors.Danger)
 								} else if highlightCurrent {
 									borderColor = chrome.MaterialFill(chrome.Color(colors.Accent), .45)
-									borderWidth = 1
 								}
-								button := ui.ButtonBase(c.Key("team-member:"+member.ID)).Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Radius(theme.ContextRadii(c).SM).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(borderWidth, borderColor)
+								cardRadius := theme.ContextRadii(c).SM
+								button := ui.ButtonBase(c.Key("team-member:"+member.ID)).Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Radius(cardRadius).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(.5, borderColor)
+								if highlightCurrent && member.Error == "" {
+									accentBorder := borderColor
+									button.DrawOver(func(p *ui.Painter, r ui.Rect) {
+										if r.W > 1 && r.H > 1 {
+											p.Stroke(ui.Rect{X: r.X + 0.5, Y: r.Y + 0.5, W: r.W - 1, H: r.H - 1}, accentBorder, cardRadius, 1)
+										}
+									})
+								}
+								tooltipParts := []string{}
 								if !inert {
-									button.Tooltip(tr("打开成员会话", "Open member conversation")).Cursor(ui.CursorPointer)
+									tooltipParts = append(tooltipParts, tr("打开成员会话", "Open member conversation"))
+									button.Cursor(ui.CursorPointer)
 								} else {
 									button.Cursor(ui.CursorDefault)
 								}
-								showModel := cardHovered || button.Hovered() || button.Focused()
+								if member.ModelLabel != "" {
+									tooltipParts = append(tooltipParts, tr("模型: ", "Model: ")+member.ModelLabel)
+								}
+								if len(tooltipParts) > 0 {
+									button.Tooltip(strings.Join(tooltipParts, " · "))
+								}
 								button.Children(func() {
 									ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
 										ui.Row(c).Width(14).Height(theme.InterfaceSize(18)).AlignItems(ui.Center).Justify(ui.Center).Shrink(0).Children(func() {
@@ -154,9 +167,6 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 											statusText := stateLabel(status)
 											if member.Phase != "active" && member.Running {
 												statusText += " · " + tr("回合运行中", "Turn running")
-											}
-											if showModel && member.ModelLabel != "" {
-												statusText += " · " + tr("模型: ", "Model: ") + member.ModelLabel
 											}
 											ui.Text(c, statusText).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(muted).SingleLine().Ellipsis("…")
 											if member.Error != "" {

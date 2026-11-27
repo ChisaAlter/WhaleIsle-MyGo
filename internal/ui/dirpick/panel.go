@@ -70,9 +70,9 @@ func View(c *ui.Context, m Model) {
 			if s.UseNative {
 				return
 			}
-			bar := ui.Row(c).FillWidth().MinWidth(0).Height(24).AlignItems(ui.Center).Gap(4)
+			bar := ui.Row(c).FillWidth().MinWidth(0).Height(24).AlignItems(ui.Center).Gap(4).Border(1, ui.Transparent).Radius(6)
 			if s.PathDraft != nil {
-				bar.Border(1, border).Radius(6)
+				bar.Border(1, border)
 			}
 			bar.Children(func() {
 				if s.PathDraft != nil {
@@ -139,7 +139,7 @@ func View(c *ui.Context, m Model) {
 						},
 					}).Tooltip(dirText("编辑路径", "Edit path")).MinWidth(34).Grow(1).Height(22).Padding(design.Sp(1))
 					if edit.Hovered() || edit.FocusVisible() {
-						bar.Border(1, border).Radius(6)
+						bar.Border(1, border)
 					}
 					if s.FocusEdit {
 						edit.Focus()

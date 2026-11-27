@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"time"
 	remotestore "whaleisle/internal/store/remote"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -39,7 +40,6 @@ func viewSessionFiles(c *ui.Context, m Model) {
 }
 
 func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	e := m.FileEditor
 	key := s.BindingID + "\x00" + s.RemoteIdentity + "\x00" + remotestore.ResourceAddress(s.SessionID, s.FilePath)
 	if e.Key != key || e.Revision != s.Revision {
@@ -65,7 +65,7 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 	if !s.FileLoaded {
 		if s.Busy {
 			ui.Text(c, label("正在读取…", "Reading…"))
-		} else if widgets.Button(c, colors, label("重试读取", "Retry read"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+		} else if coss.Button(c, label("重试读取", "Retry read"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).AlignSelf(ui.Start).Clicked() {
 			m.Files.Reload()
 		}
 		return
@@ -80,24 +80,24 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 		ui.Text(c, label("预览已截断，禁止保存不完整文件。", "Preview truncated; saving incomplete contents is disabled."))
 	}
 	ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
-		if widgets.Button(c, colors, label("重新读取", "Reload"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
+		if coss.Button(c, label("重新读取", "Reload"), coss.ButtonOptions{Variant: coss.ButtonSecondary, Size: coss.ButtonSM, Disabled: disabled || s.Dirty() || !s.Bound}).Clicked() {
 			m.Files.Reload()
 		}
-		if !e.Editing && widgets.Button(c, colors, label("编辑", "Edit"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled || s.Stale || s.File.Binary || s.File.Truncated || s.File.Mtime == nil).Clicked() {
+		if !e.Editing && coss.Button(c, label("编辑", "Edit"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled || s.Stale || s.File.Binary || s.File.Truncated || s.File.Mtime == nil}).Clicked() {
 			e.Editing = true
 			m.Files.SetEditing(true)
 		}
 		if e.Editing {
-			if widgets.Button(c, colors, label("保存到远端", "Save to remote"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || s.Stale || !s.Dirty()).Clicked() {
+			if coss.Button(c, label("保存到远端", "Save to remote"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: disabled || s.Stale || !s.Dirty()}).Clicked() {
 				m.Files.Save()
 			}
-			if widgets.Button(c, colors, label("取消编辑", "Cancel editing"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
+			if coss.Button(c, label("取消编辑", "Cancel editing"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 				m.Files.Discard()
 				m.Files.SetEditing(false)
 				e.Editing = false
 			}
 		}
-		if widgets.Button(c, colors, label("下载到会话镜像…", "Download to session mirror…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
+		if coss.Button(c, label("下载到会话镜像…", "Download to session mirror…"), coss.ButtonOptions{Variant: coss.ButtonSecondary, Size: coss.ButtonSM, Disabled: disabled || s.Dirty() || !s.Bound}).Clicked() {
 			e.ConfirmDownload = true
 		}
 	})
@@ -129,10 +129,10 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 	if e.ConfirmDownload {
 		ui.Text(c, label("下载会写入此会话的本地镜像，并可能覆盖同名文件。", "Download writes into this session's local mirror and may overwrite a same-named file.")).FillWidth()
 		ui.Row(c).Gap(6).Children(func() {
-			if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
+			if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 				e.ConfirmDownload = false
 			}
-			if widgets.Button(c, colors, label("确认下载", "Confirm download"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || s.Dirty()).Clicked() {
+			if coss.Button(c, label("确认下载", "Confirm download"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: disabled || s.Dirty()}).Clicked() {
 				e.ConfirmDownload = false
 				m.Files.Download()
 			}

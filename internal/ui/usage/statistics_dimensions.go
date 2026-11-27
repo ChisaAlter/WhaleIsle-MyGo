@@ -271,8 +271,13 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 				*detail = focusTarget
 				*focusDay = focusTarget
 			}
+			detailText := ""
 			if day, ok := lookup[*detail]; ok {
-				pagekit.Caption(c, dayTip(day, providers, settings)).FillWidth()
+				detailText = dayTip(day, providers, settings)
+			}
+			caption := pagekit.Caption(c, detailText).FillWidth().Height(design.TextXS.LineHeight).SingleLine().Ellipsis("…")
+			if detailText == "" {
+				caption.Opacity(0)
 			}
 			ui.Row(c).FillWidth().Gap(design.Sp(1)).AlignItems(ui.Center).Margin(design.Sp(3.5), 0, 0).Children(func() {
 				ui.Spacer(c)

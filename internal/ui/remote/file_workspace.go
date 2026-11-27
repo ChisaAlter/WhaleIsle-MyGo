@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/errcopy"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/transfer"
@@ -90,7 +89,7 @@ func FileWorkspace(c *ui.Context, m Model) bool {
 		if s.ResolveError != nil {
 			anchor.FillWidth().Gap(4).Children(func() {
 				ui.Text(c, s.ResolveError.SentenceText()).FillWidth()
-				if widgets.Button(c, colors, label("重试远程工作区解析", "Retry remote workspace resolution"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(s.Resolving).Clicked() {
+				if coss.Button(c, label("重试远程工作区解析", "Retry remote workspace resolution"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: s.Resolving}).AlignSelf(ui.Start).Clicked() {
 					state.Files.Resolve()
 				}
 			})
@@ -112,7 +111,7 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Row(c).FillWidth().Gap(6).Children(func() {
 		ui.Text(c, label("远程文件", "Remote files")).Bold().Grow(1).MinWidth(0)
-		if widgets.Button(c, colors, label("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
+		if coss.Button(c, label("刷新", "Refresh"), coss.ButtonOptions{Variant: coss.ButtonSecondary, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 			m.Files.Browse(s.RootPath)
 		}
 	})
@@ -130,7 +129,7 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 	}
 	if s.ResolveError != nil {
 		ui.Text(c, s.ResolveError.SentenceText()).FillWidth()
-		if widgets.Button(c, colors, label("重试解析", "Retry resolution"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(s.Resolving).Clicked() {
+		if coss.Button(c, label("重试解析", "Retry resolution"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: s.Resolving}).AlignSelf(ui.Start).Clicked() {
 			m.Files.Resolve()
 		}
 	}
@@ -156,7 +155,7 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 				d := s.Tree[path]
 				if d.Error != nil {
 					ui.Text(c, d.Error.SentenceText()).FillWidth().FontSize(theme.InterfaceSize(11))
-					if widgets.Button(c, colors, label("重试目录", "Retry directory"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
+					if coss.Button(c, label("重试目录", "Retry directory"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).AlignSelf(ui.Start).Clicked() {
 						m.Files.Browse(path)
 					}
 				}
@@ -211,10 +210,10 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 				ui.Text(c, label("关闭未保存的远程文件？", "Close an unsaved remote file?")).Bold()
 				ui.Text(c, s.PendingClose).FillWidth()
 				ui.Row(c).Gap(8).Wrap().Children(func() {
-					if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+					if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Clicked() {
 						m.Files.ConfirmClose(false)
 					}
-					if widgets.Button(c, colors, label("放弃草稿并关闭", "Discard draft and close"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
+					if coss.Button(c, label("放弃草稿并关闭", "Discard draft and close"), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonSM}).Clicked() {
 						m.Files.ConfirmClose(true)
 					}
 				})

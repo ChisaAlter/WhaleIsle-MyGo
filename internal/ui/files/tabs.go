@@ -413,18 +413,19 @@ func paintTabChip(c *ui.Context, m Model, w *WorkspaceTabs, tab *FileTab, fg, mu
 			accent := chrome.Color(fonttheme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
 			ui.Box(c).Size(6, 6).Shrink(0).Radius(3).Background(accent).Tooltip(i18n.T(i18n.KeySurfacesFilesDirty))
 		}
-		if active || hovered {
-			closeLabel := i18n.T(i18n.KeySurfacesFilesClose)
-			close := coss.Button(c, "", coss.ButtonOptions{
-				Variant: coss.ButtonGhost,
-				Label:   closeLabel,
-				Content: func() {
-					ui.Icon(c, tabCloseIcon).Size(10, 10).TextColor(muted).PassThrough()
-				},
-			}).Size(18, 18).Shrink(0).Padding(0).Radius(design.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
-			if close.Clicked() {
-				closeTab(m, tab.Path, false)
-			}
+		closeLabel := i18n.T(i18n.KeySurfacesFilesClose)
+		close := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Label:   closeLabel,
+			Content: func() {
+				ui.Icon(c, tabCloseIcon).Size(10, 10).TextColor(muted).PassThrough()
+			},
+		}).Size(18, 18).Shrink(0).Padding(0).Radius(design.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
+		if !active && !hovered && !close.Hovered() && !close.Focused() {
+			close.Opacity(0)
+		}
+		if close.Clicked() {
+			closeTab(m, tab.Path, false)
 		}
 	})
 }
