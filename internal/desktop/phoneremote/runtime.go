@@ -19,8 +19,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"whaleisle/internal/processutil"
 )
 
 // RuntimeState describes observed daemon state, never configuration readiness.
@@ -491,17 +489,56 @@ func writeControl(c Child, v any) error {
 	return e
 }
 
+const bridgeDrainGrace = 500 * time.Millisecond
+
 type execChild struct {
-	cmd    *exec.Cmd
-	in     io.WriteCloser
-	out    io.ReadCloser
-	script string
+	cmd      *exec.Cmd
+	job      *bridgeJob
+	in       io.WriteCloser
+	out      *os.File
+	script   string
+	exited   chan struct{}
+	waitErr  error
+	killOnce sync.Once
+}
+
+func newExecChild(cmd *exec.Cmd, job *bridgeJob, in io.WriteCloser, out *os.File, script string) *execChild {
+	c := &execChild{
+		cmd:    cmd,
+		job:    job,
+		in:     in,
+		out:    out,
+		script: script,
+		exited: make(chan struct{}),
+	}
+	go func() {
+		c.waitErr = cmd.Wait()
+		killBridgeTree(cmd, job)
+		job.close()
+		if script != "" {
+			_ = os.Remove(script)
+		}
+		close(c.exited)
+		time.AfterFunc(bridgeDrainGrace, func() { _ = out.Close() })
+	}()
+	return c
 }
 
 func (c *execChild) Input() io.Writer  { return c.in }
 func (c *execChild) Output() io.Reader { return c.out }
-func (c *execChild) Wait() error       { defer os.Remove(c.script); return c.cmd.Wait() }
-func (c *execChild) Kill()             { _ = c.in.Close(); _ = c.cmd.Process.Kill() }
+func (c *execChild) Wait() error {
+	<-c.exited
+	_ = c.out.Close()
+	return c.waitErr
+}
+func (c *execChild) Kill() {
+	c.killOnce.Do(func() {
+		_ = c.in.Close()
+		killBridgeTree(c.cmd, c.job)
+		c.job.close()
+		time.AfterFunc(bridgeDrainGrace, func() { _ = c.out.Close() })
+	})
+}
 
 const electronRunAsNodeEnv = "ELECTRON_RUN_AS_NODE"
 
@@ -547,7 +584,7 @@ func spawnBridge(r Resources) (Child, error) {
 		}
 	}()
 	cmd := exec.Command(r.Node, "-e", "const file=process.argv[1];process.argv.splice(1,1);require(file)", scriptName, r.Module, r.Home)
-	processutil.BackgroundTree(cmd)
+	prepareBridgeCmd(cmd)
 	cmd.Dir = filepath.Dir(r.Module)
 	cmd.Stderr = io.Discard
 	cmd.Env = daemonEnv(os.Environ())
@@ -555,16 +592,20 @@ func spawnBridge(r Resources) (Child, error) {
 	if e != nil {
 		return nil, e
 	}
-	out, e := cmd.StdoutPipe()
+	outRead, outWrite, e := os.Pipe()
 	if e != nil {
 		in.Close()
 		return nil, e
 	}
+	cmd.Stdout = outWrite
 	if e = cmd.Start(); e != nil {
 		in.Close()
-		out.Close()
+		outRead.Close()
+		outWrite.Close()
 		return nil, e
 	}
+	_ = outWrite.Close()
+	job := bindBridgeJob(cmd)
 	started = true
-	return &execChild{cmd: cmd, in: in, out: out, script: scriptName}, nil
+	return newExecChild(cmd, job, in, outRead, scriptName), nil
 }

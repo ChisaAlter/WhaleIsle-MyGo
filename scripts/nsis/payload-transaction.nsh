@@ -997,6 +997,7 @@ FunctionEnd
 Function .onGUIEnd
   ${If} $wiCommitted != "1"
     Call wiRollback
+    Call wiRestoreRegistration
   ${EndIf}
 FunctionEnd
 

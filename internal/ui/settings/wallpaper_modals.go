@@ -241,7 +241,7 @@ func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 			Placeholder: providerCopy("搜索壁纸", "Search wallpapers"),
 			Label:       providerCopy("搜索壁纸", "Search wallpapers"),
 		})
-		if searchIn.Submitted() && !g.Busy {
+		if searchIn.Submitted() && !searchIn.Composing() && !g.Busy {
 			g.load(1)
 		}
 		if kButtonDisabled(c, providerCopy("刷新", "Refresh"), g.Busy).Clicked() {

@@ -195,33 +195,27 @@ func (s *Store) runFollowAttempt(ctx context.Context, mux *dsh.Mux, sessionID st
 			}
 			return false, opened
 		}
-		var frame struct {
-			Type   string   `json:"type"`
-			Cursor *float64 `json:"cursor"`
-			Event  struct {
-				Seq *float64 `json:"seq"`
-			} `json:"event"`
-		}
-		if json.Unmarshal(raw, &frame) == nil && frame.Type == "event" && frame.Event.Seq != nil && cursorKnown {
-			if *frame.Event.Seq <= cursor {
+		parsed := parseFollowFrame(raw)
+		if parsed.kindOK && parsed.kind == "event" && parsed.eventSeqOK && cursorKnown {
+			if parsed.eventSeq <= cursor {
 				continue
 			}
-			if *frame.Event.Seq != cursor+1 {
+			if parsed.eventSeq != cursor+1 {
 				// Never fold an event over a hole. Reopening obtains the atomic
 				// durable window and assistant baseline from the Host.
 				return true, opened
 			}
 		}
-		if !s.applyFollowFrameForTarget(ctx, sessionID, generation, raw) {
+		if !s.applyFollowFrameParsedForTarget(ctx, sessionID, generation, parsed) {
 			return false, opened
 		}
-		if frame.Type == "snapshot" {
+		if parsed.kind == "snapshot" {
 			opened = true
-			if frame.Cursor != nil {
-				cursor, cursorKnown = *frame.Cursor, true
+			if parsed.cursor != nil {
+				cursor, cursorKnown = *parsed.cursor, true
 			}
-		} else if frame.Type == "event" && frame.Event.Seq != nil {
-			cursor, cursorKnown = *frame.Event.Seq, true
+		} else if parsed.kind == "event" && parsed.eventSeqOK {
+			cursor, cursorKnown = parsed.eventSeq, true
 		}
 		s.mu.Lock()
 		restart := s.followCurrentLocked(ctx, sessionID, generation) && s.assistantStream.rebaseline
@@ -262,27 +256,37 @@ type followSnapshotFrame struct {
 }
 
 type parsedFollowFrame struct {
-	raw        json.RawMessage
-	kind       string
-	kindOK     bool
-	streamType string
-	snap       followSnapshotFrame
-	snapOK     bool
-	eventRaw   json.RawMessage
-	eventOK    bool
+	raw         json.RawMessage
+	kind        string
+	kindOK      bool
+	cursor      *float64
+	streamType  string
+	streamFrame *assistantStreamWireFrame
+	snap        followSnapshotFrame
+	snapOK      bool
+	eventRaw    json.RawMessage
+	eventOK     bool
+	eventHead   parsedEventHead
+	eventHeadOK bool
+	eventSeq    float64
+	eventSeqOK  bool
 }
 
 func parseFollowFrame(raw json.RawMessage) parsedFollowFrame {
 	out := parsedFollowFrame{raw: raw}
-	var head struct {
-		Type string `json:"type"`
+	var env struct {
+		Type   string                    `json:"type"`
+		Cursor *float64                  `json:"cursor"`
+		Event  json.RawMessage           `json:"event"`
+		Frame  *assistantStreamWireFrame `json:"frame"`
 	}
-	if json.Unmarshal(raw, &head) != nil {
+	if json.Unmarshal(raw, &env) != nil {
 		return out
 	}
-	out.kind = head.Type
+	out.kind = env.Type
 	out.kindOK = true
-	switch head.Type {
+	out.cursor = env.Cursor
+	switch env.Type {
 	case "snapshot":
 		if json.Unmarshal(raw, &out.snap) == nil && out.snap.Records != nil {
 			for i := range out.snap.Records {
@@ -322,21 +326,33 @@ func parseFollowFrame(raw json.RawMessage) parsedFollowFrame {
 			out.snapOK = true
 		}
 	case "event":
-		var wrap struct {
-			Event json.RawMessage `json:"event"`
-		}
-		if json.Unmarshal(raw, &wrap) == nil {
-			out.eventRaw = wrap.Event
-			out.eventOK = true
+		out.eventRaw = env.Event
+		out.eventOK = true
+		if len(env.Event) > 0 {
+			var evHead struct {
+				Type string   `json:"type"`
+				Seq  *float64 `json:"seq"`
+				Time float64  `json:"time"`
+			}
+			if json.Unmarshal(env.Event, &evHead) == nil {
+				if evHead.Seq != nil {
+					out.eventSeq = *evHead.Seq
+					out.eventSeqOK = true
+				}
+				if evHead.Type != "" {
+					out.eventHead = parsedEventHead{
+						Type: evHead.Type,
+						Seq:  out.eventSeq,
+						Time: evHead.Time,
+					}
+					out.eventHeadOK = true
+				}
+			}
 		}
 	case "assistant-stream":
-		var wrap struct {
-			Frame struct {
-				Type string `json:"type"`
-			} `json:"frame"`
-		}
-		if json.Unmarshal(raw, &wrap) == nil {
-			out.streamType = wrap.Frame.Type
+		if env.Frame != nil {
+			out.streamType = env.Frame.Type
+			out.streamFrame = env.Frame
 		}
 	}
 	return out
@@ -345,8 +361,11 @@ func parseFollowFrame(raw json.RawMessage) parsedFollowFrame {
 // The generation check and the entire frame fold share one critical section.
 // A selection cannot change between validation and any message/plan/history write.
 func (s *Store) applyFollowFrameForTarget(ctx context.Context, sessionID string, generation uint64, raw json.RawMessage) bool {
-	wantGoalRefresh := goalRefreshFollowFrame(raw)
-	parsed := parseFollowFrame(raw)
+	return s.applyFollowFrameParsedForTarget(ctx, sessionID, generation, parseFollowFrame(raw))
+}
+
+func (s *Store) applyFollowFrameParsedForTarget(ctx context.Context, sessionID string, generation uint64, parsed parsedFollowFrame) bool {
+	wantGoalRefresh := goalRefreshForParsedFrame(parsed)
 	s.mu.Lock()
 	if !s.followCurrentLocked(ctx, sessionID, generation) {
 		s.mu.Unlock()
@@ -603,6 +622,9 @@ func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
 		}
 		return s.acceptAssistantDurableLocked(parsed.eventRaw)
 	case "assistant-stream":
+		if parsed.streamFrame != nil {
+			return s.applyAssistantStreamFrameLocked(parsed.streamFrame)
+		}
 		return s.applyAssistantStreamLocked(parsed.raw)
 	default:
 		return false

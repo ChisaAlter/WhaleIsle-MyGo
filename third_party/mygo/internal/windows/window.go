@@ -419,6 +419,12 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 			pos.Flags |= swpNoMove
 		}
 		return 0, false
+	case wmWindowPosChanged:
+		pos := (*windowPos)(native(lp))
+		if pos.Flags&swpShowWindow != 0 {
+			w.notifySurfaceShown()
+		}
+		return 0, false
 	case wmCommand:
 		if hiword(wp) == 0 && lp == 0 { // a menu item
 			w.b.menuCommand(loword(wp), w)
@@ -468,22 +474,34 @@ func (w *window) sized(kind uintptr) {
 		}
 	case sizeMaximized:
 		if w.state != sizeMaximized {
-			if w.state == sizeMinimized {
-				w.h.Restored()
-			}
+			restored := w.state == sizeMinimized
 			w.state = sizeMaximized
+			if restored {
+				w.h.Restored()
+				w.notifySurfaceShown()
+			}
 			w.h.Maximized()
 		}
 	case sizeRestored:
-		switch w.state {
+		prev := w.state
+		w.state = sizeRestored
+		switch prev {
 		case sizeMinimized:
 			w.h.Restored()
+			w.notifySurfaceShown()
 		case sizeMaximized:
 			w.h.Unmaximized()
 		}
-		w.state = sizeRestored
 	}
 	w.h.Resized()
+}
+
+// notifySurfaceShown tells the UI surface that the window is visible and
+// unminimized again so paused animations and timers can resume.
+func (w *window) notifySurfaceShown() {
+	if w.surface != nil && !w.closed && !w.surface.Occluded() {
+		w.surface.send(platform.SurfaceEvent{Kind: platform.SurfaceShown})
+	}
 }
 
 // onSurfaceSize paces live resize redraws so dragging redraws smoothly at
@@ -827,6 +845,7 @@ func (w *window) Show() {
 	}
 	traceRaise("window.show", w.hwnd)
 	procSetForegroundWindow.Call(w.hwnd)
+	w.notifySurfaceShown()
 }
 
 func (w *window) ShowInactive() {
@@ -834,9 +853,11 @@ func (w *window) ShowInactive() {
 		// Maximizing activates the window; there is no inactive variant.
 		w.showMaximized = false
 		procShowWindow.Call(w.hwnd, swShowMaximized)
+		w.notifySurfaceShown()
 		return
 	}
 	procShowWindow.Call(w.hwnd, swShowNoActivate)
+	w.notifySurfaceShown()
 }
 func (w *window) Hide() { procShowWindow.Call(w.hwnd, swHide) }
 
@@ -926,7 +947,10 @@ func (w *window) IsMaximized() bool {
 	return r != 0
 }
 
-func (w *window) Restore() { procShowWindow.Call(w.hwnd, swRestore) }
+func (w *window) Restore() {
+	procShowWindow.Call(w.hwnd, swRestore)
+	w.notifySurfaceShown()
+}
 
 // SetFullScreen takes the window's frame and menu bar away, or gives them
 // back. Each step sizes the window again: it is laid out once, at the end.

@@ -223,7 +223,7 @@ func runGitDiff(workspaceRoot string, timeout time.Duration, run combinedRunner,
 	if _, err := run(ctxCheck, root, "git", "rev-parse", "--is-inside-work-tree"); err != nil {
 		return "", ErrNotRepo
 	}
-	args := []string{"diff"}
+	args := []string{"--literal-pathspecs", "diff", "--no-color", "--no-ext-diff", "--no-textconv"}
 	if trimmed := trimPathArgs(paths); len(trimmed) > 0 {
 		args = append(args, "--")
 		args = append(args, trimmed...)
@@ -231,7 +231,22 @@ func runGitDiff(workspaceRoot string, timeout time.Duration, run combinedRunner,
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	out, err := run(ctx, root, "git", args...)
-	return strings.TrimSpace(string(out)), err
+	return strings.TrimRight(string(out), "\r\n"), err
+}
+
+func runGitDiffCommand(workspaceRoot string, timeout time.Duration, run combinedRunner, subcommand string, extraArgs ...string) (string, error) {
+	root := cleanWorkspaceRoot(workspaceRoot)
+	if root == "" {
+		return "", ErrNotRepo
+	}
+	if timeout <= 0 {
+		timeout = DefaultCommandTimeout
+	}
+	args := gitCLIArgs(subcommand, extraArgs...)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	out, err := run(ctx, root, "git", args...)
+	return strings.TrimRight(string(out), "\r\n"), err
 }
 
 func trimPathArgs(paths []string) []string {

@@ -797,10 +797,15 @@ func (c *Center) Cancel(win WindowRef) {
 	r.Phase = settledNativeReleasePhase(*r, ver)
 	c.mu.Unlock()
 	if dir != "" {
-		if err := DiscardNativePartial(c.userDataDir(), dir); err != nil {
+		c.diskMu.Lock()
+		discardErr := DiscardNativePartial(c.userDataDir(), dir)
+		c.diskMu.Unlock()
+		if discardErr != nil {
 			c.mu.Lock()
-			c.releases.Err = err.Error()
-			c.releases.Phase = "error"
+			if !c.releases.Busy && c.releases.Active.Tag == "" && c.releases.Staged.Path == "" {
+				c.releases.Err = discardErr.Error()
+				c.releases.Phase = "error"
+			}
 			c.mu.Unlock()
 		}
 	}
@@ -879,7 +884,7 @@ func (c *Center) StartStaged(win WindowRef) {
 		return
 	}
 	c.mu.Lock()
-	if c.releases.Busy || env.TaskRestartPending || env.Quitting || env.LauncherImportBusy {
+	if c.releases.Busy || c.releases.Staged != staged || c.releases.Staged.Path == "" || env.TaskRestartPending || env.Quitting || env.LauncherImportBusy {
 		c.mu.Unlock()
 		return
 	}

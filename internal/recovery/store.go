@@ -178,30 +178,61 @@ type lockOwnerInfo struct {
 }
 
 func acquireLock(lockPath string) (func(), error) {
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if errors.Is(err, os.ErrExist) {
-		return nil, ErrBusy
+	for attempt := 0; attempt < 2; attempt++ {
+		f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if errors.Is(err, os.ErrExist) {
+			if attempt == 0 && reclaimStaleLock(lockPath) {
+				continue
+			}
+			return nil, ErrBusy
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload, err := json.Marshal(lockOwnerInfo{
+			PID:       os.Getpid(),
+			CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		})
+		if err != nil {
+			_ = f.Close()
+			_ = os.Remove(lockPath)
+			return nil, err
+		}
+		if _, err := f.Write(append(payload, '\n')); err != nil {
+			_ = f.Close()
+			_ = os.Remove(lockPath)
+			return nil, err
+		}
+		if err := f.Close(); err != nil {
+			_ = os.Remove(lockPath)
+			return nil, err
+		}
+		return func() { _ = os.Remove(lockPath) }, nil
 	}
+	return nil, ErrBusy
+}
+
+// reclaimStaleLock removes a lock file only when it carries a valid owner PID
+// whose process is confirmed dead. Empty/malformed locks or locks owned by a
+// live process (including the current PID) are preserved and rejected as ErrBusy.
+func reclaimStaleLock(lockPath string) bool {
+	raw, err := os.ReadFile(lockPath)
 	if err != nil {
-		return nil, err
+		return errors.Is(err, os.ErrNotExist)
 	}
-	payload, err := json.Marshal(lockOwnerInfo{
-		PID:       os.Getpid(),
-		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
-	})
-	if err != nil {
-		_ = f.Close()
-		_ = os.Remove(lockPath)
-		return nil, err
+	var owner lockOwnerInfo
+	if json.Unmarshal(raw, &owner) != nil || owner.PID <= 0 {
+		return false
 	}
-	if _, err := f.Write(append(payload, '\n')); err != nil {
-		_ = f.Close()
-		_ = os.Remove(lockPath)
-		return nil, err
+	if owner.PID == os.Getpid() || lockProcessAlive(owner.PID) {
+		return false
 	}
-	if err := f.Close(); err != nil {
-		_ = os.Remove(lockPath)
-		return nil, err
+	// Atomically move the stale lock aside before removing so two concurrent
+	// reclaimers cannot unlink a newly acquired live lock.
+	stalePath := fmt.Sprintf("%s.stale.%d.%d", lockPath, os.Getpid(), time.Now().UnixNano())
+	if err := os.Rename(lockPath, stalePath); err != nil {
+		return errors.Is(err, os.ErrNotExist)
 	}
-	return func() { _ = os.Remove(lockPath) }, nil
+	_ = os.Remove(stalePath)
+	return true
 }

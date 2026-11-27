@@ -227,6 +227,7 @@ type engine struct {
 	wheelStepped bool
 	paintSeq     uint64
 	held         bool
+	heldWake     time.Time
 	painted      [3]float32
 	gen          uint64
 	repaintTimer *time.Timer
@@ -600,6 +601,10 @@ func (rt *engine) next() {
 func (rt *engine) repaintNow() {
 	if !rt.repaintDue.IsZero() && !rt.now().Before(rt.repaintDue.Add(-time.Millisecond)) {
 		rt.repaintDue = time.Time{}
+		if rt.host.occluded() {
+			rt.held = true
+			return
+		}
 		traceCause(rt, causePaintAfter)
 		rt.host.requestFrame()
 	}
@@ -1033,21 +1038,58 @@ func (rt *engine) scheduleAt(t time.Time) {
 	rt.wakeMu.Unlock()
 }
 
-// armTimer starts a timer for the earliest frame After asked for.
+// armTimer starts a timer for the earliest frame After asked for. While
+// nothing of the window shows (occluded), timers pause and resume once the
+// surface shows again (SurfaceShown), keeping occluded windows at 0 Hz.
 func (rt *engine) armTimer() {
 	rt.wakeMu.Lock()
 	at := rt.wakeAt
 	rt.wakeAt = time.Time{}
 	rt.wakeMu.Unlock()
-	switch {
-	case at.IsZero():
+	if at.IsZero() {
+		rt.heldWake = time.Time{}
 		if rt.timer != nil {
 			rt.timer.Stop()
 		}
-	case rt.timer != nil:
-		rt.timer.Reset(max(time.Until(at), time.Millisecond))
-	default:
-		rt.timer = time.AfterFunc(max(time.Until(at), time.Millisecond), func() { traceCause(rt, causeAfter); rt.host.invalidate() })
+		return
+	}
+	if rt.host.occluded() {
+		rt.heldWake = at
+		if rt.timer != nil {
+			rt.timer.Stop()
+		}
+		return
+	}
+	rt.heldWake = time.Time{}
+	d := max(at.Sub(rt.now()), time.Millisecond)
+	if rt.timer != nil {
+		rt.timer.Reset(d)
+	} else {
+		rt.timer = time.AfterFunc(d, func() { traceCause(rt, causeAfter); rt.host.invalidate() })
+	}
+}
+
+// resumeHeld resumes animations and timers that paused while the window was
+// occluded.
+func (rt *engine) resumeHeld() {
+	if rt.host.occluded() {
+		return
+	}
+	held := rt.held
+	rt.held = false
+	wake := rt.heldWake
+	rt.heldWake = time.Time{}
+	if held {
+		rt.requestFrame()
+		return
+	}
+	if !wake.IsZero() {
+		if !wake.After(rt.now()) {
+			rt.requestFrame()
+			return
+		}
+		rt.scheduleAt(wake)
+		rt.armTimer()
 	}
 }
 
@@ -1094,6 +1136,7 @@ func (rt *engine) close() {
 	if rt.timer != nil {
 		rt.timer.Stop()
 	}
+	rt.heldWake = time.Time{}
 	if rt.repaintTimer != nil {
 		rt.repaintTimer.Stop()
 	}

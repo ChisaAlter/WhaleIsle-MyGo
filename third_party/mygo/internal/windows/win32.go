@@ -248,6 +248,7 @@ const (
 	wmSettingChange     = 0x001A
 	wmGetMinMaxInfo     = 0x0024
 	wmWindowPosChanging = 0x0046
+	wmWindowPosChanged  = 0x0047
 	wmSetIcon           = 0x0080
 	wmNCCalcSize        = 0x0083
 	wmNCHitTest         = 0x0084

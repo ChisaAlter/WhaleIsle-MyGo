@@ -1,16 +1,20 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
 )
 
@@ -31,6 +35,20 @@ func TestMain(m *testing.M) {
 	case "leaker":
 		time.Sleep(time.Hour)
 		return
+	case "earlyparent":
+		exe, err := os.Executable()
+		if err != nil {
+			os.Exit(4)
+		}
+		gc := exec.Command(exe)
+		gc.Env = append(os.Environ(), "FAKE_DSH=leaker")
+		if err := gc.Start(); err != nil {
+			os.Exit(5)
+		}
+		if pidFile := os.Getenv("FAKE_DSH_GRANDCHILD_PID"); pidFile != "" {
+			_ = os.WriteFile(pidFile, []byte(strconv.Itoa(gc.Process.Pid)), 0o600)
+		}
+		os.Exit(2)
 	case "crash":
 		fmt.Println("boom")
 		os.Exit(3)
@@ -225,4 +243,97 @@ func TestRedeemWithoutTokenIsOpen(t *testing.T) {
 	if err != nil || ep.Cookie != "" || ep.Origin != "http://127.0.0.1:1" {
 		t.Fatalf("got %+v %v", ep, err)
 	}
+}
+
+func assertInstallControlActive(t *testing.T, srv *installctrl.Server) {
+	t.Helper()
+	var baseURL, token string
+	for _, kv := range srv.Env() {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok {
+			continue
+		}
+		if k == installctrl.EnvURL {
+			baseURL = v
+		}
+		if k == installctrl.EnvToken {
+			token = v
+		}
+	}
+	if baseURL == "" || token == "" {
+		t.Fatalf("installctrl env missing credentials: %v", srv.Env())
+	}
+	for _, tc := range []struct {
+		path string
+		body string
+	}{
+		{path: "/install", body: `{"spec":"github:acme/widget"}`},
+		{path: "/desktop/project", body: `{"action":"ping"}`},
+	} {
+		req, err := http.NewRequest(http.MethodPost, baseURL+tc.path, bytes.NewBufferString(tc.body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("%s request failed: %v", tc.path, err)
+		}
+		var decoded map[string]any
+		decodeErr := json.NewDecoder(resp.Body).Decode(&decoded)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || decodeErr != nil {
+			t.Fatalf("%s status=%d decodeErr=%v body=%v", tc.path, resp.StatusCode, decodeErr, decoded)
+		}
+		if decoded["ok"] != true {
+			t.Fatalf("%s expected ok=true, got %v", tc.path, decoded)
+		}
+	}
+}
+
+func TestInstallControlSurvivesAutoRestartAndManualRetry(t *testing.T) {
+	makeInstall := func() *installctrl.Server {
+		return installctrl.New(installctrl.Options{
+			InstallContext: func(ctx context.Context, spec string, _ installctrl.InstallOpts) installctrl.Result {
+				if err := ctx.Err(); err != nil {
+					return installctrl.Result{OK: false, Spec: spec, Error: err.Error()}
+				}
+				return installctrl.Result{OK: true, Spec: spec}
+			},
+			Project: func(ctx context.Context, _ map[string]any) map[string]any {
+				if err := ctx.Err(); err != nil {
+					return map[string]any{"ok": false, "error": err.Error()}
+				}
+				return map[string]any{"ok": true}
+			},
+		})
+	}
+
+	t.Run("PluginTreeAutoRestart", func(t *testing.T) {
+		srv := makeInstall()
+		s := supervisorFor(t, "plugintree", Options{Install: srv})
+		defer s.Stop()
+		s.Start()
+		waitFor(t, s, Ready)
+		assertInstallControlActive(t, srv)
+	})
+
+	t.Run("CrashFailureThenManualStart", func(t *testing.T) {
+		srv := makeInstall()
+		s := supervisorFor(t, "crash", Options{
+			AutoRestart: true,
+			MaxAttempts: 1,
+			BaseDelay:   10 * time.Millisecond,
+			Install:     srv,
+		})
+		defer s.Stop()
+		s.Start()
+		waitFor(t, s, Failed)
+
+		t.Setenv("FAKE_DSH", "serve")
+		s.Start()
+		waitFor(t, s, Ready)
+		assertInstallControlActive(t, srv)
+	})
 }

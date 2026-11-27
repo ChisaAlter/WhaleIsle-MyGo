@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
@@ -185,7 +186,7 @@ func projectModals(c *ui.Context, m Model) {
 			projectModalSurface(c, back, panel.Label(route.title).Width(min(760, max(1, width-32))).MaxHeight(min(height*.8, max(1, height-48))).MinHeight(0).Padding(0, 0, 24, 0), colors).Children(func() {
 				projectModalHeader(c, m, route.title, close, materialRoute && m.Busy, memory.LastRoute != route.key)
 				if m.Error != "" {
-					ui.Text(c, m.Error).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).Padding(0, 24, 8, 24).Shrink(0)
+					ui.Text(c, errcopy.SentenceText(m.Error)).FontSize(theme.InterfaceSize(12)).TextColor(design.For(c).DestructiveForeground).Padding(0, 24, 8, 24).Shrink(0)
 				}
 				if m.Busy {
 					ui.Text(c, tr("正在加载…", "Loading…")).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted)).Padding(0, 24, 8, 24).Shrink(0)

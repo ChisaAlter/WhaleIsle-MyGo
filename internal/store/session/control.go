@@ -295,6 +295,15 @@ func (s *Store) applyControlBaselineMapLocked(catalogOwner sidebarCatalogOwner, 
 		s.applyCostBaselineLocked(id, seq, p.Values)
 		s.applySubagentCatalogValuesLocked(id, p.Values)
 		s.applyQuestionValuesForSessionLocked(id, p.Values, seq)
+		if hasSeq && s.selectedID != "" && id == s.selectedID {
+			s.applyQueueValuesLocked(p.Values, seq)
+			s.applyPermissionValuesLocked(p.Values, seq)
+			s.applyModelValuesLocked(p.Values, seq)
+			s.applyContextValuesLocked(p.Values, seq)
+			s.applyPlanModeValuesLocked(p.Values, seq)
+			s.applyImageLimitValuesLocked(p.Values, seq)
+			s.applyHistoryOutlineValuesLocked(p.Values, seq)
+		}
 	}
 }
 

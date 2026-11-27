@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -16,13 +17,6 @@ import (
 // commitDialogWidth is the reviewed commit form's width: narrow enough to read
 // as a focused task, wide enough for a path and its status.
 const commitDialogWidth float32 = 520
-
-// The checklist's line counts use the diff renderer's palette, so one glance
-// reads the same green and red in the list and in the patch below it.
-var (
-	commitAddedColor   = ui.RGB(0x22, 0xc5, 0x5e)
-	commitDeletedColor = ui.RGB(0xef, 0x44, 0x44)
-)
 
 // commitDialog paints the commit flow as one in-app form: the file selection,
 // the message, the branch and PR options and the review result all live in the
@@ -121,21 +115,35 @@ func paintCommitChangeRows(c *ui.Context, m Model, fg, muted ui.Color) {
 	if w == nil {
 		return
 	}
+	tokens := design.For(c)
+	addedColor := tokens.SuccessForeground
+	deletedColor := tokens.DestructiveForeground
+	s := w.commitState()
 	for _, change := range w.Changes {
 		ch := change
+		selected := !s.Excluded[ch.Path]
 		row := ui.Row(c.Key("commit-row-"+ch.Path)).FillWidth().MinWidth(0).Gap(8).Height(28).Padding(0, 8).Radius(6).AlignItems(ui.Center)
 		if row.Hovered() {
 			row.Background(c.Theme().SurfaceHover)
 		}
 		row.Children(func() {
 			paintCommitCheckbox(c, w, ch.Path)
-			ui.Text(c, string([]byte{ch.Index, ch.Worktree})).Width(22).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
-			ui.Text(c, ch.Path).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).SingleLine().Ellipsis("…").Tooltip(ch.Path)
-			if ch.Added > 0 {
-				ui.Text(c, "+"+strconv.Itoa(ch.Added)).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(commitAddedColor)
-			}
-			if ch.Deleted > 0 {
-				ui.Text(c, "-"+strconv.Itoa(ch.Deleted)).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(commitDeletedColor)
+			toggle := ui.ButtonBase(c.Key("commit-row-toggle-" + ch.Path)).Grow(1).MinWidth(0).FillHeight().Gap(design.Sp(2)).Radius(design.RadiusSM).
+				Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Role(ui.RoleCheckBox).Checked(selected).Label(ch.Path).Tooltip(ch.Path)
+			toggle.Children(func() {
+				ui.Text(c, string([]byte{ch.Index, ch.Worktree})).Width(22).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+				ui.Text(c, ch.Path).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).SingleLine().Ellipsis("…")
+				if ch.Added > 0 {
+					ui.Text(c, "+"+strconv.Itoa(ch.Added)).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(addedColor)
+				}
+				if ch.Deleted > 0 {
+					ui.Text(c, "-"+strconv.Itoa(ch.Deleted)).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(deletedColor)
+				}
+			})
+			if toggle.Clicked() {
+				s.Excluded[ch.Path] = selected
+				s.LargeAcknowledged = false
+				w.invalidateCommitReview()
 			}
 		})
 		row.ContextMenu(func(menu *ui.Menu) {

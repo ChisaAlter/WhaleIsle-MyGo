@@ -89,8 +89,34 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	s.mu.Lock()
 	if s.listener != nil {
-		s.mu.Unlock()
-		return nil
+		if s.ctx == nil || s.ctx.Err() == nil {
+			s.mu.Unlock()
+			return nil
+		}
+		if err := ctx.Err(); err != nil {
+			s.mu.Unlock()
+			return err
+		}
+		// The existing listener's BaseContext was canceled; tear it down before
+		// binding a fresh listener with the caller's active context.
+		oldCancel := s.cancel
+		oldSrv := s.http
+		if s.restartTimer != nil {
+			s.restartTimer.Stop()
+			s.restartTimer = nil
+		}
+		s.cancel = nil
+		s.ctx = nil
+		s.http = nil
+		s.listener = nil
+		s.url = ""
+		s.token = ""
+		if oldCancel != nil {
+			oldCancel()
+		}
+		if oldSrv != nil {
+			_ = oldSrv.Close()
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		s.mu.Unlock()

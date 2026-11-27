@@ -63,7 +63,14 @@ func ApplyBlockPatchOpts(ctx context.Context, opt PatchOptions) (ApplyResult, er
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	defer old.Close()
+	oldClosed := false
+	closeOld := func() {
+		if !oldClosed && old != nil {
+			oldClosed = true
+			_ = old.Close()
+		}
+	}
+	defer closeOld()
 	st, err := old.Stat()
 	if err != nil {
 		return ApplyResult{}, err
@@ -124,17 +131,18 @@ func ApplyBlockPatchOpts(ctx context.Context, opt PatchOptions) (ApplyResult, er
 		reportStagePhase(ctx, opt.OnPhase, StageDownloading)
 		data, err := FetchRange(ctx, releaseURL, first.Offset, first.Size, client)
 		if errors.Is(err, ErrRangeUnsupported) {
+			closeOld()
 			return downloadFullAndVerify(ctx, opt)
 		}
 		if err != nil {
 			return ApplyResult{}, err
 		}
-		return reconstructFromBlocks(ctx, opt, old, oldSize, need, data)
+		return reconstructFromBlocks(ctx, opt, old, closeOld, oldSize, need, data)
 	}
-	return reconstructFromBlocks(ctx, opt, old, oldSize, nil, nil)
+	return reconstructFromBlocks(ctx, opt, old, closeOld, oldSize, nil, nil)
 }
 
-func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, oldSize int64, need []int, firstRange []byte) (ApplyResult, error) {
+func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, closeOld func(), oldSize int64, need []int, firstRange []byte) (ApplyResult, error) {
 	info := opt.BlockMap
 	if _, err := validateDownloadURL(opt.Feed.URL); err != nil {
 		return ApplyResult{}, err
@@ -252,6 +260,11 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 	}
 	if err := f.Close(); err != nil {
 		return ApplyResult{}, err
+	}
+	// Release the source file handle before verifying/renaming so Windows allows
+	// replacing opt.OldPath in place when sameFilePath(opt.OldPath, dest).
+	if closeOld != nil {
+		closeOld()
 	}
 
 	reportStagePhase(ctx, opt.OnPhase, StageVerifying)

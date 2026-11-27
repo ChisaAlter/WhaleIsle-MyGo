@@ -104,10 +104,10 @@ func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, f
 					if st.TitleFocus && !title.Focused() {
 						commitTitle()
 					}
-					if name.Submitted() {
+					if name.Submitted() && !name.Composing() {
 						commitName()
 					}
-					if title.Submitted() {
+					if title.Submitted() && !title.Composing() {
 						commitTitle()
 					}
 					st.NameFocus, st.TitleFocus = name.Focused(), title.Focused()

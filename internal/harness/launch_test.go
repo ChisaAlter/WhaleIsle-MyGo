@@ -147,3 +147,42 @@ func TestResolveKeepsRelativeLaunchPathsAnchoredToParent(t *testing.T) {
 		t.Fatalf("relative executable was not anchored: %q", p.Command)
 	}
 }
+
+func TestNativeTaskPreloadOptInExposeGCAndNoPersonalNodePath(t *testing.T) {
+	dir := t.TempDir()
+	patch := filepath.Join(dir, "desktop-proactive.patch.yml")
+	preload := filepath.Join(dir, "proactive-provenance.mjs")
+	if err := os.WriteFile(patch, []byte("- insert: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(preload, []byte("export {};\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := LaunchOptions{DesktopDefaults: true, PatchFiles: []string{patch}}
+	t.Setenv("WHALEISLE_FORCE_STARTUP_GC", "")
+	gotDefault := nativeTaskPreload(opts, dir)
+	for _, arg := range gotDefault {
+		if arg == "--expose-gc" {
+			t.Fatalf("unexpected --expose-gc on normal startup: %v", gotDefault)
+		}
+	}
+	if len(gotDefault) != 2 || gotDefault[0] != "--import" {
+		t.Fatalf("default preload args = %v", gotDefault)
+	}
+
+	t.Setenv("WHALEISLE_FORCE_STARTUP_GC", "1")
+	gotOptIn := nativeTaskPreload(opts, dir)
+	if len(gotOptIn) != 3 || gotOptIn[0] != "--expose-gc" || gotOptIn[1] != "--import" {
+		t.Fatalf("opt-in preload args = %v", gotOptIn)
+	}
+
+	// Verify launch.go source has no hardcoded personal workstation Node path.
+	src, err := os.ReadFile("launch.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(src), `C:\AI\tools`) {
+		t.Fatal("launch.go still contains hardcoded personal workstation path")
+	}
+}

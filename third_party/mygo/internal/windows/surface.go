@@ -213,6 +213,18 @@ func (s *surface) Native() platform.SurfaceNative {
 // content: it has one, and no redirection bitmap to cover it.
 func (s *surface) ShowsMaterial() bool { return s.w.noRedirect && s.w.materialApplied }
 
+// Occluded reports whether nothing of the surface shows on screen: hidden
+// (e.g. minimized to tray) or minimized (iconic). The window sends
+// SurfaceShown once it shows again.
+func (s *surface) Occluded() bool {
+	if s.w == nil || s.w.closed || s.w.hwnd == 0 {
+		return true
+	}
+	return !s.w.IsVisible() || s.w.IsMinimized()
+}
+
+var _ platform.OccludableSurface = (*surface)(nil)
+
 // DropBackdrop drops the color the window holds until its first frame, which
 // that frame covers.
 func (s *surface) DropBackdrop() { s.w.DropBackdrop() }

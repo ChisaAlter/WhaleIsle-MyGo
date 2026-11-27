@@ -175,11 +175,12 @@ func View(c *ui.Context, m Model) {
 			return
 		}
 
+		tokens := design.For(c)
 		paintPatchFiles(c, m, text, diff.Style{
 			FontSize: 11,
 			FG:       fg,
-			Add:      ui.RGB(0x22, 0xc5, 0x5e),
-			Del:      ui.RGB(0xef, 0x44, 0x44),
+			Add:      tokens.SuccessForeground,
+			Del:      tokens.DestructiveForeground,
 			Hunk:     accent,
 			File:     muted,
 			Muted:    muted,

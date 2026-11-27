@@ -395,6 +395,8 @@ func (s *Store) invalidateFollowLocked() {
 	s.resetAssistantStreamLocked()
 	s.cancelVisualReplyLocked()
 	s.followGeneration++
+	s.promptBusy = false
+	s.promptBusyToken++
 	s.resetModelSelectionLocked()
 	s.permissionProjection = permissionProjectionState{}
 	s.setPermissionsErrLocked(nil)

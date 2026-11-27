@@ -351,6 +351,8 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 			if localPreview {
 				if opts.LocalHTMLURL != "" {
 					h.setError("HTML preview failed; use system open")
+				} else if opts.LocalMediaURL != "" {
+					h.setError("Media preview failed; use system open")
 				} else {
 					h.setError("PDF preview failed; use system open")
 				}
@@ -481,6 +483,9 @@ func (h *Host) Navigate(raw string) error {
 	if h.localHTMLURL != "" && strings.SplitN(raw, "#", 2)[0] != h.localHTMLURL {
 		return errors.New("HTML navigation outside this document is blocked")
 	}
+	if h.localMediaURL != "" && strings.SplitN(raw, "#", 2)[0] != h.localMediaURL {
+		return errors.New("Media navigation outside this file is blocked")
+	}
 	if err := validateHTTPURL(raw); err != nil {
 		return err
 	}
@@ -516,12 +521,12 @@ func (h *Host) Navigate(raw string) error {
 			err = errors.New("Plugin Host navigation failed")
 		}
 		h.setError(err.Error())
-		if h.localPDFViewerURL != "" || h.localPDFURL != "" || h.localHTMLURL != "" {
+		if h.localPDFViewerURL != "" || h.localPDFURL != "" || h.localHTMLURL != "" || h.localMediaURL != "" {
 			_ = h.Close()
 		}
 		return err
 	}
-	if (h.localPDFViewerURL != "" || h.localPDFURL != "" || h.localHTMLURL != "") && !h.Alive() {
+	if (h.localPDFViewerURL != "" || h.localPDFURL != "" || h.localHTMLURL != "" || h.localMediaURL != "") && !h.Alive() {
 		return errors.New("webview: local document preview closed")
 	}
 	h.mu.Lock()

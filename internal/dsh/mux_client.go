@@ -29,16 +29,24 @@ const carrierWriteTimeout = 10 * time.Second
 const (
 	muxDialRetries = 3
 	muxDialBackoff = 100 * time.Millisecond
+
+	defaultMuxPingInterval = 15 * time.Second
+	defaultMuxPingTimeout  = 5 * time.Second
 )
 
 // Mux is one physical WebSocket that carries many logical Remote streams.
-// WebSocket Ping/Pong is handled by the underlying library (server pings every 2s).
+// A client-side Ping watchdog detects silent half-open blackholes and tears
+// down the carrier so OnCarrierLost / MaintainMux can recover.
 type Mux struct {
 	Endpoint Endpoint
 	HTTP     *http.Client
 
 	// DialTimeout caps the WebSocket handshake. Zero uses 15s.
 	DialTimeout time.Duration
+	// PingInterval and PingTimeout configure client WebSocket Ping liveness
+	// checks. Zero uses 15s / 5s defaults; negative PingInterval disables pinging.
+	PingInterval time.Duration
+	PingTimeout  time.Duration
 	// OnCarrierLost is invoked once when the physical socket dies (optional).
 	OnCarrierLost    func(error)
 	maintainMu       sync.Mutex
@@ -62,10 +70,86 @@ type Mux struct {
 var ErrStreamOverflow = errors.New("dsh mux: stream inbox overflow")
 
 // streamInboxFrames bounds the frames one logical stream may queue.
-const streamInboxFrames = 4096
+// Queues start small and grow on demand up to streamInboxFrames to avoid
+// allocating 256 KiB per short-lived or low-volume stream.
+const (
+	streamInboxInitial = 16
+	streamInboxFrames  = 4096
+)
+
+type frameQueue struct {
+	mu     sync.Mutex
+	buf    []ServerFrame
+	head   int
+	count  int
+	notify chan struct{}
+}
+
+func newFrameQueue() *frameQueue {
+	return &frameQueue{notify: make(chan struct{}, 1)}
+}
+
+func (q *frameQueue) push(frame ServerFrame) bool {
+	q.mu.Lock()
+	if q.count >= streamInboxFrames {
+		q.mu.Unlock()
+		return false
+	}
+	if q.count == len(q.buf) {
+		newCap := len(q.buf) * 2
+		if newCap < streamInboxInitial {
+			newCap = streamInboxInitial
+		}
+		if newCap > streamInboxFrames {
+			newCap = streamInboxFrames
+		}
+		grown := make([]ServerFrame, newCap)
+		if q.count > 0 {
+			n := copy(grown, q.buf[q.head:])
+			copy(grown[n:], q.buf[:q.head])
+		}
+		q.buf = grown
+		q.head = 0
+	}
+	tail := (q.head + q.count) % len(q.buf)
+	q.buf[tail] = frame
+	q.count++
+	select {
+	case q.notify <- struct{}{}:
+	default:
+	}
+	q.mu.Unlock()
+	return true
+}
+
+func (q *frameQueue) pop() (ServerFrame, bool) {
+	q.mu.Lock()
+	if q.count == 0 {
+		q.mu.Unlock()
+		return ServerFrame{}, false
+	}
+	frame := q.buf[q.head]
+	q.buf[q.head] = ServerFrame{}
+	q.head = (q.head + 1) % len(q.buf)
+	q.count--
+	if q.count > 0 {
+		select {
+		case q.notify <- struct{}{}:
+		default:
+		}
+	}
+	q.mu.Unlock()
+	return frame, true
+}
+
+func (q *frameQueue) len() int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.count
+}
 
 type logicalStream struct {
-	inbox    chan ServerFrame
+	inbox    *frameQueue
 	overflow chan struct{} // closed once when the read loop drops the stream
 }
 
@@ -75,7 +159,7 @@ type Stream struct {
 	conn       *websocket.Conn
 	done       <-chan struct{}
 	id         string
-	inbox      <-chan ServerFrame
+	inbox      *frameQueue
 	overflow   <-chan struct{}
 	cancel     context.CancelFunc
 	streamDone chan struct{}
@@ -133,7 +217,9 @@ func (m *Mux) Dial(ctx context.Context) error {
 	m.streams = make(map[string]*logicalStream)
 	m.done = make(chan struct{})
 	m.readErr = nil
-	go m.readLoop(conn, m.done)
+	loopCtx, loopCancel := context.WithCancel(context.Background())
+	go m.readLoop(conn, m.done, loopCancel)
+	go m.pingLoop(loopCtx, conn)
 	return nil
 }
 
@@ -198,7 +284,7 @@ func (m *Mux) Open(ctx context.Context, endpoint string, payload any) (*Stream, 
 		return nil, fmt.Errorf("%w: not connected", ErrCarrierLost)
 	}
 	id := newID()
-	ls := &logicalStream{inbox: make(chan ServerFrame, streamInboxFrames), overflow: make(chan struct{})}
+	ls := &logicalStream{inbox: newFrameQueue(), overflow: make(chan struct{})}
 	m.streams[id] = ls
 	conn := m.conn
 	done := m.done
@@ -256,10 +342,8 @@ func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
 			return nil, s.overflowFailure()
 		default:
 		}
-		select {
-		case frame := <-s.inbox:
+		if frame, ok := s.inbox.pop(); ok {
 			return s.handleFrame(frame)
-		default:
 		}
 		select {
 		case <-s.done:
@@ -269,17 +353,17 @@ func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case frame := <-s.inbox:
-			return s.handleFrame(frame)
+		case <-s.inbox.notify:
+			if frame, ok := s.inbox.pop(); ok {
+				return s.handleFrame(frame)
+			}
 		case <-s.overflow:
 			return nil, s.overflowFailure()
 		case <-s.cancelDone:
-			select {
-			case frame := <-s.inbox:
+			if frame, ok := s.inbox.pop(); ok {
 				return s.handleFrame(frame)
-			default:
-				return nil, context.Canceled
 			}
+			return nil, context.Canceled
 		case <-s.done:
 			return s.queuedOrCarrierFailure()
 		}
@@ -290,12 +374,10 @@ func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
 // carrier died. Discarding it loses Host data the caller never saw, such as the
 // follow snapshot whose loss leaves the session reconnecting with no history.
 func (s *Stream) queuedOrCarrierFailure() (json.RawMessage, error) {
-	select {
-	case frame := <-s.inbox:
+	if frame, ok := s.inbox.pop(); ok {
 		return s.handleFrame(frame)
-	default:
-		return nil, s.carrierFailure()
 	}
+	return nil, s.carrierFailure()
 }
 
 // overflowFailure ends a stream the read loop dropped. Frames still queued
@@ -408,9 +490,47 @@ func (m *Mux) http() *http.Client {
 	return defaultHTTPClient
 }
 
-func (m *Mux) readLoop(conn *websocket.Conn, done chan struct{}) {
+func (m *Mux) pingLoop(ctx context.Context, conn *websocket.Conn) {
+	if conn == nil {
+		return
+	}
+	interval := m.PingInterval
+	if interval < 0 {
+		return
+	}
+	if interval == 0 {
+		interval = defaultMuxPingInterval
+	}
+	timeout := m.PingTimeout
+	if timeout <= 0 {
+		timeout = defaultMuxPingTimeout
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			pingCtx, cancel := context.WithTimeout(ctx, timeout)
+			err := conn.Ping(pingCtx)
+			cancel()
+			if err != nil {
+				if ctx.Err() == nil {
+					_ = conn.CloseNow()
+				}
+				return
+			}
+		}
+	}
+}
+
+func (m *Mux) readLoop(conn *websocket.Conn, done chan struct{}, cancelLoop context.CancelFunc) {
 	var closeDone sync.Once
 	finishDone := func() {
+		if cancelLoop != nil {
+			cancelLoop()
+		}
 		if done != nil {
 			closeDone.Do(func() { close(done) })
 		}
@@ -448,9 +568,7 @@ func (m *Mux) readLoop(conn *websocket.Conn, done chan struct{}) {
 		if ls == nil {
 			continue
 		}
-		select {
-		case ls.inbox <- frame:
-		default:
+		if !ls.inbox.push(frame) {
 			// A full inbox is one slow reader, not a broken socket: drop only
 			// this stream, tell the Host to stop sending it, and keep the
 			// carrier for every other stream.

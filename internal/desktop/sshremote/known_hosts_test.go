@@ -170,3 +170,43 @@ func TestTunnelSessionUsesKnownHostsFile(t *testing.T) {
 		t.Fatal("TOFU should be disabled")
 	}
 }
+
+func TestForgetHostKeyNormalizesDefaultAndCustomPorts(t *testing.T) {
+	dir := t.TempDir()
+	path := KnownHostsPath(dir)
+	_, pubA := testHostKey(t)
+	_, pubB := testHostKey(t)
+	_, pubKeep := testHostKey(t)
+
+	if err := AcceptHostKey(path, "a.test:22", pubA); err != nil {
+		t.Fatal(err)
+	}
+	if err := AcceptHostKey(path, "b.test:2222", pubB); err != nil {
+		t.Fatal(err)
+	}
+	if err := AcceptHostKey(path, "keep.test:22", pubKeep); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ForgetHostKey(path, "a.test:22"); err != nil {
+		t.Fatalf("ForgetHostKey(a.test:22): %v", err)
+	}
+	if err := ForgetHostKey(path, "b.test:2222"); err != nil {
+		t.Fatalf("ForgetHostKey(b.test:2222): %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	if strings.Contains(text, "a.test") {
+		t.Fatalf("a.test was not forgotten:\n%s", text)
+	}
+	if strings.Contains(text, "b.test") {
+		t.Fatalf("b.test was not forgotten:\n%s", text)
+	}
+	if !strings.Contains(text, "keep.test") {
+		t.Fatalf("unrelated host keep.test was removed:\n%s", text)
+	}
+}

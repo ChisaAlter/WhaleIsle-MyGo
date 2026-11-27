@@ -53,6 +53,16 @@ var carrierScan = []struct {
 	// ready: the sentence itself is the product, so nothing below it may leak a
 	// failure's own words into it.
 	{"../../hoststate", regexp.MustCompile(`Line:|Note:|Placeholder:|Action:|ui\.Text\(c, `)},
+	// Audited UI packages whose painted status, alerts and labels must route
+	// failures through internal/errcopy instead of painting raw error strings.
+	{"../agents", regexp.MustCompile(`ui\.Text\(c, |Label\(|Description\(`)},
+	{"../webview", regexp.MustCompile(`ui\.Text\(c, |Label\(`)},
+	{"../browserpreview", regexp.MustCompile(`ui\.Text\(c, |ActionMessage\s*=|\.Error\s*=|Label\(`)},
+	{"../market", regexp.MustCompile(`ui\.Text\(c, |Label\(`)},
+	{"../pluginmanager", regexp.MustCompile(`ui\.Text\(c, |Label\(`)},
+	{"../interaction", regexp.MustCompile(`ui\.Text\(c, |Label\(`)},
+	{"../custompanel", regexp.MustCompile(`ui\.Text\(c, |Label\(`)},
+	{"../settings", regexp.MustCompile(`ui\.Text\(c, |kText\(c, |kHint\(c, |kBody\(c, |kError\(c, |settingsNotice\(|settingsAuthoredFailure\(`)},
 }
 
 // rawFailure is every field or call that carries a failure's own words. A

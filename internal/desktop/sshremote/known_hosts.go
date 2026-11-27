@@ -1,6 +1,9 @@
 package sshremote
 
 import (
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -171,12 +174,13 @@ func ForgetHostKey(path, address string) error {
 		}
 		return err
 	}
+	norm := knownhosts.Normalize(address)
 	lines := strings.Split(string(data), "\n")
 	kept := lines[:0]
 	changed := false
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			kept = append(kept, line)
 			continue
 		}
@@ -184,7 +188,7 @@ func ForgetHostKey(path, address string) error {
 		if len(fields) >= 3 {
 			matched := false
 			for _, host := range strings.Split(fields[0], ",") {
-				if host == address {
+				if host == address || host == norm || matchHashedKnownHost(host, norm) || (norm != address && matchHashedKnownHost(host, address)) {
 					matched = true
 					break
 				}
@@ -200,6 +204,29 @@ func ForgetHostKey(path, address string) error {
 		return nil
 	}
 	return writePrivateFileAtomic(path, []byte(strings.Join(kept, "\n")))
+}
+
+// matchHashedKnownHost checks OpenSSH |1|<base64-salt>|<base64-hmac-sha1> entries.
+func matchHashedKnownHost(entry, host string) bool {
+	if !strings.HasPrefix(entry, "|1|") {
+		return false
+	}
+	rest := entry[3:]
+	saltB64, hashB64, ok := strings.Cut(rest, "|")
+	if !ok || saltB64 == "" || hashB64 == "" {
+		return false
+	}
+	salt, err := base64.StdEncoding.DecodeString(saltB64)
+	if err != nil {
+		return false
+	}
+	want, err := base64.StdEncoding.DecodeString(hashB64)
+	if err != nil {
+		return false
+	}
+	mac := hmac.New(sha1.New, salt)
+	_, _ = mac.Write([]byte(host))
+	return hmac.Equal(mac.Sum(nil), want)
 }
 
 // NewHostKeyCallback returns an ssh.HostKeyCallback backed by opts.Path.

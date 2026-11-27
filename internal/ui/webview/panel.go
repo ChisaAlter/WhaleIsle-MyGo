@@ -5,8 +5,10 @@ import (
 	"runtime"
 	"strings"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 
@@ -40,6 +42,7 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
+	danger := design.For(c).DestructiveForeground
 
 	root := chrome.FrostSurface(ui.Column(c.Key("plugin-web-panel")).Grow(1).MinHeight(0), colors, m.SystemDark, bg, 0)
 	root.Children(func() {
@@ -53,7 +56,7 @@ func View(c *ui.Context, m Model) {
 			}
 			ui.Text(c, title).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).MinWidth(0).Shrink(1).SingleLine().Ellipsis("…")
 			if m.HostActive && m.HostError != "" {
-				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)")).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+				ui.Text(c, errcopy.SentenceText(m.HostError)).FontSize(theme.InterfaceSize(11)).TextColor(danger).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
 			} else {
 				ui.Box(c).Grow(1).MinWidth(8)
 			}
@@ -123,7 +126,7 @@ func View(c *ui.Context, m Model) {
 				}
 			})
 			if m.HostError != "" {
-				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)"))
+				ui.Text(c, errcopy.SentenceText(m.HostError)).FontSize(theme.InterfaceSize(11)).TextColor(danger)
 				if m.OnOpenURL != nil && strings.Contains(strings.ToLower(m.HostError), "webview2") {
 					if coss.Button(c, i18n.T(keyWebViewDownloadRuntime), coss.ButtonOptions{
 						Variant: coss.ButtonOutline,

@@ -7,6 +7,11 @@ import (
 	"image"
 	"image/png"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -103,5 +108,118 @@ func TestRefreshDisableWaitsForOwnedBridgeExit(t *testing.T) {
 	}
 	if !bytes.Contains(child.input.Bytes(), []byte(`"action":"stop"`)) {
 		t.Fatal("disable did not tell the owned daemon to stop")
+	}
+}
+
+func TestHelperBridgeLeaker(t *testing.T) {
+	mode := os.Getenv("WHALEISLE_TEST_BRIDGE_LEAKER")
+	if mode == "" {
+		return
+	}
+	pidFile := os.Getenv("WHALEISLE_TEST_BRIDGE_GC_PID")
+	if mode == "grandchild" {
+		// Inherit stdout and hold it open while sleeping.
+		time.Sleep(time.Minute)
+		os.Exit(0)
+	}
+	if mode == "parent" {
+		exe, err := os.Executable()
+		if err != nil {
+			os.Exit(2)
+		}
+		gc := exec.Command(exe, "-test.run=^TestHelperBridgeLeaker$")
+		gc.Env = append(os.Environ(), "WHALEISLE_TEST_BRIDGE_LEAKER=grandchild")
+		gc.Stdout = os.Stdout
+		if err := gc.Start(); err != nil {
+			os.Exit(3)
+		}
+		if pidFile != "" {
+			_ = os.WriteFile(pidFile, []byte(strconv.Itoa(gc.Process.Pid)), 0o600)
+		}
+		// Keep parent alive ignoring stop until killed.
+		time.Sleep(time.Minute)
+		os.Exit(0)
+	}
+}
+
+func TestRuntimeStopKillsGrandchildInheritingStdout(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "gc.pid")
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WHALEISLE_TEST_BRIDGE_LEAKER", "parent")
+	t.Setenv("WHALEISLE_TEST_BRIDGE_GC_PID", pidFile)
+
+	m := NewRuntime()
+	m.stopTimeout = 150 * time.Millisecond
+	m.resources = func(string, string) (Resources, error) { return Resources{}, nil }
+	m.spawn = func(Resources) (Child, error) {
+		cmd := exec.Command(exe, "-test.run=^TestHelperBridgeLeaker$")
+		prepareBridgeCmd(cmd)
+		in, err := cmd.StdinPipe()
+		if err != nil {
+			return nil, err
+		}
+		outR, outW, err := os.Pipe()
+		if err != nil {
+			_ = in.Close()
+			return nil, err
+		}
+		cmd.Stdout = outW
+		if err := cmd.Start(); err != nil {
+			_ = in.Close()
+			_ = outR.Close()
+			_ = outW.Close()
+			return nil, err
+		}
+		_ = outW.Close()
+		job := bindBridgeJob(cmd)
+		return newExecChild(cmd, job, in, outR, ""), nil
+	}
+
+	m.Start("fixture", "fixture", map[string]any{"remoteEnabled": true})
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(pidFile); err == nil {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	rawPID, err := os.ReadFile(pidFile)
+	if err != nil {
+		m.Stop()
+		t.Fatalf("grandchild pid file not written: %v", err)
+	}
+	gcPID, err := strconv.Atoi(strings.TrimSpace(string(rawPID)))
+	if err != nil || gcPID <= 0 {
+		m.Stop()
+		t.Fatalf("invalid grandchild pid %q", rawPID)
+	}
+
+	startStop := time.Now()
+	done := m.Stop()
+	took := time.Since(startStop)
+	if done != nil {
+		t.Fatalf("Stop returned non-nil pending channel (status=%q)", m.Snapshot().Status)
+	}
+	if took > m.stopTimeout+2*time.Second {
+		t.Fatalf("Stop took %s, exceeded budget", took)
+	}
+	if st := m.Snapshot(); st.Status == "stop-failed" {
+		t.Fatalf("Stop entered stop-failed: %+v", st)
+	}
+
+	// Verify grandchild was terminated along with the bridge tree.
+	gcDeadline := time.Now().Add(3 * time.Second)
+	for processAlive(gcPID) && time.Now().Before(gcDeadline) {
+		time.Sleep(25 * time.Millisecond)
+	}
+	if processAlive(gcPID) {
+		if p, err := os.FindProcess(gcPID); err == nil {
+			_ = p.Kill()
+		}
+		t.Fatalf("grandchild PID %d survived Runtime.Stop()", gcPID)
 	}
 }

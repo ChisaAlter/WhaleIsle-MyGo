@@ -12,7 +12,11 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-const asyncGitReadTimeout = 15 * time.Second
+const (
+	asyncGitReadTimeout        = 15 * time.Second
+	defaultDiffCacheMaxEntries = 32
+	defaultDiffCacheMaxBytes   = 32 << 20 // 32 MiB
+)
 
 type diffsurfaceGitOps struct {
 	isRepository    func(root string) bool
@@ -91,6 +95,7 @@ type diffCacheEntry struct {
 	errMsg   string
 	seq      uint64
 	prepared *preparedPatchDoc
+	bytes    int
 }
 
 type diffResult struct {
@@ -162,10 +167,14 @@ type workbenchLoader struct {
 	reloadPending  *reloadResult
 	reloadReadyGen uint64
 
-	diffSeq      uint64
-	diffInFlight *diffRequest
-	diffPending  *diffResult
-	diffCache    map[diffRequestKey]diffCacheEntry
+	diffSeq             uint64
+	diffInFlight        *diffRequest
+	diffPending         *diffResult
+	diffCache           map[diffRequestKey]diffCacheEntry
+	diffCacheOrder      []diffRequestKey
+	diffCacheBytes      int
+	diffCacheMaxEntries int
+	diffCacheMaxBytes   int
 
 	compareBranchesSeq      uint64
 	compareBranchesInFlight *compareBranchesRequest
@@ -211,7 +220,7 @@ func (l *workbenchLoader) cancelAllLocked() {
 		l.diffInFlight = nil
 	}
 	l.diffPending = nil
-	clear(l.diffCache)
+	l.clearDiffCacheLocked()
 
 	if l.compareBranchesInFlight != nil {
 		l.compareBranchesInFlight.cancel()
@@ -231,6 +240,100 @@ func (l *workbenchLoader) cancelAllLocked() {
 		l.publishPrepInFlight = nil
 	}
 	l.publishPrepPending = nil
+}
+
+func estimateDiffCacheEntryBytes(entry diffCacheEntry) int {
+	n := len(entry.text) + len(entry.errMsg)
+	if p := entry.prepared; p != nil {
+		n += len(p.files)*128 + len(p.items)*96
+		for _, f := range p.files {
+			n += len(f.Path) + len(f.Rows)*64 + len(f.uniLines)*64
+		}
+	}
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
+func (l *workbenchLoader) diffCacheLimitsLocked() (maxEntries, maxBytes int) {
+	maxEntries = l.diffCacheMaxEntries
+	if maxEntries <= 0 {
+		maxEntries = defaultDiffCacheMaxEntries
+	}
+	maxBytes = l.diffCacheMaxBytes
+	if maxBytes <= 0 {
+		maxBytes = defaultDiffCacheMaxBytes
+	}
+	return maxEntries, maxBytes
+}
+
+func (l *workbenchLoader) clearDiffCacheLocked() {
+	clear(l.diffCache)
+	l.diffCacheOrder = nil
+	l.diffCacheBytes = 0
+}
+
+func (l *workbenchLoader) removeDiffCacheOrderLocked(key diffRequestKey) {
+	for i, k := range l.diffCacheOrder {
+		if k == key {
+			copy(l.diffCacheOrder[i:], l.diffCacheOrder[i+1:])
+			l.diffCacheOrder = l.diffCacheOrder[:len(l.diffCacheOrder)-1]
+			return
+		}
+	}
+}
+
+func (l *workbenchLoader) touchDiffCacheKeyLocked(key diffRequestKey) {
+	n := len(l.diffCacheOrder)
+	if n > 0 && l.diffCacheOrder[n-1] == key {
+		return
+	}
+	for i, k := range l.diffCacheOrder {
+		if k == key {
+			copy(l.diffCacheOrder[i:], l.diffCacheOrder[i+1:])
+			l.diffCacheOrder[n-1] = key
+			return
+		}
+	}
+}
+
+func (l *workbenchLoader) deleteDiffCacheKeyLocked(key diffRequestKey) {
+	if old, ok := l.diffCache[key]; ok {
+		l.diffCacheBytes -= old.bytes
+		if l.diffCacheBytes < 0 {
+			l.diffCacheBytes = 0
+		}
+		delete(l.diffCache, key)
+		l.removeDiffCacheOrderLocked(key)
+	}
+}
+
+func (l *workbenchLoader) putDiffCacheLocked(key diffRequestKey, entry diffCacheEntry) {
+	entry.bytes = estimateDiffCacheEntryBytes(entry)
+	l.deleteDiffCacheKeyLocked(key)
+	maxEntries, maxBytes := l.diffCacheLimitsLocked()
+	if entry.bytes > maxBytes {
+		l.clearDiffCacheLocked()
+		return
+	}
+	if l.diffCache == nil {
+		l.diffCache = map[diffRequestKey]diffCacheEntry{}
+	}
+	for len(l.diffCacheOrder) > 0 && (len(l.diffCache) >= maxEntries || l.diffCacheBytes+entry.bytes > maxBytes) {
+		oldest := l.diffCacheOrder[0]
+		l.diffCacheOrder = l.diffCacheOrder[1:]
+		if old, ok := l.diffCache[oldest]; ok {
+			l.diffCacheBytes -= old.bytes
+			if l.diffCacheBytes < 0 {
+				l.diffCacheBytes = 0
+			}
+			delete(l.diffCache, oldest)
+		}
+	}
+	l.diffCache[key] = entry
+	l.diffCacheOrder = append(l.diffCacheOrder, key)
+	l.diffCacheBytes += entry.bytes
 }
 
 func (l *workbenchLoader) switchRoot(root string, invalidate func()) uint64 {
@@ -722,6 +825,7 @@ func (w *Workbench) RequestDiffAsync(root, relPath string, force bool, invalidat
 			return
 		}
 		if _, cached := l.diffCache[key]; cached {
+			l.touchDiffCacheKeyLocked(key)
 			l.mu.Unlock()
 			return
 		}
@@ -731,7 +835,7 @@ func (w *Workbench) RequestDiffAsync(root, relPath string, force bool, invalidat
 		l.diffInFlight = nil
 	}
 	if force {
-		delete(l.diffCache, key)
+		l.deleteDiffCacheKeyLocked(key)
 	}
 	l.diffSeq++
 	seq := l.diffSeq
@@ -772,7 +876,7 @@ func (w *Workbench) RequestDiffAsync(root, relPath string, force bool, invalidat
 		valid := !l.closed && l.generation == key.gen && l.root == key.root && l.diffInFlight == req
 		if valid {
 			l.diffInFlight = nil
-			l.diffCache[key] = diffCacheEntry{text: text, errMsg: errMsg, seq: seq, prepared: prepared}
+			l.putDiffCacheLocked(key, diffCacheEntry{text: text, errMsg: errMsg, seq: seq, prepared: prepared})
 			l.diffPending = &diffResult{key: key, seq: seq, text: text, errMsg: errMsg, prepared: prepared}
 		}
 		l.mu.Unlock()
@@ -807,6 +911,7 @@ func (w *Workbench) PollDiffAsync(root, relPath string) (text, errMsg string, re
 		return res.text, res.errMsg, true, false
 	}
 	if entry, ok := l.diffCache[key]; ok {
+		l.touchDiffCacheKeyLocked(key)
 		if entry.prepared != nil {
 			w.View.applyPrepared(entry.prepared)
 		}
@@ -893,7 +998,7 @@ func (w *Workbench) invalidateDiffCache() {
 	}
 	l := w.loader
 	l.mu.Lock()
-	clear(l.diffCache)
+	l.clearDiffCacheLocked()
 	l.diffPending = nil
 	l.mu.Unlock()
 }
@@ -1149,6 +1254,9 @@ func applyDiffResultToModel(m Model) {
 		return
 	}
 	entry, cached := l.diffCache[key]
+	if cached {
+		l.touchDiffCacheKeyLocked(key)
+	}
 	inflight := l.diffInFlight != nil && l.diffInFlight.key == key
 	l.mu.Unlock()
 

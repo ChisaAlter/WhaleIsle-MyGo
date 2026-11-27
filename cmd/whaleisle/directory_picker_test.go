@@ -848,3 +848,101 @@ func TestDirectoryPickerNativeModeAndWorkspacePersistMergeExternalConfigEdit(t *
 		t.Fatalf("merged config lost fields: %+v", got)
 	}
 }
+
+func TestDirectoryPickerEditPathCancelsOnLifecycleShutdown(t *testing.T) {
+	var previewCalls atomic.Int32
+	s, sessions := directoryBrowserFixture(t, func(method string, args map[string]any) (any, error) {
+		if path, _ := args["path"].(string); path == "/project/" {
+			previewCalls.Add(1)
+			return browserProject(), nil
+		}
+		return browserRoot(), nil
+	})
+	s.openDirectoryPicker(sessions, nil, "workspace")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil
+	})
+
+	s.beginDirectoryPath(sessions, nil)
+	s.editDirectoryPath(sessions, nil, "/project/De")
+
+	s.mu.Lock()
+	cancelLifecycle := s.lifecycleCancel
+	s.mu.Unlock()
+	if cancelLifecycle == nil {
+		t.Fatal("editDirectoryPath did not attach to lifecycle context")
+	}
+	cancelLifecycle()
+
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.dirPickCancel == nil
+	})
+	time.Sleep(300 * time.Millisecond)
+	if got := previewCalls.Load(); got != 0 {
+		t.Fatalf("preview scan ran after lifecycle shutdown: calls=%d", got)
+	}
+}
+
+func TestDirectoryPickerConcurrentCreateAdmitsSingleFlight(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(release) })
+
+	var creates atomic.Int32
+	s, sessions := directoryBrowserFixture(t, func(method string, args map[string]any) (any, error) {
+		if method == "directoryPicker/createDirectory" {
+			creates.Add(1)
+			select {
+			case entered <- struct{}{}:
+			default:
+			}
+			<-release
+			return "/single-flight", nil
+		}
+		if args["path"] == "/single-flight" {
+			return api.DirectoryListing{Path: "/single-flight", Home: "/"}, nil
+		}
+		return browserRoot(), nil
+	})
+	s.openDirectoryPicker(sessions, nil, "workspace")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil
+	})
+
+	const callers = 8
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			s.createDirectoryPicker(sessions, nil, "/", "single-flight")
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	select {
+	case <-entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("createDirectory RPC never started")
+	}
+	releaseOnce.Do(func() { close(release) })
+
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickBrowser.Creating && !s.dirPickLoading && s.dirPickBrowser.Child != nil
+	})
+	if got := creates.Load(); got != 1 {
+		t.Fatalf("concurrent createDirectoryPicker admitted %d flights, want 1", got)
+	}
+}

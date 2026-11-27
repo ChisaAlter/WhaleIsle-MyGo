@@ -192,3 +192,50 @@ func TestEveryFrameOnTheGPU(t *testing.T) {
 		t.Errorf("%d frames on the GPU, %d drawn in memory, the last %q", g.frames, s.pixels, h.path)
 	}
 }
+
+type occludableTestSurface struct {
+	testSurface
+	occluded bool
+}
+
+func (s *occludableTestSurface) Occluded() bool { return s.occluded }
+
+type idleTrimGPU struct {
+	testGPU
+	idled   int
+	trimmed int
+}
+
+func (g *idleTrimGPU) Idle() { g.idled++ }
+func (g *idleTrimGPU) Trim() { g.trimmed++ }
+
+func TestGPUIdleAndTrimOnOcclusion(t *testing.T) {
+	t.Setenv("MYGO_GPU", "")
+	g := &idleTrimGPU{}
+	newGPU = func(platform.SurfaceNative) (gpuRenderer, error) { return g, nil }
+	t.Cleanup(func() { newGPU = newGPURenderer })
+	s := &occludableTestSurface{}
+	h := &windowHost{conn: &surface.Conn{Surface: s}}
+	h.rt = newRuntime(func(c *context) { coreText(c, "Hello") }, h)
+	defer h.detach()
+
+	h.event(platform.SurfaceEvent{Kind: platform.SurfaceFrame})
+	if g.frames != 1 {
+		t.Fatalf("frames = %d, want 1", g.frames)
+	}
+
+	// Visible idle calls Idle(), not Trim().
+	h.lastFrame = time.Now().Add(-frameIdle - time.Second)
+	h.idle()
+	if g.idled != 1 || g.trimmed != 0 {
+		t.Fatalf("visible idle: idled=%d trimmed=%d, want 1, 0", g.idled, g.trimmed)
+	}
+
+	// Occluded idle calls Trim().
+	s.occluded = true
+	h.lastFrame = time.Now().Add(-frameIdle - time.Second)
+	h.idle()
+	if g.idled != 1 || g.trimmed != 1 {
+		t.Fatalf("occluded idle: idled=%d trimmed=%d, want 1, 1", g.idled, g.trimmed)
+	}
+}

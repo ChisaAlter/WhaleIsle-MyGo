@@ -6,7 +6,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/htmldocument"
@@ -116,25 +115,9 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 		appearance = "dark"
 	}
 	// Lease checks continue even if the owning window is not painting. A
-	// session/Host/cwd change closes Document, which cancels the helper job.
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-doc.Done():
-				cancel()
-				return
-			case <-ticker.C:
-				if !doc.Valid() {
-					cancel()
-					return
-				}
-			}
-		}
-	}()
+	// session/Host/cwd change or TTL expiry closes Document.Done(), which
+	// cancels the helper job without polling.
+	go watchInteractiveDocumentLease(ctx, doc.Done(), cancel)
 	go func() {
 		defer cancel()
 		helper, err := installedPreviewHelper()
@@ -189,4 +172,12 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 			t.ActionMessage = browserChromeLabel("交互预览已结束；当前静态快照保留", "Interactive preview ended; the static snapshot is retained")
 		})
 	}()
+}
+
+func watchInteractiveDocumentLease(ctx context.Context, docDone <-chan struct{}, cancel context.CancelFunc) {
+	select {
+	case <-ctx.Done():
+	case <-docDone:
+		cancel()
+	}
 }

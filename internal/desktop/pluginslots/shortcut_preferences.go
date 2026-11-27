@@ -7,10 +7,14 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"time"
 	"whaleisle/internal/shortcutprefs"
 )
 
-const shortcutPreferencesPath = "/__whale_shortcuts"
+const (
+	shortcutPreferencesPath = "/__whale_shortcuts"
+	shortcutWaitTimeout     = 25 * time.Second
+)
 
 //go:embed shortcut_provider.js
 var shortcutProviderScript string
@@ -48,6 +52,7 @@ func (g *Gateway) serveShortcutPreferences(w http.ResponseWriter, r *http.Reques
 		Definitions json.RawMessage `json:"definitions"`
 		Edit        json.RawMessage `json:"edit"`
 		Revision    string          `json:"revision"`
+		Since       *uint64         `json:"since"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256*1024))
 	decoder.DisallowUnknownFields()
@@ -67,6 +72,37 @@ func (g *Gateway) serveShortcutPreferences(w http.ResponseWriter, r *http.Reques
 		result = store.SetDefinitions(owner, defs)
 	case "snapshot":
 		result = store.Get()
+	case "wait":
+		snap := store.Get()
+		if req.Since == nil || snap.Sequence > *req.Since {
+			result = snap
+			break
+		}
+		ch := make(chan shortcutprefs.Snapshot, 1)
+		unsub := store.Subscribe(func(next shortcutprefs.Snapshot) {
+			if next.Sequence > *req.Since {
+				select {
+				case ch <- next:
+				default:
+				}
+			}
+		})
+		defer unsub()
+		// Re-check after subscribing to close any missed-wakeup window.
+		if snap = store.Get(); snap.Sequence > *req.Since {
+			result = snap
+			break
+		}
+		timer := time.NewTimer(shortcutWaitTimeout)
+		defer timer.Stop()
+		select {
+		case next := <-ch:
+			result = next
+		case <-timer.C:
+			result = store.Get()
+		case <-r.Context().Done():
+			return
+		}
 	case "edit":
 		edit, err := shortcutprefs.ParseEdit(req.Edit)
 		if err != nil {

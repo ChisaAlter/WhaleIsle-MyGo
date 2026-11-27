@@ -73,7 +73,11 @@ func cloneStoreViewCache(in ViewState) ViewState {
 func cloneFramePassView(in ViewState) ViewState {
 	out := in
 	out.Messages = cloneSlice(in.Messages)
+	out.DurableMessages = cloneSlice(in.DurableMessages)
+	out.StreamingTail = cloneSlice(in.StreamingTail)
 	out.TrajectoryMessages = cloneSlice(in.TrajectoryMessages)
+	out.DurableTrajectoryMessages = cloneSlice(in.DurableTrajectoryMessages)
+	out.StreamingTrajectoryTail = cloneSlice(in.StreamingTrajectoryTail)
 	return out
 }
 
@@ -100,7 +104,11 @@ func cloneViewStateSchemas(in ViewState, schemas bool) ViewState {
 	out.WorkspaceMembers = cloneStringBoolMap(in.WorkspaceMembers)
 	out.Items = cloneItems(in.Items)
 	out.Messages = cloneMessages(in.Messages)
+	out.DurableMessages = cloneMessages(in.DurableMessages)
+	out.StreamingTail = cloneMessages(in.StreamingTail)
 	out.TrajectoryMessages = cloneMessages(in.TrajectoryMessages)
+	out.DurableTrajectoryMessages = cloneMessages(in.DurableTrajectoryMessages)
+	out.StreamingTrajectoryTail = cloneMessages(in.StreamingTrajectoryTail)
 	out.MessageRatings = cloneStringStringMap(in.MessageRatings)
 	out.ModelChoices = cloneModelChoiceMap(in.ModelChoices)
 	out.ModelCatalogChoices = cloneSlice(in.ModelCatalogChoices)

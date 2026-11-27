@@ -24,7 +24,7 @@ func CompareBranch(ctx context.Context, root, path, baseRef string) (string, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	run := func(args ...string) (string, error) {
+	run := func(trimAll bool, args ...string) (string, error) {
 		out, err := combinedExecRunner(ctx, root, "git", args...)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -32,9 +32,12 @@ func CompareBranch(ctx context.Context, root, path, baseRef string) (string, err
 			}
 			return "", fmt.Errorf("git comparison: %w: %s", err, out)
 		}
-		return strings.TrimSpace(string(out)), nil
+		if trimAll {
+			return strings.TrimSpace(string(out)), nil
+		}
+		return strings.TrimRight(string(out), "\r\n"), nil
 	}
-	listed, err := run("for-each-ref", "--format=%(refname)%09%(HEAD)%09%(symref)%09.", "refs/heads", "refs/remotes")
+	listed, err := run(true, "for-each-ref", "--format=%(refname)%09%(HEAD)%09%(symref)%09.", "refs/heads", "refs/remotes")
 	if err != nil {
 		return "", err
 	}
@@ -55,5 +58,5 @@ func CompareBranch(ctx context.Context, root, path, baseRef string) (string, err
 	if path != "" {
 		args = append(args, path)
 	}
-	return run(args...)
+	return run(false, args...)
 }

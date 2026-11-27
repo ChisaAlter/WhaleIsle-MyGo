@@ -1,9 +1,11 @@
 package assistant
 
 import (
-	"github.com/egoist/mygo/ui"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/proactive"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
@@ -17,7 +19,7 @@ func proactiveDeliveryReceipt(c *ui.Context, d proactive.Delivery, fg, muted ui.
 	labels := map[string]string{"pending": "等待批准", "ready": "已批准，等待发送", "sending": "发送中", "sent": "已发送", "failed": "未发送", "unknown": "发送结果待核对，不会自动重发", "rejected": "已拒绝发送", "cancelled": "已取消发送"}
 	ui.Text(c, whaleTaskCopy(labels[d.Status], d.Status)+" · "+d.Route.ChatID).FontSize(theme.InterfaceSize(12)).TextColor(fg).Selectable()
 	if d.Error != "" {
-		ui.Text(c, d.Error).FontSize(theme.InterfaceSize(12)).TextColor(muted).Selectable()
+		ui.Text(c, errcopy.SentenceText(d.Error)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Selectable()
 	}
 	for _, id := range d.MessageIDs {
 		ui.Text(c, whaleTaskCopy("消息回执：", "Message receipt: ")+id).FontSize(theme.InterfaceSize(12)).TextColor(muted).Selectable()
@@ -50,7 +52,7 @@ func proactiveDeliveryForm(c *ui.Context, p ProactiveModel, t proactive.Task, fg
 		}
 		ui.Text(c, whaleTaskCopy("选择已授权的任务会话", "Choose an authorized task conversation")).FontSize(theme.InterfaceSize(13)).TextColor(fg)
 		if p.DeliveryError != "" {
-			ui.Text(c, p.DeliveryError).TextColor(muted).Selectable()
+			ui.Text(c, errcopy.SentenceText(p.DeliveryError)).TextColor(muted).Selectable()
 		}
 		selected := false
 		for _, route := range p.DeliveryRoutes {

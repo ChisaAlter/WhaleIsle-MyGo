@@ -9,7 +9,6 @@ internal/ui/browserpreview/floating_document.go	go	1
 internal/ui/browserpreview/floating_document.go	timer	1
 internal/ui/browserpreview/interactive_html.go	go	2
 internal/ui/browserpreview/interactive_html.go	import	1
-internal/ui/browserpreview/interactive_html.go	timer	1
 internal/ui/browserpreview/local_servers.go	go	1
 internal/ui/browserpreview/local_servers.go	timer	1
 internal/ui/browserpreview/media.go	go	1

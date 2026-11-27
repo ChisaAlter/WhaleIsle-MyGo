@@ -76,7 +76,7 @@ func View(c *ui.Context, m Model) {
 						Key:         "browser-preview-url",
 					})
 				})
-				if inp.Submitted() && m.OnNavigate != nil {
+				if inp.Submitted() && !inp.Composing() && m.OnNavigate != nil {
 					m.OnNavigate(NormalizeURL(*m.URLDraft))
 				}
 			} else {

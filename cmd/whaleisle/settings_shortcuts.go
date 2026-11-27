@@ -190,11 +190,16 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 				}
 				edits = append(edits, shortcutprefs.Edit{Type: "set", ID: shortcuts.CanonicalID(id), Binding: b})
 			}
-			result := prefs.Apply("native", s.shortcutRevision, edits)
+			s.mu.Lock()
+			rev := s.shortcutRevision
+			s.mu.Unlock()
+			result := prefs.Apply("native", rev, edits)
 			if result.Status != "saved" {
 				return fmt.Errorf(i18n.T(i18n.KeyCmdReloadShortcutsRetry), result.Status)
 			}
+			s.mu.Lock()
 			s.shortcutRevision = result.Snapshot.Revision
+			s.mu.Unlock()
 			return nil
 		})
 		s.shortcutEditor.UseShared(func() error {
@@ -208,11 +213,16 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 				}
 				edits = append(edits, shortcutprefs.Edit{Type: "reset", ID: row.ID})
 			}
-			result := prefs.Apply("native", s.shortcutRevision, edits)
+			s.mu.Lock()
+			rev := s.shortcutRevision
+			s.mu.Unlock()
+			result := prefs.Apply("native", rev, edits)
 			if result.Status != "saved" {
 				return fmt.Errorf(i18n.T(i18n.KeyCmdReloadShortcutsRetry), result.Status)
 			}
+			s.mu.Lock()
 			s.shortcutRevision = result.Snapshot.Revision
+			s.mu.Unlock()
 			return nil
 		})
 		s.shortcutEditor.SetDescribe(func(id, raw string) string {

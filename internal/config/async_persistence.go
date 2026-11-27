@@ -103,12 +103,6 @@ func (s *Store) UpdateAsync(fn func(*Config)) error {
 	return nil
 }
 
-// MergeAsync optimistically updates in-memory configuration like UpdateAsync
-// and schedules a single-writer debounced atomic write.
-func (s *Store) MergeAsync(fn func(*Config)) error {
-	return s.UpdateAsync(fn)
-}
-
 // SaveWorkspaceNavigationPreferencesAsync optimistically updates workspace
 // navigation preferences in memory and schedules a debounced atomic disk write
 // without blocking the caller on fsync or holding Store.mu across disk I/O.

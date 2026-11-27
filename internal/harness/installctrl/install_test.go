@@ -3,6 +3,7 @@ package installctrl
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -196,5 +197,106 @@ func TestPNPMInstall_timeout(t *testing.T) {
 	result := PNPMInstall(cfg)("github:acme/widget", InstallOpts{})
 	if result.OK || !strings.Contains(result.Error, "超时") {
 		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestHelperPluginLockTree(t *testing.T) {
+	mode := os.Getenv("WHALEISLE_TEST_PLUGIN_TREE")
+	if mode == "" {
+		return
+	}
+	lockFile := os.Getenv("WHALEISLE_TEST_LOCK_FILE")
+	readyFile := os.Getenv("WHALEISLE_TEST_READY_FILE")
+	if mode == "grandchild" {
+		if err := os.MkdirAll(filepath.Dir(lockFile), 0o755); err != nil {
+			os.Exit(2)
+		}
+		f, err := os.OpenFile(lockFile, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)
+		if err != nil {
+			os.Exit(3)
+		}
+		_, _ = f.WriteString("locked by grandchild\n")
+		_ = os.WriteFile(readyFile, []byte("ready"), 0o644)
+		time.Sleep(time.Minute)
+		_ = f.Close()
+		os.Exit(0)
+	}
+	if mode == "parent" {
+		exe, err := os.Executable()
+		if err != nil {
+			os.Exit(4)
+		}
+		child := exec.Command(exe, "-test.run=^TestHelperPluginLockTree$")
+		child.Env = append(os.Environ(), "WHALEISLE_TEST_PLUGIN_TREE=grandchild")
+		if err := child.Start(); err != nil {
+			os.Exit(5)
+		}
+		time.Sleep(time.Minute)
+		os.Exit(0)
+	}
+}
+
+func TestExecPluginRunnerCancelKillsGrandchildTreeBeforeRollback(t *testing.T) {
+	profile := t.TempDir()
+	if err := os.WriteFile(filepath.Join(profile, "package.json"), []byte(`{"name":"web"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lockFile := filepath.Join(profile, "node_modules", "locked-pkg", "lock.txt")
+	readyFile := filepath.Join(t.TempDir(), "ready.flag")
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WHALEISLE_TEST_PLUGIN_TREE", "parent")
+	t.Setenv("WHALEISLE_TEST_LOCK_FILE", lockFile)
+	t.Setenv("WHALEISLE_TEST_READY_FILE", readyFile)
+
+	cfg := InstallConfig{
+		ProfileDir:  profile,
+		DshHome:     t.TempDir(),
+		HarnessRoot: fakeHarnessRoot(t),
+		NodeBin:     exe,
+	}
+	realRunner := execPluginRunner(cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cfg.Runner = func(runCtx context.Context, dir, _ string, _ ...string) (int, string, error) {
+		return realRunner(runCtx, dir, exe, "-test.run=^TestHelperPluginLockTree$")
+	}
+
+	done := make(chan Result, 1)
+	go func() {
+		done <- PNPMInstallContext(ctx, cfg)("github:acme/locked-pkg", InstallOpts{})
+	}()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(readyFile); err == nil {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	if _, err := os.Stat(readyFile); err != nil {
+		cancel()
+		t.Fatalf("grandchild did not acquire lock file in time: %v", err)
+	}
+
+	cancel()
+
+	select {
+	case res := <-done:
+		if res.OK {
+			t.Fatalf("expected cancelled install to fail, got %+v", res)
+		}
+		if !res.RolledBack || res.RollbackError != "" {
+			t.Fatalf("expected clean rollback after killing grandchild tree, got %+v", res)
+		}
+		if _, err := os.Stat(filepath.Join(profile, "node_modules", "locked-pkg")); !os.IsNotExist(err) {
+			t.Fatalf("locked-pkg remained after rollback: %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("cancelled install did not finish after killing grandchild tree")
 	}
 }

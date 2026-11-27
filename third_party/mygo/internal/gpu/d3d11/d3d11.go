@@ -245,9 +245,14 @@ type texture struct {
 	tex, srv  uintptr
 	rtv       uintptr // of a texture drawn into
 	w, h      int
+	bytes     int64
 	gen, ver  uint64
 	lastFrame uint64
+	lastUse   uint64
 }
+
+// defaultImageBudget caps GPU memory held by cached image textures (RGBA8).
+const defaultImageBudget = 96 << 20 // 96 MiB
 
 // Renderer draws scenes into a window.
 type Renderer struct {
@@ -286,6 +291,9 @@ type Renderer struct {
 
 	mask, color texture
 	images      map[uint64]*texture
+	imageBytes  int64
+	imageBudget int64
+	imageClock  uint64
 	frame       uint64
 
 	// The passes computing the backdrops of effects: their shaders and
@@ -667,6 +675,7 @@ func (r *Renderer) Release() {
 		free(&t.tex)
 	}
 	r.images = nil
+	r.imageBytes = 0
 	for _, t := range []*texture{&r.mask, &r.color} {
 		free(&t.srv)
 		free(&t.tex)
@@ -737,23 +746,143 @@ func (r *Renderer) syncAtlas(t *texture, a *scene.Atlas, format uint32) error {
 	return nil
 }
 
+// effectiveImageBudget returns the byte budget for cached image textures.
+func (r *Renderer) effectiveImageBudget() int64 {
+	if r.imageBudget > 0 {
+		return r.imageBudget
+	}
+	return defaultImageBudget
+}
+
+// deleteImage releases one cached image texture and updates accounting.
+func (r *Renderer) deleteImage(id uint64, t *texture) {
+	free(&t.srv)
+	free(&t.tex)
+	r.imageBytes -= t.bytes
+	if r.imageBytes < 0 {
+		r.imageBytes = 0
+	}
+	delete(r.images, id)
+}
+
+// evictImages releases the least-recently-used image textures until cached
+// image memory is at or below budget. When allowCurrentFrame is false,
+// textures used in the current frame (t.lastFrame == r.frame) are preserved
+// so in-flight batch SRVs remain valid.
+func (r *Renderer) evictImages(budget int64, allowCurrentFrame bool) {
+	for r.imageBytes > budget && len(r.images) > 0 {
+		var victimID uint64
+		var victim *texture
+		for id, t := range r.images {
+			if !allowCurrentFrame && t.lastFrame == r.frame {
+				continue
+			}
+			if victim == nil || t.lastFrame < victim.lastFrame || (t.lastFrame == victim.lastFrame && t.lastUse < victim.lastUse) {
+				victimID, victim = id, t
+			}
+		}
+		if victim == nil {
+			break
+		}
+		r.deleteImage(victimID, victim)
+	}
+}
+
+// Idle reclaims transient GPU resources (backdrop scratch targets, cached
+// backdrops, oversized instance buffers and stale images) once the window
+// stops drawing frames.
+func (r *Renderer) Idle() {
+	if r.ctx != 0 {
+		call(r.ctx, ctxClearState)
+		call(r.ctx, ctxFlush)
+	}
+	for _, t := range []*texture{&r.grab, &r.backdrop[0], &r.backdrop[1]} {
+		free(&t.rtv)
+		free(&t.srv)
+		free(&t.tex)
+		*t = texture{}
+	}
+	r.trimBackdrops(0)
+	if r.instCap > 4096 {
+		free(&r.instBuf)
+		r.instCap = 0
+	}
+	for id, t := range r.images {
+		if t.lastFrame < r.frame {
+			r.deleteImage(id, t)
+		}
+	}
+	r.evictImages(r.effectiveImageBudget(), true)
+}
+
+// Trim performs a deeper GPU reclaim for an occluded (hidden or minimized)
+// window, releasing reconstructible image caches, glyph atlases and scratch
+// buffers until the next frame draws.
+func (r *Renderer) Trim() {
+	r.Idle()
+	r.evictImages(0, true)
+	for _, t := range []*texture{&r.mask, &r.color} {
+		free(&t.srv)
+		free(&t.tex)
+		*t = texture{}
+	}
+	free(&r.instBuf)
+	r.instCap = 0
+	r.b = gpu.Builder{}
+	if r.ctx != 0 {
+		call(r.ctx, ctxClearState)
+		call(r.ctx, ctxFlush)
+	}
+}
+
 // imageView returns the texture view of an image, uploading it when new or
 // changed.
 func (r *Renderer) imageView(img *scene.Image) uintptr {
+	if r.images == nil {
+		r.images = map[uint64]*texture{}
+	}
 	t := r.images[img.ID()]
+	size := int64(img.W) * int64(img.H) * 4
 	if t == nil {
 		t = &texture{}
 		if err := r.newTexture(t, img.W, img.H, formatR8G8B8A8Unorm, img.Pix, 4); err != nil {
 			return 0
 		}
 		t.ver = img.Version()
+		t.bytes = size
 		r.images[img.ID()] = t
-	} else if t.ver != img.Version() {
+		r.imageBytes += size
+		r.imageClock++
+		t.lastUse = r.imageClock
+		t.lastFrame = r.frame
+		r.evictImages(r.effectiveImageBudget(), false)
+		return t.srv
+	}
+	if t.ver != img.Version() {
 		r.imageEpoch++
-		call(r.ctx, ctxUpdateSubresource, t.tex, 0, 0, uintptr(unsafe.Pointer(&img.Pix[0])), uintptr(img.W*4), 0)
+		if t.w != img.W || t.h != img.H {
+			oldBytes := t.bytes
+			if err := r.newTexture(t, img.W, img.H, formatR8G8B8A8Unorm, img.Pix, 4); err != nil {
+				r.imageBytes -= oldBytes
+				if r.imageBytes < 0 {
+					r.imageBytes = 0
+				}
+				delete(r.images, img.ID())
+				return 0
+			}
+			r.imageBytes += size - oldBytes
+			t.bytes = size
+		} else {
+			call(r.ctx, ctxUpdateSubresource, t.tex, 0, 0, uintptr(unsafe.Pointer(&img.Pix[0])), uintptr(img.W*4), 0)
+		}
 		t.ver = img.Version()
 	}
+	r.imageClock++
+	t.lastUse = r.imageClock
 	t.lastFrame = r.frame
+	if r.imageBytes > r.effectiveImageBudget() {
+		r.evictImages(r.effectiveImageBudget(), false)
+	}
 	return t.srv
 }
 
@@ -1013,8 +1142,27 @@ func (r *Renderer) pass(ps, src uintptr, dst *texture, w, h int, p gpu.Pass) {
 	call(ctx, ctxPSSetShaderResources, 4, 1, uintptr(unsafe.Pointer(&none)))
 }
 
+// shouldShrinkTarget reports whether an existing scratch target of curW×curH
+// is significantly oversized for a needW×needH request (with hysteresis so
+// small popovers and minor resizes do not churn).
+func shouldShrinkTarget(curW, curH, needW, needH int) bool {
+	if curW == 0 || curH == 0 || needW <= 0 || needH <= 0 {
+		return false
+	}
+	wantW, wantH := needW+needW/4, needH+needH/4
+	if curW < wantW || curH < wantH {
+		return false
+	}
+	const minShrinkPixels = 65536 // 256 KiB at 4 Bpp
+	if curW*curH <= minShrinkPixels {
+		return false
+	}
+	return curW*curH >= 4*needW*needH || curW >= 2*wantW || curH >= 2*wantH
+}
+
 // fitBackdrop makes the textures of backdrops as large as the scene built
-// needs, and the texture the area read is copied to.
+// needs, and the texture the area read is copied to, shrinking them back down
+// when the window or backdrop area shrinks significantly.
 func (r *Renderer) fitBackdrop() error {
 	w, h := r.b.BackdropSize()
 	aw, ah := 0, 0
@@ -1027,9 +1175,20 @@ func (r *Renderer) fitBackdrop() error {
 		if err := r.newTarget(&r.grab, max(aw+aw/4, r.grab.w), max(ah+ah/4, r.grab.h), false); err != nil {
 			return err
 		}
+	} else if shouldShrinkTarget(r.grab.w, r.grab.h, aw, ah) {
+		if err := r.newTarget(&r.grab, aw+aw/4, ah+ah/4, false); err != nil {
+			return err
+		}
 	}
 	if w > r.backdrop[0].w || h > r.backdrop[0].h {
 		w, h = max(w+w/4, r.backdrop[0].w), max(h+h/4, r.backdrop[0].h)
+		for i := range r.backdrop {
+			if err := r.newTarget(&r.backdrop[i], w, h, true); err != nil {
+				return err
+			}
+		}
+	} else if shouldShrinkTarget(r.backdrop[0].w, r.backdrop[0].h, w, h) {
+		w, h = w+w/4, h+h/4
 		for i := range r.backdrop {
 			if err := r.newTarget(&r.backdrop[i], w, h, true); err != nil {
 				return err
@@ -1073,15 +1232,17 @@ func (r *Renderer) present(sync uintptr) error {
 	if failed(hr) {
 		return fmt.Errorf("d3d11: present failed: %#x", uint32(hr))
 	}
-	// Forget the textures of images no frame drew for a while.
+	// Forget the textures of images no frame drew for a while, and keep total
+	// cached image VRAM within budget.
 	if r.frame%120 == 0 {
 		for id, t := range r.images {
 			if r.frame-t.lastFrame > 240 {
-				free(&t.srv)
-				free(&t.tex)
-				delete(r.images, id)
+				r.deleteImage(id, t)
 			}
 		}
+	}
+	if r.imageBytes > r.effectiveImageBudget() {
+		r.evictImages(r.effectiveImageBudget(), false)
 	}
 	return nil
 }

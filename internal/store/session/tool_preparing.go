@@ -23,20 +23,15 @@ type toolPreparingCall struct {
 // tool-call-delta.id and block-end.block.id are real call IDs, not text matches.
 // Like the original Tool node, unnamed prefixes do not open a preparing row.
 func foldToolPreparingChunk(state *toolPreparingState, raw json.RawMessage, time float64) bool {
-	var chunk struct {
-		Type  string  `json:"type"`
-		Index *int    `json:"index"`
-		ID    string  `json:"id"`
-		Name  *string `json:"name"`
-		Delta *string `json:"argumentsDelta"`
-		Block struct {
-			Type      string  `json:"type"`
-			ID        string  `json:"id"`
-			Name      string  `json:"name"`
-			Arguments *string `json:"arguments"`
-		} `json:"block"`
+	var chunk parsedAssistantChunk
+	if state == nil || json.Unmarshal(raw, &chunk) != nil {
+		return false
 	}
-	if state == nil || json.Unmarshal(raw, &chunk) != nil || chunk.Index == nil || *chunk.Index < 0 {
+	return foldToolPreparingChunkParsed(state, &chunk, time)
+}
+
+func foldToolPreparingChunkParsed(state *toolPreparingState, chunk *parsedAssistantChunk, time float64) bool {
+	if state == nil || chunk == nil || chunk.Index == nil || *chunk.Index < 0 {
 		return false
 	}
 	switch chunk.Type {
@@ -62,7 +57,15 @@ func foldToolPreparingChunk(state *toolPreparingState, raw json.RawMessage, time
 		state.calls[chunk.ID] = call
 		return true
 	case "block-end":
-		block := chunk.Block
+		var block struct {
+			Type      string  `json:"type"`
+			ID        string  `json:"id"`
+			Name      string  `json:"name"`
+			Arguments *string `json:"arguments"`
+		}
+		if len(chunk.Block) == 0 || json.Unmarshal(chunk.Block, &block) != nil {
+			return false
+		}
 		if block.Type != "tool-call" || strings.TrimSpace(block.ID) == "" || strings.TrimSpace(block.Name) == "" || block.Arguments == nil {
 			return false
 		}
@@ -146,8 +149,12 @@ func (s *Store) projectPreparingToolsLocked(messages []Message) []Message {
 }
 
 func toolPreparingAttemptClosed(messages []Message, attempt *assistantStreamAttempt) bool {
-	for _, message := range messages {
-		if len(message.Raw) == 0 || (message.Seq > 0 && message.Seq <= attempt.StartedAfterSeq) {
+	for i := len(messages) - 1; i >= 0; i-- {
+		message := messages[i]
+		if message.Seq > 0 && message.Seq <= attempt.StartedAfterSeq {
+			continue
+		}
+		if len(message.Raw) == 0 {
 			continue
 		}
 		if message.EventType != "" && message.EventType != "turn/end" && message.EventType != "step/end" {

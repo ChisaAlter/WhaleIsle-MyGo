@@ -144,7 +144,7 @@ func View(c *ui.Context, m Model) {
 				if row.SessionID == m.Snapshot.SelectedID {
 					bg = chrome.Color(colors.Hover)
 					if bg.A == 0 {
-						bg = chrome.Color("rgba(0,0,0,0.05)")
+						bg = design.For(c).Accent
 					}
 				}
 				ui.Row(c).FillWidth().Gap(6).Radius(10).Border(0.5, border).Padding(10, 12, 10, 12).Background(bg).AlignItems(ui.Center).Children(func() {

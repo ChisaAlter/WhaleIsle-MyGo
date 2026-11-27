@@ -264,7 +264,7 @@ func inspectorStreamPrefix(text string, limit int) string {
 
 // Settlement is named by the followed stream protocol, never inferred from text.
 func (s *Store) settleInspectorAttemptLocked(attempt *assistantStreamAttempt, seq float64) {
-	if attempt == nil || len(attempt.Stream) == 0 || s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
+	if attempt == nil || (!attempt.streamRecorded && len(attempt.Stream) == 0) || s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
 		return
 	}
 	if s.inspector.settledRoots == nil {

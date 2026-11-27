@@ -50,14 +50,13 @@ func (c *Coordinator) Invalidate() {
 	if c == nil {
 		return
 	}
+	var finishStore *marketstore.Store
+	var finishReceipt string
 	c.mu.Lock()
-	defer c.unlockPublish()
 	if c.active != nil {
 		c.active.Cancel()
 		if c.active.Store != nil && c.active.ReceiptID != "" {
-			if err := c.active.Store.FinishInstall(c.active.ReceiptID, "interrupted", "result-unconfirmed"); err != nil {
-				c.installMsg = marketMessage("中断记录保存失败，请查看历史。", "Could not save interrupted result; check history.")
-			}
+			finishStore, finishReceipt = c.active.Store, c.active.ReceiptID
 		}
 	}
 	c.clearBatchLocked()
@@ -69,6 +68,16 @@ func (c *Coordinator) Invalidate() {
 	c.needsAllowBuilds = false
 	c.allowBuilds = nil
 	c.incompatible = nil
+	c.unlockPublish()
+	if finishStore != nil && finishReceipt != "" {
+		if err := finishStore.FinishInstall(finishReceipt, "interrupted", "result-unconfirmed"); err != nil {
+			c.mu.Lock()
+			if c.active == nil && !c.installBusy {
+				c.installMsg = marketMessage("中断记录保存失败，请查看历史。", "Could not save interrupted result; check history.")
+			}
+			c.unlockPublish()
+		}
+	}
 }
 
 // RunCatalogInstall begins installing or updating an approved catalog target.
@@ -113,30 +122,35 @@ func (c *Coordinator) BeginAttemptForOwner(spec string, allow []string, install 
 		return nil, ""
 	}
 	c.mu.Lock()
-	defer c.unlockPublish()
 
 	if expected != nil && (c.client != expected.Client || c.store != expected.Store || (expected.Store != nil && expected.Store.RuntimeToken() != expected.Generation)) {
+		c.unlockPublish()
 		return nil, ""
 	}
 	if c.worker != nil || c.installBusy {
+		c.unlockPublish()
 		return nil, ""
 	}
 	if len(approval) > 0 {
 		a := approval[0]
 		if a == nil || c.approval != a || a.Client != c.client || a.Store != c.store || (a.Store != nil && a.Store.RuntimeToken() != a.Generation) {
+			c.unlockPublish()
 			return nil, ""
 		}
 		if a.Target != nil && (a.Store == nil || a.Store.ValidateTarget(*a.Target) != nil) {
+			c.unlockPublish()
 			return nil, ""
 		}
 	}
 	if !install && c.client == nil {
+		c.unlockPublish()
 		return nil, ""
 	}
 	if install && len(allow) > 0 {
 		a := c.approval
 		if a == nil || a.Spec != spec || a.Client != c.client || a.Store != c.store || (a.Store != nil && a.Store.RuntimeToken() != a.Generation) || !slices.Equal(allow, c.allowBuilds) {
 			c.installMsg = marketMessage("构建授权已过期，请重新安装以确认。", "Build approval expired; start installation again.")
+			c.unlockPublish()
 			return nil, ""
 		}
 	}
@@ -147,10 +161,12 @@ func (c *Coordinator) BeginAttemptForOwner(spec string, allow []string, install 
 	if install && c.catalogTarget != nil && c.catalogTarget.Spec == spec {
 		t := *c.catalogTarget
 		if c.store == nil {
+			c.unlockPublish()
 			return nil, ""
 		}
 		if e := c.store.ValidateTarget(t); e != nil {
 			c.installMsg = e.Error()
+			c.unlockPublish()
 			return nil, ""
 		}
 		target = &t
@@ -165,12 +181,13 @@ func (c *Coordinator) BeginAttemptForOwner(spec string, allow []string, install 
 	if install && op.Client != nil {
 		op.RequestID = marketInstallRequestID()
 	}
+	var receiptID, receiptTargetID, receiptAction string
 	if install {
-		id, action := "manual-install", "install"
+		receiptTargetID, receiptAction = "manual-install", "install"
 		if target != nil {
-			id = target.ID
+			receiptTargetID = target.ID
 			if target.UpdateVersion != "" {
-				action = "update"
+				receiptAction = "update"
 			}
 		}
 		op.ReceiptID = marketInstallRequestID()
@@ -182,17 +199,13 @@ func (c *Coordinator) BeginAttemptForOwner(spec string, allow []string, install 
 		if op.Store == nil {
 			op.Cancel()
 			c.installMsg = marketMessage("无法保存操作记录；安装未开始。", "Cannot save operation receipt; installation was not started.")
+			c.unlockPublish()
 			return nil, ""
 		}
-		if err := op.Store.BeginInstall(op.ReceiptID, id, action); err != nil {
-			op.Cancel()
-			c.installMsg = marketMessage("无法保存操作记录；安装未开始。", "Cannot save operation receipt; installation was not started.")
-			return nil, ""
-		}
-		if len(c.batch) > 0 && (target == nil || c.batch[0] != *target) {
-			c.clearBatchLocked()
-		}
+		receiptID = op.ReceiptID
 	}
+	// Reserve the single active slot before releasing c.mu for disk fsync I/O
+	// so UI ViewSnapshot() reads never block on BeginInstall.
 	c.worker = op
 	c.active = op
 	c.installBusy = true
@@ -205,6 +218,37 @@ func (c *Coordinator) BeginAttemptForOwner(spec string, allow []string, install 
 		c.allowBuilds = nil
 		c.approval = nil
 		c.incompatible = nil
+	}
+	c.unlockPublish()
+
+	if install {
+		if err := op.Store.BeginInstall(receiptID, receiptTargetID, receiptAction); err != nil {
+			op.Cancel()
+			c.mu.Lock()
+			if c.worker == op {
+				c.worker = nil
+			}
+			if c.active == op {
+				c.active = nil
+				c.installBusy = false
+				c.installRequestID = ""
+				c.installMsg = marketMessage("无法保存操作记录；安装未开始。", "Cannot save operation receipt; installation was not started.")
+			}
+			c.unlockPublish()
+			return nil, ""
+		}
+		c.mu.Lock()
+		if c.worker != op || c.active != op {
+			// Invalidated while BeginInstall was in flight; clean up outside c.mu.
+			c.unlockPublish()
+			op.Cancel()
+			_ = op.Store.FinishInstall(receiptID, "interrupted", "result-unconfirmed")
+			return nil, ""
+		}
+		if len(c.batch) > 0 && (target == nil || c.batch[0] != *target) {
+			c.clearBatchLocked()
+		}
+		c.unlockPublish()
 	}
 	return op, env.NodeBin
 }
@@ -291,13 +335,14 @@ func (c *Coordinator) finishAttempt(op *Attempt, r marketResult, install bool) {
 	c.installRequestID = ""
 	c.installMsg = r.message
 	c.installLog = r.log
+	var finishStore *marketstore.Store
+	var finishReceipt, finishOutcome string
 	if op.Store != nil && op.ReceiptID != "" {
-		outcome := r.outcome
+		finishStore = op.Store
+		finishReceipt = op.ReceiptID
+		finishOutcome = r.outcome
 		if len(r.pending) > 0 || len(r.incompatible) > 0 {
-			outcome = "awaiting-approval"
-		}
-		if err := op.Store.FinishInstall(op.ReceiptID, outcome, r.historyError, r.log, r.message); err != nil {
-			c.installMsg += " " + marketMessage("结果保存失败；历史仅在本次会话可见。", "Result could not be saved; history is available only in this session.")
+			finishOutcome = "awaiting-approval"
 		}
 	}
 	if install && len(c.batch) > 0 && op.Target != nil && c.batch[0] == *op.Target {
@@ -331,6 +376,17 @@ func (c *Coordinator) finishAttempt(op *Attempt, r marketResult, install bool) {
 		c.incompatible = nil
 	}
 	c.unlockPublish()
+
+	// Persist install receipt outside Coordinator.mu so disk fsync never blocks ViewSnapshot().
+	if finishStore != nil && finishReceipt != "" {
+		if err := finishStore.FinishInstall(finishReceipt, finishOutcome, r.historyError, r.log, r.message); err != nil {
+			c.mu.Lock()
+			if c.active == nil && !c.installBusy {
+				c.installMsg += " " + marketMessage("结果保存失败；历史仅在本次会话可见。", "Result could not be saved; history is available only in this session.")
+			}
+			c.unlockPublish()
+		}
+	}
 
 	awaitingUpdateApproval := op.Target != nil && op.Target.UpdateVersion != "" &&
 		(len(r.pending) > 0 || len(r.incompatible) > 0 || (op.Method == "pluginManager/setVersionExemption" && r.accepted))
@@ -525,8 +581,8 @@ func (c *Coordinator) CancelInstall() {
 		var out api.PluginInstallCancellation
 		e := op.Client.Call(op.Ctx, "pluginManager/cancelInstall", map[string]any{"requestId": op.RequestID}, &out)
 		if e == nil && out.Status == "cancelled" {
-			c.finishAttempt(op, marketResult{message: marketMessage("安装已取消。", "Installation cancelled."), outcome: "cancelled"}, true)
 			op.Cancel()
+			c.finishAttempt(op, marketResult{message: marketMessage("安装已取消。", "Installation cancelled."), outcome: "cancelled"}, true)
 			return
 		}
 		c.mu.Lock()
@@ -539,8 +595,6 @@ func (c *Coordinator) CancelInstall() {
 			c.installMsg = e.Error()
 		} else {
 			switch out.Status {
-			case "cancelled":
-				c.installMsg = marketMessage("已取消，等待安装请求结束并核对库存。", "Cancelled; waiting for installation to settle and checking inventory.")
 			case "too-late":
 				c.installMsg = marketMessage("已进入应用阶段，无法取消。", "Already applying; cancellation is too late.")
 			case "not-running":

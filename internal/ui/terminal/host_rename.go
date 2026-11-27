@@ -68,7 +68,7 @@ func HostTitleEditor(c *ui.Context, store *hostterminal.Store, session string) b
 	}
 	if input.Shortcut(0, ui.KeyEscape) {
 		store.CancelRename(v.Owner, session, v.ActiveID)
-	} else if input.Submitted() || blurred {
+	} else if (input.Submitted() && !input.Composing()) || blurred {
 		store.SaveRename(v.Owner, session, v.ActiveID)
 	}
 	return true
@@ -98,7 +98,7 @@ func hostRenameView(c *ui.Context, store *hostterminal.Store, v hostterminal.Vie
 		}
 		ui.Row(c).Gap(4).Children(func() {
 			save := coss.Button(c, terminalLabel("保存名称", "Save name"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonXS, Disabled: edit.Saving || !v.Ready}).Clicked()
-			if (save || input.Submitted()) && !edit.Saving {
+			if (save || (input.Submitted() && !input.Composing())) && !edit.Saving {
 				store.SaveRename(v.Owner, session, v.ActiveID)
 			}
 			if coss.Button(c, terminalLabel("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: edit.Saving}).Clicked() || input.Shortcut(0, ui.KeyEscape) {

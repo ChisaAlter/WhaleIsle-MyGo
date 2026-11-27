@@ -213,10 +213,9 @@ var errExitCode = errors.New("non-zero exit")
 func execPluginRunner(cfg InstallConfig) CommandRunner {
 	return func(ctx context.Context, dir, name string, args ...string) (int, string, error) {
 		cmd := processutil.CommandContext(ctx, name, args...)
-		processutil.BackgroundTree(cmd)
 		cmd.Dir = dir
 		cmd.Env = pluginChildEnv(cfg)
-		combined, err := cmd.CombinedOutput()
+		combined, err := runPluginCommand(ctx, cmd)
 		log := string(combined)
 		if err == nil {
 			return 0, log, nil

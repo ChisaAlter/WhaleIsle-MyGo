@@ -53,7 +53,7 @@ func projectRenameDialog(c *ui.Context, m Model) {
 						*first = false
 					}
 					blocked = blocked || strings.TrimSpace(*m.RenameDraft) == "" || utf8.RuneCountInString(strings.TrimSpace(*m.RenameDraft)) > 240
-					submit = input.Submitted()
+					submit = input.Submitted() && !input.Composing()
 				}
 				if !available {
 					ui.Text(c, tr("项目不再可用。", "This Project is no longer available.")).FontSize(theme.InterfaceSize(12))

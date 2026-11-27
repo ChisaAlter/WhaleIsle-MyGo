@@ -191,7 +191,7 @@ func TestRecoveryBackoffCapsAndJitter(t *testing.T) {
 func TestLateCarrierFailureCannotRetireReplacement(t *testing.T) {
 	old, current := &websocket.Conn{}, &websocket.Conn{}
 	oldDone, currentDone := make(chan struct{}), make(chan struct{})
-	stream := &logicalStream{inbox: make(chan ServerFrame, 1)}
+	stream := &logicalStream{inbox: newFrameQueue()}
 	calls := 0
 	mux := &Mux{conn: current, done: currentDone, streams: map[string]*logicalStream{"current": stream}, OnCarrierLost: func(error) { calls++ }}
 	mux.carrierLost(old, oldDone, errors.New("retired socket EOF"))
@@ -412,4 +412,96 @@ func TestRetiredStreamCannotWriteReplacementCarrier(t *testing.T) {
 	if _, err = old.Recv(ctx); !errors.Is(err, ErrCarrierLost) {
 		t.Fatal(err)
 	}
+}
+
+func TestMaintainMuxFromBootstrapDialsImmediatelyAndRefreshesAsync(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	releaseBoot := make(chan struct{})
+	defer func() {
+		select {
+		case <-releaseBoot:
+		default:
+			close(releaseBoot)
+		}
+	}()
+	bootStarted := make(chan struct{}, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			select {
+			case bootStarted <- struct{}{}:
+			default:
+			}
+			select {
+			case <-releaseBoot:
+			case <-r.Context().Done():
+				return
+			}
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><script>globalThis["__DSH_CONNECTION_RECOVERY__"] = {"backoffBaseMs":25,"backoffMaxMs":50,"generationReadyTimeoutMs":4321};</script></html>`))
+		case MuxPath:
+			conn, err := websocket.Accept(w, r, nil)
+			if err != nil {
+				return
+			}
+			defer conn.CloseNow()
+			for {
+				if _, _, err := conn.Read(r.Context()); err != nil {
+					return
+				}
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	client := &Client{Endpoint: Endpoint{Origin: srv.URL}}
+	mux := &Mux{Endpoint: client.Endpoint}
+	ready := make(chan context.Context, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- MaintainMuxFromBootstrap(ctx, mux, client, func(g context.Context) error {
+			mux.MarkReady(g)
+			select {
+			case ready <- g:
+			default:
+			}
+			return nil
+		}, nil, nil, nil)
+	}()
+
+	// Initial Mux.Dial + onReady must complete while GET / is still blocked.
+	select {
+	case <-ready:
+	case <-time.After(2 * time.Second):
+		t.Fatal("MaintainMuxFromBootstrap blocked initial Mux.Dial on ReadConnectionRecovery")
+	}
+	select {
+	case <-bootStarted:
+	case <-time.After(time.Second):
+		t.Fatal("ReadConnectionRecovery did not start in parallel")
+	}
+
+	// Release GET / and verify the async refresh updates DialTimeout.
+	close(releaseBoot)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		mux.mu.Lock()
+		got := mux.DialTimeout
+		mux.mu.Unlock()
+		if got == 4321*time.Millisecond {
+			cancel()
+			<-done
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	mux.mu.Lock()
+	got := mux.DialTimeout
+	mux.mu.Unlock()
+	cancel()
+	<-done
+	t.Fatalf("async recovery refresh did not update DialTimeout: got %v, want 4321ms", got)
 }

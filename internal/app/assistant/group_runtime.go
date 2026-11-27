@@ -220,7 +220,11 @@ func (s *Service) refreshGroupRuntime(ep harness.Endpoint, roomID, sessionID str
 	var cancelRead context.CancelFunc
 	if start {
 		live.busy = true
-		readContext, cancelRead = context.WithTimeout(context.Background(), 15*time.Second)
+		parentCtx := host.LifecycleContext()
+		if parentCtx == nil {
+			parentCtx = context.Background()
+		}
+		readContext, cancelRead = context.WithTimeout(parentCtx, 15*time.Second)
 		live.cancel = cancelRead
 	}
 	generation := live.generation
@@ -268,6 +272,7 @@ func (s *Service) refreshGroupRuntime(ep harness.Endpoint, roomID, sessionID str
 			live.mu.Lock()
 			if live.scope == scope && live.generation == generation {
 				live.busy = false
+				live.cancel = nil
 				live.loaded = false
 			}
 			live.mu.Unlock()
@@ -275,6 +280,10 @@ func (s *Service) refreshGroupRuntime(ep harness.Endpoint, roomID, sessionID str
 		}
 		live.mu.Lock()
 		if live.scope != scope || live.generation != generation || !live.visible {
+			if live.scope == scope && live.generation == generation {
+				live.busy = false
+				live.cancel = nil
+			}
 			live.mu.Unlock()
 			return
 		}
@@ -346,7 +355,11 @@ func (s *Service) contactRoomRuntimes(ep harness.Endpoint, catalog pluginrpc.Dsh
 	var ctx context.Context
 	var cancel context.CancelFunc
 	if start {
-		ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
+		parentCtx := host.LifecycleContext()
+		if parentCtx == nil {
+			parentCtx = context.Background()
+		}
+		ctx, cancel = context.WithTimeout(parentCtx, 15*time.Second)
 		live.cancel = cancel
 		live.busy = true
 	}
@@ -392,10 +405,21 @@ func (s *Service) contactRoomRuntimes(ep harness.Endpoint, catalog pluginrpc.Dsh
 			fresh[row.id] = row
 		}
 		if !current() {
+			live.mu.Lock()
+			if live.scope == scope && live.generation == generation {
+				live.busy = false
+				live.cancel = nil
+				live.loaded = false
+			}
+			live.mu.Unlock()
 			return
 		}
 		live.mu.Lock()
 		if !live.visible || live.scope != scope || live.generation != generation {
+			if live.scope == scope && live.generation == generation {
+				live.busy = false
+				live.cancel = nil
+			}
 			live.mu.Unlock()
 			return
 		}
