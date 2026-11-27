@@ -1886,6 +1886,9 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.refreshReferencedCredentials()
 	s.refreshProviderDiscovery()
 	usageStore.Attach(client, refresh)
+	usageStore.SetOnCredentialsChanged(func(status string) {
+		handleAccountCredentialsChanged(ctx, sessions, status)
+	})
 	remoteMachines.Attach(client, refresh)
 	imStore.Attach(client, refresh)
 	s.marketCoordinator().AttachHostForWorkspace(client, s.managedMarketProfile(st), refresh)
@@ -2112,9 +2115,7 @@ func (s *mainState) runDSH(ctx context.Context, startupGen uint64, client *dsh.C
 						}
 						if sessions != nil {
 							sessions.OnEmit(eventsOwner, emit)
-							if emit.Event == "llm/adapters-updated" || emit.Event == "credentials/reference-updated" || emit.Event == "llm/providers-updated" {
-								sessions.RefreshModelCatalog(ctx)
-							}
+							handleModelCatalogEvent(ctx, sessions, emit.Event)
 						}
 					})
 				},
@@ -5807,7 +5808,15 @@ func mainView(c *ui.Context) {
 					// is not ready: the strip, the sidebar's empty list and the
 					// composer cannot disagree about why there are no sessions.
 					hostReport := hoststate.Of(st)
+					modalOverlayActive := (settingsOpen && setStore != nil) ||
+						confirmAskPending ||
+						closingOverlay ||
+						minimalOfferOpen ||
+						imageLightboxPath != "" ||
+						state.accountLogin.Snapshot().Visible ||
+						state.accountSignOut.Snapshot().Open
 					frameModel := frame.Model{
+						ModalOverlayActive:    modalOverlayActive,
 						Media:                 mediaOwner,
 						HostNote:              hostReport.Note,
 						HostPlaceholder:       hostReport.Placeholder,
@@ -6304,6 +6313,7 @@ func mainView(c *ui.Context) {
 						},
 						NewWorkspaceBrowser: func() *browserpreviewui.Controller { return state.newBrowserController(win) },
 						OnVoiceSettings:     state.openVoiceSettings,
+						OnOpenModelSettings: state.openAccountAPIKeySettings,
 						RemoteFilesContent: func(c *ui.Context, paneSessions *session.Store, owner *remoteui.FileWorkspaceState) bool {
 							return remoteui.FileWorkspace(c, state.remoteFileWorkspaceModel(win, paneSessions, themeID, systemDark, st.State == harness.Ready, cfgRemoteWorkspace, owner))
 						},

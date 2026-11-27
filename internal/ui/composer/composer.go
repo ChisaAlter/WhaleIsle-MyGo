@@ -115,6 +115,7 @@ type Model struct {
 	OnModelChange           func(label string)
 	OnModelEffortChange     func(label string)
 	OnRetryModels           func()
+	OnOpenModelSettings     func()
 	OnRetryPermissions      func()
 	OnExitPlanMode          func()
 	OnPermissionChange      func(value string)
@@ -164,6 +165,9 @@ type Model struct {
 	// when the transcript is scrolled up (MO-08).
 	Collapsed         bool
 	OnExpandCollapsed func()
+	// SuppressBackdropBlur suspends the card's live GPU backdrop blur (keeping
+	// its cheap translucent fill) while a modal overlay covers the main shell.
+	SuppressBackdropBlur bool
 	// OnCardLayout observes the current unshifted card before its enclosing
 	// stack receives the first-send displacement. It must not build controls.
 	OnCardLayout func(ui.Rect)
@@ -389,8 +393,8 @@ func View(c *ui.Context, m Model) {
 		glassMode := t.Glass || chrome.BackdropActive()
 		prefs := chrome.BackdropPreferences()
 		transparentActive := prefs.Transparent && chrome.BackdropHasWallpaper()
-		if glassMode && !transparentActive {
-			card.Material(glass.Blur{Radius: 40, Saturation: 0.50, Dither: true})
+		if glassMode && !transparentActive && !m.SuppressBackdropBlur {
+			card.Material(glass.Blur{Radius: 24, Saturation: 0.50, Dither: true})
 		}
 		composerCardElevation(card, t, focused, inputDisabled)
 		collapsedPill := m.Collapsed && !m.Hero && !inputDisabled
@@ -439,8 +443,13 @@ func View(c *ui.Context, m Model) {
 				// InputBar.editRow floats above the card and never moves its draft.
 				editRow := ui.Row(c.Key("composer-edit-status")).Label("Composer edit status").Attach(ui.AnchorTopRight, ui.AnchorBottomRight).
 					Right(design.Sp(2)).Bottom(design.Sp(2)).MaxWidthPercent(100).Padding(design.Sp(1), design.Sp(2)).Gap(design.Sp(2)).
-					AlignItems(ui.Center).Radius(design.RadiusMD).Background(t.Popover).Border(design.BorderWidth, t.Border)
-				applyShadows(editRow, design.ShadowMd, design.TW.Black, 0.05)
+					AlignItems(ui.Center)
+				if m.SuppressBackdropBlur {
+					editRow.Radius(design.RadiusMD).Background(t.Popover).Border(design.BorderWidth, t.Border)
+					applyShadows(editRow, design.ShadowMd, design.TW.Black, 0.05)
+				} else {
+					chrome.ApplyMenuSurface(editRow, t, design.RadiusMD)
+				}
 				editRow.Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyChatEditHint)).MinWidth(0).SingleLine().FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(muted)
 					if coss.Button(c, "", coss.ButtonOptions{

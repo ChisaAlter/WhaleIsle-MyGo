@@ -198,6 +198,7 @@ type ViewState struct {
 	ModelSelection          *modelSelection
 	ModelSelectionKnown     bool
 	ModelSelectionBusy      bool
+	ModelCatalogLoading     bool
 	ModelEffortLabels       []string
 	SelectedModelEffort     string
 	ModelLabels             []string

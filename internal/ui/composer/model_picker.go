@@ -32,24 +32,39 @@ func paintModelPicker(c *ui.Context, m Model, height float32) {
 		}
 		if m.Snapshot.ModelsErr != nil {
 			ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(design.TextXS.Size).TextColor(muted)
-			if m.OnRetryModels != nil && coss.Button(c, i18n.T(i18n.KeyComposerModelReload), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
-				m.OnRetryModels()
+			loading := m.Snapshot.ModelSelectionBusy || m.Snapshot.ModelCatalogLoading
+			if m.OnRetryModels != nil {
+				reloadLabel := i18n.T(i18n.KeyComposerModelReload)
+				if loading {
+					reloadLabel = ModelSelectionLocaleText("trigger.loading")
+				}
+				btn := coss.Button(c, reloadLabel, coss.ButtonOptions{
+					Variant:  coss.ButtonGhost,
+					Size:     coss.ButtonXS,
+					Disabled: loading,
+				})
+				if btn.Clicked() && !loading {
+					m.OnRetryModels()
+				}
 			}
 		}
 	})
 }
 
-// paintModelSeat is the catalog-less model chip: "Loading…" while the request
-// is in flight, "Choose model" before any selection, and the router's
-// resolved model name when a selection exists but its catalog row does not.
+// paintModelSeat is the catalog-less model chip: "Loading models…" while a
+// selection or catalog refresh is in flight, "Choose model" before any
+// selection, and the router's resolved model name when a selection exists
+// without a matching catalog row.
 func paintModelSeat(c *ui.Context, m Model) {
 	t := design.For(c)
 	muted := t.MutedForeground
 	owner := ui.Box(c)
 	open := ui.Local(owner, "model-seat-open", func() bool { return false })
+	loading := m.Snapshot.ModelSelectionBusy || m.Snapshot.ModelCatalogLoading
+	unconfigured := len(m.Snapshot.ModelLabels) == 0 && m.Snapshot.ModelsErr == nil && !loading
 	label := i18n.T(i18n.KeyComposerModelChoose)
 	switch {
-	case m.Snapshot.ModelSelectionBusy:
+	case loading:
 		label = i18n.T(i18n.KeyComposerModelLoading)
 	case m.Snapshot.SelectedModel != "":
 		label = friendlyModelTriggerName(m.Snapshot, m.Snapshot.SelectedModel)
@@ -57,13 +72,13 @@ func paintModelSeat(c *ui.Context, m Model) {
 	secondary := t.SecondaryForeground
 	effortDisplay := formatEffortDisplay(m.Snapshot.SelectedModelEffort)
 	tooltip := label
-	if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
+	if effortDisplay != "" && !loading {
 		tooltip += " · " + effortDisplay
 	}
 	trigger := chip(c, *open, secondary).Label(label).Tooltip(tooltip + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).MaxWidthPercent(100).Disabled(m.Inert)
 	trigger.Children(func() {
 		modelFlipText(c, "seat-name:"+modelSelectBinding(m.Snapshot), label, secondary, design.TextSM.Size).Grow(1)
-		if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
+		if effortDisplay != "" && !loading {
 			binding := modelSelectBinding(m.Snapshot)
 			modelFlipText(c, "retained-effort:"+binding, effortDisplay, muted, design.TextSM.Size).Shrink(1000)
 		}
@@ -76,34 +91,67 @@ func paintModelSeat(c *ui.Context, m Model) {
 		return
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = menuSurface(c, panel.MinWidth(240).MaxWidth(420).Padding(design.Sp(2)).Gap(design.Sp(2)).
+		panel = menuSurface(c, panel.MinWidth(260).MaxWidth(420).Padding(design.Sp(2)).Gap(design.Sp(2)).
 			AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, design.Sp(2), 0))
 		panel.Children(func() {
-			if m.Snapshot.SelectedModel != "" && !m.Snapshot.ModelSelectionBusy {
+			if m.Snapshot.SelectedModel != "" && !loading {
+				header := composerText("当前模型", "Current model")
+				if unconfigured {
+					header = composerText("默认模型（未配置）", "Default (not configured)")
+				}
 				ui.Column(c).FillWidth().Gap(design.Sp(0.5)).Children(func() {
-					ui.Text(c, composerText("当前模型", "Current model")).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).TextColor(muted)
+					ui.Text(c, header).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).TextColor(muted)
 					ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(design.TextSM.Size).TextColor(t.PopoverForeground)
 						if effortDisplay != "" {
 							ui.Text(c, effortDisplay).Shrink(0).SingleLine().FontSize(design.TextXS.Size).TextColor(muted)
 						}
-						cossIcon(c, coss.IconCheck, design.IconXS, t.PopoverForeground)
+						if !unconfigured {
+							cossIcon(c, coss.IconCheck, design.IconXS, t.PopoverForeground)
+						}
 					})
 				})
 				coss.Separator(c, coss.Horizontal)
 			}
 			statusText := i18n.T(i18n.KeyComposerModelUnavailable)
-			if m.Snapshot.ModelSelectionBusy {
-				statusText = i18n.T(i18n.KeyComposerModelLoading)
+			if loading {
+				statusText = ModelSelectionLocaleText("status.loading")
 			}
 			ui.Text(c, statusText).FontSize(design.TextXS.Size).TextColor(muted)
+			if unconfigured {
+				ui.Text(c, composerText("尚未登录 DeepSeek 账号或配置模型 API Key", "Not signed in to a DeepSeek account or missing a model API key.")).
+					FontSize(design.TextXS.Size).MaxLines(3).TextColor(muted)
+			}
 			if m.Snapshot.ModelsErr != nil {
 				ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(design.TextXS.Size).MaxLines(3).TextColor(muted)
 			}
-			if m.OnRetryModels != nil {
-				if coss.Button(c, i18n.T(i18n.KeyComposerModelReload), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).AlignSelf(ui.Start).Clicked() {
-					m.OnRetryModels()
-				}
+			showSettings := unconfigured && m.OnOpenModelSettings != nil
+			if showSettings || m.OnRetryModels != nil {
+				ui.Row(c).FillWidth().Gap(design.Sp(1.5)).AlignItems(ui.Center).Wrap().Children(func() {
+					if showSettings {
+						if coss.Button(c, composerText("前往账号/模型设置", "Account & Model Settings"), coss.ButtonOptions{
+							Variant: coss.ButtonSecondary,
+							Size:    coss.ButtonSM,
+						}).Clicked() {
+							*open = false
+							m.OnOpenModelSettings()
+						}
+					}
+					if m.OnRetryModels != nil {
+						reloadLabel := i18n.T(i18n.KeyComposerModelReload)
+						if loading {
+							reloadLabel = ModelSelectionLocaleText("trigger.loading")
+						}
+						btn := coss.Button(c, reloadLabel, coss.ButtonOptions{
+							Variant:  coss.ButtonGhost,
+							Size:     coss.ButtonSM,
+							Disabled: loading,
+						})
+						if btn.Clicked() && !loading {
+							m.OnRetryModels()
+						}
+					}
+				})
 			}
 		})
 	})

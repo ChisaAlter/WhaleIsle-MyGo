@@ -261,7 +261,9 @@ func (s *Store) InitializeDefaultModel(ctx context.Context) {
 		return
 	}
 	s.modelState.BootstrapPending = true
+	s.invalidateViewLocked()
 	s.mu.Unlock()
+	s.fire()
 	go func() {
 		var out api.InitializeDefaultModelResult
 		_ = client.Call(ctx, "session/initializeDefaultModel", map[string]any{}, &out)
@@ -270,11 +272,13 @@ func (s *Store) InitializeDefaultModel(ctx context.Context) {
 		if same {
 			if ctx.Err() != nil {
 				s.modelState.BootstrapPending = false
+				s.invalidateViewLocked()
 			} else {
 				// Keep the pending window contiguous until RefreshModelCatalog
 				// takes ownership under CatalogLoading.
 				s.modelState.CatalogLoading = true
 				s.modelState.BootstrapPending = false
+				s.invalidateViewLocked()
 			}
 		}
 		s.mu.Unlock()
@@ -294,27 +298,44 @@ func (s *Store) RefreshModelCatalog(ctx context.Context) {
 	s.mu.Lock()
 	client, generation := s.client, s.eventsGeneration
 	if client == nil || ctx.Err() != nil {
+		changed := s.modelState.CatalogLoading
 		s.modelState.CatalogLoading = false
+		if changed {
+			s.invalidateViewLocked()
+		}
 		s.mu.Unlock()
+		if changed {
+			s.fire()
+		}
 		return
 	}
 	s.modelState.CatalogLoading = true
 	s.modelState.CatalogRequest++
 	request := s.modelState.CatalogRequest
+	s.invalidateViewLocked()
 	s.mu.Unlock()
+	s.fire()
 	go func() {
 		var cat api.ModelCatalog
 		err := client.Call(ctx, "session/modelCatalog", map[string]any{}, &cat)
 		s.mu.Lock()
 		if s.client != client || s.eventsGeneration != generation || request != s.modelState.CatalogRequest || ctx.Err() != nil {
-			if s.client == client && s.eventsGeneration == generation && request == s.modelState.CatalogRequest {
+			changed := false
+			if s.client == client && s.eventsGeneration == generation && request == s.modelState.CatalogRequest && s.modelState.CatalogLoading {
 				s.modelState.CatalogLoading = false
+				s.invalidateViewLocked()
+				changed = true
 			}
 			s.mu.Unlock()
+			if changed {
+				s.fire()
+			}
 			return
 		}
+		wasLoading := s.modelState.CatalogLoading
 		s.modelState.CatalogLoading = false
-		changed := s.setModelsErrLocked(err)
+		errChanged := s.setModelsErrLocked(err)
+		changed := wasLoading || errChanged
 		if err == nil {
 			options := flattenModelCatalog(cat)
 			selection := cloneModelSelection(cat.Default)

@@ -533,10 +533,12 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 				if gotTokens.Input != ui.RGBA(0, 0, 0, 0.095) {
 					t.Fatalf("light Input = %+v, want rgba(0,0,0,0.095)", gotTokens.Input)
 				}
-				if gotTokens.MutedForeground != ui.RGB(63, 68, 74) ||
-					gotTokens.SidebarForeground != ui.RGB(44, 49, 56) {
-					t.Fatalf("light foreground contrast tokens diverged: mutedFg=%+v sidebarFg=%+v",
-						gotTokens.MutedForeground, gotTokens.SidebarForeground)
+				if gotTokens.Foreground != ui.RGB(17, 19, 24) ||
+					gotTokens.PopoverForeground != ui.RGB(17, 19, 24) ||
+					gotTokens.MutedForeground != ui.RGB(52, 57, 66) ||
+					gotTokens.SidebarForeground != ui.RGB(36, 41, 48) {
+					t.Fatalf("light foreground contrast tokens diverged: fg=%+v popFg=%+v mutedFg=%+v sidebarFg=%+v",
+						gotTokens.Foreground, gotTokens.PopoverForeground, gotTokens.MutedForeground, gotTokens.SidebarForeground)
 				}
 			}
 
@@ -617,17 +619,37 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	}
 
 	// 2. Verify Windows Acrylic curve (g=80% -> 0.30 canvas, ShowThroughAlpha sidebar,
-	// 0.80 card, 0.64 dark popover) and light menu opacity (g=80% -> 0.64).
+	// 0.80 card, 0.48 dark popover) and light menu opacity (g=80% -> 0.44), plus
+	// continuous 0%..100% slider boundaries.
 	prefs := wallpapers.Defaults()
 	prefs.Glass = 80
 	if got := acrylicCanvasAlpha(prefs); math.Abs(float64(got)-0.30) > 0.001 {
 		t.Fatalf("acrylicCanvasAlpha(80) = %.4f, want 0.30", got)
 	}
-	if got := darkGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
-		t.Fatalf("darkGlassMenuAlpha(80) = %.4f, want 0.64", got)
+	if got := darkGlassMenuAlpha(prefs); math.Abs(float64(got)-0.48) > 0.001 {
+		t.Fatalf("darkGlassMenuAlpha(80) = %.4f, want 0.48", got)
 	}
-	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
-		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.64", got)
+	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.44) > 0.001 {
+		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.44", got)
+	}
+	for _, tc := range []struct {
+		glass float64
+		dark  float32
+		light float32
+	}{
+		{0, 0.00, 0.00},
+		{40, 0.24, 0.22},
+		{80, 0.48, 0.44},
+		{100, 1.00, 1.00},
+	} {
+		p := wallpapers.Defaults()
+		p.Glass = tc.glass
+		if got := darkGlassMenuAlpha(p); math.Abs(float64(got-tc.dark)) > 0.001 {
+			t.Fatalf("darkGlassMenuAlpha(%.0f) = %.4f, want %.2f", tc.glass, got, tc.dark)
+		}
+		if got := lightGlassMenuAlpha(p); math.Abs(float64(got-tc.light)) > 0.001 {
+			t.Fatalf("lightGlassMenuAlpha(%.0f) = %.4f, want %.2f", tc.glass, got, tc.light)
+		}
 	}
 
 	filter := glassSurfaceFilter(designGlassSignature{
@@ -647,8 +669,8 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	if pal.Card != chrome.MaterialFill(ui.RGB(32, 32, 35), 0.80) {
 		t.Fatalf("Acrylic Card = %+v, want #202023 @ 0.80", pal.Card)
 	}
-	if pal.Popover != chrome.MaterialFill(ui.RGB(38, 39, 43), 0.64) {
-		t.Fatalf("Acrylic Popover = %+v, want rgb(38,39,43) @ 0.64", pal.Popover)
+	if pal.Popover != chrome.MaterialFill(ui.RGB(38, 39, 43), 0.48) {
+		t.Fatalf("Acrylic Popover = %+v, want rgb(38,39,43) @ 0.48", pal.Popover)
 	}
 }
 

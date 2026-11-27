@@ -92,3 +92,66 @@ func TestModelCatalogPendingTracksInitializeDefaultModelLifecycle(t *testing.T) 
 		t.Fatal("expected CachedModelCatalog ready once ModelCatalogPending settled")
 	}
 }
+
+func TestRefreshModelCatalogPublishesLoadingStateAcrossEmptyReloads(t *testing.T) {
+	entered := make(chan struct{}, 2)
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if strings.HasSuffix(r.URL.Path, "/session/modelCatalog") {
+			entered <- struct{}{}
+			<-release
+			rpcOK(w, body["rpcId"], map[string]any{
+				"default": map[string]any{"provider": "deepseek-official", "model": "deepseek-flash"},
+				"groups":  []any{},
+			})
+			return
+		}
+		rpcOK(w, body["rpcId"], map[string]any{})
+	}))
+	defer srv.Close()
+
+	notifications := 0
+	s := New()
+	client := dsh.NewGenerationClient(dsh.Endpoint{Origin: srv.URL})
+	defer client.Close()
+	s.Attach(client, func() { notifications++ })
+	defer s.Detach()
+
+	// First reload on an empty catalog publishes ModelCatalogLoading=true immediately and clears it on settle.
+	s.RefreshModelCatalog(context.Background())
+	if !s.Snapshot().ModelCatalogLoading {
+		t.Fatal("ViewState.ModelCatalogLoading should be true immediately when RefreshModelCatalog starts")
+	}
+	if notifications == 0 {
+		t.Fatal("RefreshModelCatalog did not fire notify on loading start")
+	}
+	select {
+	case <-entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("first modelCatalog RPC was not called")
+	}
+	release <- struct{}{}
+	waitFor(t, "first empty catalog reload settled", func() bool { return !s.Snapshot().ModelCatalogLoading })
+
+	// Repeated reload on an already-empty catalog must still toggle ModelCatalogLoading true -> false.
+	before := notifications
+	s.RefreshModelCatalog(context.Background())
+	if !s.Snapshot().ModelCatalogLoading {
+		t.Fatal("second RefreshModelCatalog did not publish ModelCatalogLoading=true")
+	}
+	if notifications <= before {
+		t.Fatal("second RefreshModelCatalog did not notify UI on start")
+	}
+	select {
+	case <-entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("second modelCatalog RPC was not called")
+	}
+	release <- struct{}{}
+	waitFor(t, "second empty catalog reload settled", func() bool { return !s.Snapshot().ModelCatalogLoading })
+	if len(s.Snapshot().ModelLabels) != 0 {
+		t.Fatalf("expected empty catalog, got %v", s.Snapshot().ModelLabels)
+	}
+}

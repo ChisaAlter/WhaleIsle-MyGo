@@ -265,7 +265,7 @@ func TestComposerCollapseDoesNotSpinIdleAnimation(t *testing.T) {
 	}
 }
 
-func TestModelSeatWithoutCatalogShowsCurrentModelAndStatus(t *testing.T) {
+func TestModelSeatWithoutCatalogShowsUnconfiguredGuidanceLoadingAndSettings(t *testing.T) {
 	prev := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(prev) })
@@ -276,20 +276,63 @@ func TestModelSeatWithoutCatalogShowsCurrentModelAndStatus(t *testing.T) {
 		SelectedModelEffort: "high",
 		NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true},
 	}
-	reloaded := 0
+	reloaded, openedSettings := 0, 0
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap, OnRetryModels: func() { reloaded++ }}, 28)
+		paintModelPicker(c, Model{
+			Snapshot:            snap,
+			OnRetryModels:       func() { reloaded++ },
+			OnOpenModelSettings: func() { openedSettings++ },
+		}, 28)
 	}, 700, 400)
 	if err := tt.Click("deepseek-official/deepseek-flash"); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText("Current model") {
-		t.Fatalf("catalog-less model popover omitted current model header: %v", tt.Texts())
+	if !tt.HasText("Default (not configured)") {
+		t.Fatalf("unconfigured model popover omitted unconfigured default header: %v", tt.Texts())
+	}
+	if tt.HasText("Current model") {
+		t.Fatalf("unconfigured model popover should not label placeholder as Current model: %v", tt.Texts())
 	}
 	if !tt.HasText(i18n.T(i18n.KeyComposerModelUnavailable)) {
 		t.Fatalf("catalog-less model popover omitted unavailable notice: %v", tt.Texts())
 	}
+	if !tt.HasText("Not signed in to a DeepSeek account or missing a model API key.") {
+		t.Fatalf("unconfigured model popover omitted login/API-key guidance: %v", tt.Texts())
+	}
 	if err := tt.Click(i18n.T(i18n.KeyComposerModelReload)); err != nil || reloaded != 1 {
 		t.Fatalf("reload action failed: err=%v reloaded=%d", err, reloaded)
+	}
+
+	// While ModelCatalogLoading is true, show loading state and block repeat clicks.
+	snap.ModelCatalogLoading = true
+	tt.Frame()
+	if !tt.HasText(ModelSelectionLocaleText("trigger.loading")) || !tt.HasText(ModelSelectionLocaleText("status.loading")) {
+		t.Fatalf("loading model popover omitted loading copy: %v", tt.Texts())
+	}
+	if err := tt.Click(ModelSelectionLocaleText("trigger.loading")); err != nil {
+		t.Fatalf("expected disabled loading reload button in popover: %v", err)
+	}
+	if reloaded != 1 {
+		t.Fatalf("disabled loading reload button fired again: reloaded=%d", reloaded)
+	}
+
+	// Once loading settles back to unconfigured, clicking Account & Model Settings opens settings and closes popover.
+	snap.ModelCatalogLoading = false
+	tt.Frame()
+	if err := tt.Click("Account & Model Settings"); err != nil || openedSettings != 1 {
+		t.Fatalf("settings shortcut action failed: err=%v openedSettings=%d", err, openedSettings)
+	}
+	if tt.HasText("Account & Model Settings") {
+		t.Fatal("model seat popover remained open after navigating to settings")
+	}
+
+	// Chinese locale verifies localized guidance & header copy.
+	i18n.SetLocale(i18n.LocaleZH)
+	tt.Frame()
+	if err := tt.Click("deepseek-official/deepseek-flash"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("默认模型（未配置）") || !tt.HasText("尚未登录 DeepSeek 账号或配置模型 API Key") || !tt.HasText("前往账号/模型设置") {
+		t.Fatalf("zh unconfigured guidance missing: %v", tt.Texts())
 	}
 }

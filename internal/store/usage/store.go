@@ -62,13 +62,14 @@ type Store struct {
 	// attach is the Host-attachment lease (formerly statsEpoch): renewed on
 	// Attach/Detach, its generation fences every stats, billing, ranking,
 	// repair and job-kill completion.
-	attach      state.LeaseOwner
-	attachL     state.Lease
-	statsCancel context.CancelFunc
-	mu          sync.Mutex
-	client      *dsh.Client
-	mux         *dsh.Mux
-	notify      func()
+	attach               state.LeaseOwner
+	attachL              state.Lease
+	statsCancel          context.CancelFunc
+	mu                   sync.Mutex
+	client               *dsh.Client
+	mux                  *dsh.Mux
+	notify               func()
+	onCredentialsChanged func(status string)
 
 	jobFollowCancel    context.CancelFunc
 	jobFollowEpoch     uint64
@@ -397,6 +398,14 @@ func truncateJSON(s string, max int) string {
 		return s
 	}
 	return s[:max] + "…"
+}
+
+// SetOnCredentialsChanged registers a callback fired when account/watch
+// reports credentials-changed or transitions into credential-stored.
+func (s *Store) SetOnCredentialsChanged(fn func(status string)) {
+	s.mu.Lock()
+	s.onCredentialsChanged = fn
+	s.mu.Unlock()
 }
 
 func (s *Store) fire() {
