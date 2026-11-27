@@ -160,15 +160,16 @@ func (s *mainState) recordStartupWorkspaceReady(sessions *session.Store) {
 		return
 	}
 	snapshot := sessions.Published().Value
-	ready := snapshot.ClientReady && snapshot.WorkspaceReady && !snapshot.ListLoading && snapshot.ListErr == nil && snapshot.WorkspaceError == nil
-	if loading && (ready || snapshot.WorkspaceError != nil || snapshot.ListErr != nil) {
+	baseline := sessions.WorkbenchBaseline()
+	hasErr := snapshot.WorkspaceError != nil || snapshot.ListErr != nil
+	if loading && (baseline || hasErr) {
 		s.mu.Lock()
-		if s.sessions == sessions && s.dshMuxReady {
-			s.coldLoading = false
+		if s.sessions == sessions && s.dshMuxReady && s.coldLoading {
+			s.coldHandoffArmed = true
 		}
 		s.mu.Unlock()
 	}
-	if ready && startuptrace.Enabled() && uiDiagWorkspaceReady.CompareAndSwap(false, true) {
+	if baseline && startuptrace.Enabled() && uiDiagWorkspaceReady.CompareAndSwap(false, true) {
 		startuptrace.Mark("workspace.ready")
 		startuptrace.Finish("ready")
 	}

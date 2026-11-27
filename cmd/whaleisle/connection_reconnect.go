@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/networkstatus"
@@ -23,6 +24,7 @@ func (s *mainState) requestConnectionReconnect() {
 	}
 	s.mu.Lock()
 	s.dshMuxReady, s.dshMuxLost = false, false
+	s.coldHandoffArmed, s.coldHandoffSince = false, time.Time{}
 	s.dshBootstrapError = ""
 	win := s.win
 	s.mu.Unlock()
@@ -74,6 +76,10 @@ func (a *connectionAttemptState) publish(ready, lost bool) bool {
 	}
 	a.state.mu.Lock()
 	a.state.dshMuxReady, a.state.dshMuxLost = ready, lost
+	if !ready {
+		a.state.coldHandoffArmed = false
+		a.state.coldHandoffSince = time.Time{}
+	}
 	a.state.mu.Unlock()
 	a.state.dshMu.Unlock()
 	a.state.hostTerminals.Transport(a.client, ready)
@@ -136,6 +142,8 @@ func (a *connectionAttemptState) bootstrap(err error) {
 	}
 	a.state.mu.Lock()
 	a.state.dshMuxReady = false
+	a.state.coldHandoffArmed = false
+	a.state.coldHandoffSince = time.Time{}
 	a.state.dshMuxLost = err != nil || a.state.dshNetworkOffline
 	a.state.dshBootstrapError = ""
 	if err != nil {
@@ -162,6 +170,8 @@ func (a *connectionAttemptState) networkAvailability(value networkstatus.Availab
 	a.state.dshNetworkOffline = offline
 	if changed {
 		a.state.dshMuxReady = false
+		a.state.coldHandoffArmed = false
+		a.state.coldHandoffSince = time.Time{}
 		a.state.dshMuxLost = offline
 	}
 	a.state.mu.Unlock()

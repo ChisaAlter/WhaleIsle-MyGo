@@ -21,6 +21,8 @@ type modelProjectionState struct {
 type modelSelectionState struct {
 	Default             modelSelection
 	CatalogReady        bool
+	CatalogLoading      bool
+	BootstrapPending    bool
 	CatalogRequest      uint64
 	CatalogWarning      string
 	CatalogWarningFault *state.Fault
@@ -42,6 +44,8 @@ func (s *Store) resetModelCatalogLocked() {
 	s.modelOptions = nil
 	s.modelState.Default = modelSelection{}
 	s.modelState.CatalogReady = false
+	s.modelState.CatalogLoading = false
+	s.modelState.BootstrapPending = false
 	s.modelState.CatalogWarning = ""
 	s.modelState.CatalogWarningFault = nil
 	s.modelState.CatalogRequest++

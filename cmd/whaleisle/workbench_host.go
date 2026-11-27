@@ -2,16 +2,21 @@ package main
 
 import (
 	"log"
+	"math"
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/app/startup"
 	"whaleisle/internal/desktop/deeplink"
+	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/ui/boot"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -68,19 +73,139 @@ func openedColdPage(m boot.Model, st harness.Status, skipped bool, message strin
 	return m
 }
 
+// coldHandoffTimeout bounds how long the boot page waits after
+// WorkbenchBaseline() for Host appearance, wallpaper decoding, resumed session
+// history and default model readiness so startup can never stall on boot.View.
+const coldHandoffTimeout = 1500 * time.Millisecond
+
+func (s *mainState) coldHandoffActive() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.coldLoading && s.coldHandoffArmed
+}
+
+func (s *mainState) finishColdHandoff() {
+	s.mu.Lock()
+	s.coldLoading = false
+	s.coldHandoffArmed = false
+	s.coldHandoffSince = time.Time{}
+	s.mu.Unlock()
+}
+
+func (s *mainState) prewarmColdHandoffWallpaper(c *ui.Context) bool {
+	if renderpolicy.NoBackdrop() || s.activeSkin() == theme.SkinCodex {
+		return true
+	}
+	prefs := wallpapers.Defaults()
+	if g := s.wallpaperEditor(); g != nil {
+		prefs = g.EffectivePreferences()
+	}
+	path := s.resolvedWallpaperPathFor(s.currentWallpaperConfigPath(), prefs)
+	if strings.TrimSpace(path) == "" {
+		return true
+	}
+	prefs = wallpaperBackdropPrefs(path, prefs)
+	cw, ch := c.Size()
+	w, h := int(math.Round(float64(cw))), int(math.Round(float64(ch)))
+	return chrome.PrewarmWallpaper(path, prefs, w, h)
+}
+
+// tryCompleteColdHandoff runs on the UI thread inside paintColdLoading. Once
+// the session store reaches WorkbenchBaseline (or reports a workspace/list
+// error), it prepares Host appearance, wallpaper bitmap decoding, resumed
+// session selection/history and default model state before lowering
+// coldLoading so the very first painted workbench frame is complete.
+func (s *mainState) tryCompleteColdHandoff(c *ui.Context) bool {
+	s.mu.Lock()
+	win := s.win
+	sessions := s.sessions
+	setStore := s.settings
+	muxReady := s.dshMuxReady
+	s.mu.Unlock()
+
+	if sessions == nil || !muxReady {
+		return false
+	}
+	snap := sessions.Published().Value
+	hasErr := snap.WorkspaceError != nil || snap.ListErr != nil
+	baseline := sessions.WorkbenchBaseline()
+	if !baseline && !hasErr {
+		return false
+	}
+
+	s.syncHostAppearance()
+	if hasErr {
+		s.finishColdHandoff()
+		return true
+	}
+
+	s.restoreResumeSelection()
+	s.maybeStartupBlankSession(win, sessions)
+	snap = sessions.Published().Value
+
+	now := c.Now()
+	timedOut := false
+	var remaining time.Duration
+	s.mu.Lock()
+	s.coldHandoffArmed = true
+	if !now.IsZero() {
+		if s.coldHandoffSince.IsZero() || s.coldHandoffSince.After(now) {
+			s.coldHandoffSince = now
+		}
+		elapsed := now.Sub(s.coldHandoffSince)
+		if elapsed >= coldHandoffTimeout {
+			timedOut = true
+		} else {
+			remaining = coldHandoffTimeout - elapsed
+		}
+	}
+	s.mu.Unlock()
+
+	if timedOut {
+		s.finishColdHandoff()
+		return true
+	}
+
+	settingsReady := true
+	if setStore != nil {
+		setView := setStore.Snapshot().Value
+		settingsReady = setView.Described || setView.Err != "" || !setView.ClientReady
+	}
+	wallpaperReady := false
+	if settingsReady {
+		wallpaperReady = s.prewarmColdHandoffWallpaper(c)
+	}
+	historyReady := snap.SelectedID == "" || !snap.HistoryLoading || snap.HistoryReady || snap.HistoryError != nil
+	modelReady := !sessions.ModelCatalogPending()
+
+	if settingsReady && wallpaperReady && historyReady && modelReady {
+		s.finishColdHandoff()
+		return true
+	}
+	if remaining > 0 {
+		c.After(remaining)
+	}
+	return false
+}
+
 func (s *mainState) paintColdLoading(c *ui.Context) bool {
 	s.mu.Lock()
 	if !s.coldLoading || s.mainRoute != routeConversation || !s.settingsLaunchHandled && slices.Contains(os.Args, "--settings") {
 		s.mu.Unlock()
 		return false
 	}
+	s.mu.Unlock()
+	if s.tryCompleteColdHandoff(c) {
+		return false
+	}
+	s.mu.Lock()
 	win, sup, st, themeID, skipped := s.win, s.sup, s.bootStatus, s.themeID, s.coldStartSkipped
 	connectionIssue := connectionUnavailableMessage(s.dshBootstrapError, s.dshNetworkOffline, s.dshMuxLost)
 	logs := s.bootLogSnapshot()
 	s.mu.Unlock()
 	m, _, message, _ := s.hostStatusModel(win, st, sup, logs)
 	m = openedColdPage(m, st, skipped, message)
-	systemDark := mygo.Theme.IsDark()
+	systemDark := mygo.App.IsReady() && mygo.Theme.IsDark()
 	themed := theme.ResolveWithSystem(themeID, systemDark)
 	m.Dark = themed.Scheme == theme.SchemeDark
 	if st.State == harness.Ready {

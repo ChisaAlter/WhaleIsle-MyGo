@@ -38,6 +38,22 @@ type wallpaperColors struct {
 // wallpaperMedia is the process image service; tests substitute their own.
 var wallpaperMedia = media.Default
 
+// PrewarmWallpaper starts or queries the background decode for the wallpaper
+// image that WallpaperBackgroundPainter will draw for (path, p, w, h). It
+// returns true when no image is configured or the handle is no longer pending
+// (ready or failed), so cold-start handoff can wait for a warm bitmap without
+// blocking on broken sources.
+func PrewarmWallpaper(path string, p wallpapers.Preferences, w, h int) bool {
+	if strings.TrimSpace(path) == "" {
+		return true
+	}
+	p = wallpapers.NormalizeEffect(path, p)
+	p.Blur = clampWallpaperEffect(p.Blur)
+	p.Pixelate = clampWallpaperEffect(p.Pixelate)
+	handle := wallpaperRequest(path, p, w, h)
+	return handle.State() != media.Pending
+}
+
 // wallpaperRequest asks the media service for the wallpaper as the window
 // paints it: decoded once (capped at 4K), pixelated on the worker when the
 // pixelate slider asks for it, with its color map. Blur is not baked in: the
