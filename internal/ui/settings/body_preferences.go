@@ -1,9 +1,9 @@
 package settings
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	store "whaleisle/internal/store/settings"
@@ -67,10 +67,10 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0).Label(title)
 	settingsSearchTarget(c, key, title, row)
 	settingsRowRule(c, row)
-	width := row.Bounds().W
+	width := settingsContentWidth(c, row, 0)
 	horizontal := width >= settingsRowWide && !appearanceChoiceRow(key)
 	row.Draw(func(_ *ui.Painter, bounds ui.Rect) {
-		if bounds.W != width {
+		if (bounds.W >= settingsRowWide && !appearanceChoiceRow(key)) != horizontal {
 			c.Invalidate()
 		}
 	})
@@ -185,13 +185,8 @@ func bodyHostValue(a *BodySettingsAccess, namespace, key string) (store.Field, s
 			if field.Key != key || SecretLikeKey(field.Key) {
 				continue
 			}
-			values := namespaceValues(ns.Value)
-			value := strings.TrimSpace(string(values[key]))
-			var text string
-			if json.Unmarshal(values[key], &text) == nil {
-				value = text
-			}
-			return field, value, true
+			values := namespaceStringValues(ns.Value)
+			return field, values[key], true
 		}
 	}
 	return store.Field{}, "", false
@@ -389,33 +384,53 @@ func rowGearButton(c *ui.Context, gear rowGear) {
 	}
 }
 
-// namespaceValues is a namespace value document decoded into its fields. The
-// published document is immutable and replaced wholesale, so the decoded map
-// is kept per document and a frame never decodes the same one twice.
-func namespaceValues(raw json.RawMessage) map[string]json.RawMessage {
+// namespaceStringValues decodes a namespace value document into its flattened
+// string values once per unique document payload so rendering frames never call
+// json.Unmarshal repeatedly.
+func namespaceStringValues(raw json.RawMessage) map[string]string {
 	if len(raw) == 0 {
 		return nil
 	}
-	key := valuesKey{&raw[0], len(raw)}
 	valuesMu.Lock()
-	defer valuesMu.Unlock()
-	if v, ok := valuesCache[key]; ok {
+	if v, ok := valuesCache[string(raw)]; ok {
+		valuesMu.Unlock()
 		return v
 	}
-	var values map[string]json.RawMessage
-	_ = json.Unmarshal(raw, &values)
-	if len(valuesCache) > 64 {
+	valuesMu.Unlock()
+
+	var rawMap map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &rawMap)
+	var decoded map[string]string
+	if len(rawMap) > 0 {
+		decoded = make(map[string]string, len(rawMap))
+		for k, v := range rawMap {
+			decoded[k] = decodeHostFieldValue(v)
+		}
+	}
+
+	valuesMu.Lock()
+	if len(valuesCache) >= 64 {
 		clear(valuesCache)
 	}
-	valuesCache[key] = values
-	return values
+	valuesCache[string(raw)] = decoded
+	valuesMu.Unlock()
+	return decoded
 }
 
-type valuesKey struct {
-	data *byte
-	n    int
+func decodeHostFieldValue(raw json.RawMessage) string {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return ""
+	}
+	if trimmed[0] == '"' {
+		var text string
+		if json.Unmarshal(trimmed, &text) == nil {
+			return text
+		}
+	}
+	return string(trimmed)
 }
 
 var valuesMu sync.Mutex
 
-var valuesCache = map[valuesKey]map[string]json.RawMessage{}
+var valuesCache = map[string]map[string]string{}

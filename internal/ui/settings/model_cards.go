@@ -5,6 +5,7 @@ import (
 
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -19,7 +20,14 @@ func modelColors(c *ui.Context) theme.Colors {
 }
 
 // modelWell is the raised layer: white in the light half, rgb(35, 35, 36) in the dark one.
+// In glass mode it returns the translucent inner card surface so nested cards
+// never stack opaque fills over the blurred backdrop.
 func modelWell(c *ui.Context) ui.Color {
+	t := tk(c)
+	if settingsGlassActive(t) {
+		fill, _ := settingsGlassInnerCard(t.IsDark())
+		return fill
+	}
 	base := ui.RGB(255, 255, 255)
 	if c.Theme().Dark {
 		base = theme.Color(modelColors(c).Field)
@@ -30,8 +38,14 @@ func modelWell(c *ui.Context) ui.Color {
 func modelInputBorder(c *ui.Context) ui.Color { return theme.Color(modelColors(c).BorderL4) }
 
 func modelRowCard(c *ui.Context, key string, content func()) {
+	t := tk(c)
+	borderW, borderC, fill := float32(.667), modelInputBorder(c), modelWell(c).Alpha(.8)
+	if settingsGlassActive(t) {
+		borderW = design.BorderWidth / 2
+		fill, borderC = settingsGlassInnerCard(t.IsDark())
+	}
 	ui.Column(c.Key(key)).FillWidth().MinWidth(0).Padding(12, 16).Gap(8).Radius(12).
-		Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).Children(content)
+		Border(borderW, borderC).Background(fill).Children(content)
 }
 
 func modelSetupCard(c *ui.Context, key string, content func()) {

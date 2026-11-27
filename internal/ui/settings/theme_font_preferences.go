@@ -53,71 +53,97 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 				}
 			})
 		})
-		grid := ui.Grid(c.Key("theme-grid")).FillWidth().MinWidth(0).Gap(14)
-		width := grid.Bounds().W
-		grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
-			if bounds.W != width {
+		gridWrap := ui.Column(c.Key("theme-grid-wrap")).FillWidth().MinWidth(0)
+		width := settingsContentWidth(c, gridWrap, 0)
+		columns := themeGridColumns(width)
+		gridWrap.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+			if themeGridColumns(bounds.W) != columns {
 				c.Invalidate()
 			}
 		})
-		columns := max(1, int((width+14)/214)) // repeat(auto-fill, minmax(200px, 1fr))
-		grid.Columns(columns).Children(func() {
-			for _, f := range e.Saved.Families() {
-				family := f
-				currentLight := e.Draft.Light == family.ID
-				currentDark := e.Draft.Dark == family.ID
-				radius := themeLibraryRadius(e.Draft, c.Theme().Dark)
-				border := chrome.Color(colors.BorderL1)
-				card := ui.Column(c.Key("theme-card-"+family.ID)).Label("Theme card "+family.LocalizedName()).MinWidth(0).Gap(0).Radius(radius).Clip().Border(.5, border).Background(themeLibrarySurface(colors, c.Theme().Dark))
-				hovered := card.Hovered()
-				if hovered {
-					card.BorderColor(chrome.Color(colors.Border)).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .08))
+		families := e.Saved.Families()
+		if e.Selected == "" {
+			gridWrap.Memo(themeGridMemoKey(c, e, colors, columns, families))
+		}
+		gridWrap.Children(func() {
+			grid := ui.Grid(c.Key("theme-grid")).FillWidth().MinWidth(0).Gap(14)
+			grid.Columns(columns).Children(func() {
+				for _, f := range families {
+					family := f
+					currentLight := e.Draft.Light == family.ID
+					currentDark := e.Draft.Dark == family.ID
+					radius := themeLibraryRadius(e.Draft, c.Theme().Dark)
+					border := chrome.Color(colors.BorderL1)
+					card := ui.Column(c.Key("theme-card-"+family.ID)).Label("Theme card "+family.LocalizedName()).MinWidth(0).Gap(0).Radius(radius).Clip().Border(.5, border).Background(themeLibrarySurface(colors, c.Theme().Dark))
+					hovered := card.Hovered()
+					if hovered {
+						card.BorderColor(chrome.Color(colors.Border)).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .08))
+					}
+					actionsVisible := hovered || card.FocusWithin()
+					card.Children(func() {
+						ui.Row(c).FillWidth().Height(88).Children(func() {
+							themePreviewHalf(c, family, family.Light, "light", currentLight, e.OnSave == nil, colors, radius, func() {
+								e.SelectThemeHalf(false, family.ID)
+							})
+							themePreviewHalf(c, family, family.Dark, "dark", currentDark, e.OnSave == nil, colors, radius, func() {
+								e.SelectThemeHalf(true, family.ID)
+							})
+						})
+						ui.Row(c.Key("theme-foot-"+family.ID)).Label("Theme footer "+family.LocalizedName()).FillWidth().MinWidth(0).MinHeight(54.5).Wrap().Gap(8).Padding(19, 12, 8, 12).AlignItems(ui.Center).
+							BorderWidth(.5, 0, 0, 0).BorderColor(border).Children(func() {
+							ui.Text(c, family.LocalizedName()).Grow(1).MinWidth(0).SingleLine().Tooltip(family.LocalizedName()).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg)
+							actions := ui.Row(c).Gap(2)
+							if !actionsVisible {
+								actions.Opacity(0)
+							}
+							actions.Children(func() {
+								if themeFamilyAction(c, family, "duplicate", providerCopy("复制主题", "Duplicate theme"), "+", e.OnSave == nil) {
+									e.StartFamily(e.Draft.DuplicateFamily(family))
+								}
+								for _, custom := range e.Draft.Custom {
+									if custom.ID != family.ID {
+										continue
+									}
+									if themeFamilyAction(c, family, "edit", providerCopy("编辑主题", "Edit theme"), "✎", e.OnSave == nil) {
+										e.StartFamily(family)
+									}
+									if themeFamilyAction(c, family, "export", providerCopy("导出主题", "Export theme"), "↗", false) {
+										c.WriteClipboard(theme.SerializeFamily(family))
+									}
+									if themeFamilyAction(c, family, "delete", providerCopy("删除主题", "Delete theme"), "×", e.OnSave == nil) {
+										e.DeleteFamily(family.ID)
+									}
+									break
+								}
+							})
+						})
+					})
 				}
-				actionsVisible := hovered || card.FocusWithin()
-				card.Children(func() {
-					ui.Row(c).FillWidth().Height(88).Children(func() {
-						themePreviewHalf(c, family, family.Light, "light", currentLight, e.OnSave == nil, colors, radius, func() {
-							e.SelectThemeHalf(false, family.ID)
-						})
-						themePreviewHalf(c, family, family.Dark, "dark", currentDark, e.OnSave == nil, colors, radius, func() {
-							e.SelectThemeHalf(true, family.ID)
-						})
-					})
-					ui.Row(c.Key("theme-foot-"+family.ID)).Label("Theme footer "+family.LocalizedName()).FillWidth().MinWidth(0).MinHeight(54.5).Wrap().Gap(8).Padding(19, 12, 8, 12).AlignItems(ui.Center).
-						BorderWidth(.5, 0, 0, 0).BorderColor(border).Children(func() {
-						ui.Text(c, family.LocalizedName()).Grow(1).MinWidth(0).SingleLine().Tooltip(family.LocalizedName()).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg)
-						actions := ui.Row(c).Gap(2)
-						if !actionsVisible {
-							actions.Opacity(0)
-						}
-						actions.Children(func() {
-							if themeFamilyAction(c, family, "duplicate", providerCopy("复制主题", "Duplicate theme"), "+", e.OnSave == nil) {
-								e.StartFamily(e.Draft.DuplicateFamily(family))
-							}
-							for _, custom := range e.Draft.Custom {
-								if custom.ID != family.ID {
-									continue
-								}
-								if themeFamilyAction(c, family, "edit", providerCopy("编辑主题", "Edit theme"), "✎", e.OnSave == nil) {
-									e.StartFamily(family)
-								}
-								if themeFamilyAction(c, family, "export", providerCopy("导出主题", "Export theme"), "↗", false) {
-									c.WriteClipboard(theme.SerializeFamily(family))
-								}
-								if themeFamilyAction(c, family, "delete", providerCopy("删除主题", "Delete theme"), "×", e.OnSave == nil) {
-									e.DeleteFamily(family.ID)
-								}
-								break
-							}
-						})
-					})
-				})
-			}
+			})
 		})
 	})
 
 	themeCustomEditor(c, e, fg, muted)
 	themeEditorFeedbackKey(c, e, "theme-library-error")
+}
+
+func themeGridColumns(width float32) int {
+	return max(1, int((width+14)/214)) // repeat(auto-fill, minmax(200px, 1fr))
+}
+
+func themeGridMemoKey(c *ui.Context, e *theme.Editor, colors theme.Colors, columns int, families []theme.Family) uint64 {
+	t := tk(c)
+	k := newMemoKey(design.Revision()).u(theme.Revision()).s(i18n.Locale()).
+		b(t.Glass, t.IsDark(), chrome.BackdropActive(), c.Theme().Dark, e.OnSave != nil).
+		u(uint64(columns)).u(uint64(len(families))).u(uint64(len(e.Draft.Custom))).
+		s(e.Draft.Light, e.Draft.Dark, colors.BorderL1, colors.Border, colors.Field, colors.BrandPrimary)
+	for _, f := range families {
+		k.s(f.ID, f.LocalizedName(), f.Light.Background, f.Light.Foreground, f.Light.Accent, f.Dark.Background, f.Dark.Foreground, f.Dark.Accent)
+	}
+	for _, custom := range e.Draft.Custom {
+		k.s(custom.ID)
+	}
+	return k.sum()
 }
 
 func themeFamilyAction(c *ui.Context, family theme.Family, action, label, glyph string, disabled bool) bool {

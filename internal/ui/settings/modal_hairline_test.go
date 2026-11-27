@@ -51,59 +51,117 @@ func TestSettingsModalDrawsItsElevationHairline(t *testing.T) {
 // modalPixel reads a rendered pixel as a theme color.
 func modalPixel(c color.RGBA) ui.Color { return ui.RGBA(c.R, c.G, c.B, float32(c.A)/255) }
 
-// TestSettingsModalGlassClarityAndSingleHairline pins the glass polish
-// contract: dark/light scrim opacities match Electron (0.48 / 0.24), dark glass
-// modals paint a single outer hairline with no duplicate inner rim at y+1, and
-// the left rail shares the cohesive dark card surface without a white fog fill.
+// TestSettingsModalGlassClarityAndSingleHairline pins the macOS-style layered
+// glass contract: low-mud glass scrims (0.12 light / 0.32 dark), solid-mode
+// scrim compatibility (0.24 / 0.48), left rail more translucent than right
+// options pane, restrained inner specular top rim, and translucent inner cards.
 func TestSettingsModalGlassClarityAndSingleHairline(t *testing.T) {
 	if got := modalScrimAlpha(true); got != 0.48 {
-		t.Fatalf("dark scrim alpha = %v, want 0.48", got)
+		t.Fatalf("solid dark scrim alpha = %v, want 0.48", got)
 	}
 	if got := modalScrimAlpha(false); got != 0.24 {
-		t.Fatalf("light scrim alpha = %v, want 0.24", got)
+		t.Fatalf("solid light scrim alpha = %v, want 0.24", got)
+	}
+	if got := modalScrim(true, true); got.A != design.TW.Black.Alpha(0.32).A {
+		t.Fatalf("glass dark scrim alpha = %v, want 0.32", got)
+	}
+	if got := modalScrim(false, true); got.A != design.TW.Gray900.Alpha(0.12).A {
+		t.Fatalf("glass light scrim alpha = %v, want 0.12", got)
 	}
 
 	design.SetGlass(true, func(s design.Scheme, p *design.Palette) {
 		if s == design.Dark {
 			p.Card = ui.RGBA(32, 32, 35, 0.80)
-			p.Popover = ui.RGBA(48, 49, 54, 0.64)
+			p.Popover = ui.RGBA(38, 39, 43, 0.48)
 			p.Border = ui.RGBA(255, 255, 255, 0.07)
 			p.SidebarBorder = ui.RGBA(255, 255, 255, 0.055)
+		} else {
+			p.Card = ui.RGBA(252, 253, 255, 0.58)
+			p.Popover = ui.RGBA(252, 253, 254, 0.44)
+			p.Border = ui.RGBA(0, 0, 0, 0.075)
+			p.SidebarBorder = ui.RGBA(0, 0, 0, 0.055)
 		}
 	})
 	t.Cleanup(func() { design.SetGlass(false, nil) })
 
-	dark := Model{
-		Desktop:       &DesktopAccess{},
-		DesktopActive: true,
-		ThemeID:       theme.IDDeepseekDark,
-		SystemDark:    true,
-		OnClose:       func() {},
-	}
-	tt := ui.NewTester(func(c *ui.Context) {
-		c.SetTheme(ui.DarkTheme())
-		design.Bind(c, design.Dark, ui.Color{}, ui.Color{})
-		ModalView(c, dark)
-	}, 1400, 900)
-	start := time.Unix(1000, 0)
-	tt.SetTime(start)
-	tt.SetTime(start.Add(time.Second))
+	for _, tc := range []struct {
+		name     string
+		dark     bool
+		backdrop ui.Color
+	}{
+		{"light-layered", false, ui.RGB(40, 140, 240)},
+		{"dark-layered", true, ui.RGB(70, 120, 210)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := Model{
+				ActiveSection: SectionGeneral,
+				SectionContent: func(c *ui.Context) {
+					kSurface(c, ui.Box(c).Label("Glass Inner Card").FillWidth().Height(64))
+					modelRowCard(c, "glass-model-card", func() {
+						ui.Box(c).Label("Glass Model Card").FillWidth().Height(48)
+					})
+				},
+				OnClose: func() {},
+			}
+			tt := ui.NewTester(func(c *ui.Context) {
+				if tc.dark {
+					c.SetTheme(ui.DarkTheme())
+					design.Bind(c, design.Dark, ui.Color{}, ui.Color{})
+				} else {
+					c.SetTheme(ui.LightTheme())
+					design.Bind(c, design.Light, ui.Color{}, ui.Color{})
+				}
+				ui.Box(c).Fill().Background(tc.backdrop)
+				ModalView(c, m)
+			}, 1400, 900)
+			tt.SetDark(tc.dark)
+			start := time.Unix(1000, 0)
+			tt.SetTime(start)
+			tt.SetTime(start.Add(time.Second))
 
-	img := tt.Image()
-	const panelLeft, panelTop = 260, 50 // settingsModalSize(1400, 900) is 880×800 -> (260, 50)
-	edge := img.RGBAAt(panelLeft+440, panelTop)
-	belowEdge := img.RGBAAt(panelLeft+440, panelTop+1)
-	inside := img.RGBAAt(panelLeft+440, panelTop+8)
-	if edge.R <= inside.R {
-		t.Fatalf("dark glass outer hairline missing: edge=%v inside=%v", edge, inside)
-	}
-	// No duplicate inner rim stroke at y = panelTop + 1.
-	if absDiff(belowEdge.R, inside.R) > 3 || absDiff(belowEdge.G, inside.G) > 3 || absDiff(belowEdge.B, inside.B) > 3 {
-		t.Fatalf("unexpected inner rim at y=panelTop+1: belowEdge=%v inside=%v (edge=%v)", belowEdge, inside, edge)
-	}
-	// Rail background stays cohesive with the options surface (no white/4% fog).
-	railFill := img.RGBAAt(panelLeft+12, panelTop+8)
-	if absDiff(railFill.R, inside.R) > 3 || absDiff(railFill.G, inside.G) > 3 || absDiff(railFill.B, inside.B) > 3 {
-		t.Fatalf("rail painted extra fog fill over modal surface: rail=%v options=%v", railFill, inside)
+			img := tt.Image()
+			const panelLeft, panelTop = 260, 50 // settingsModalSize(1400, 900) is 880×800 -> (260, 50)
+			topRim := img.RGBAAt(panelLeft+440, panelTop+1)
+			inside := img.RGBAAt(panelLeft+440, panelTop+8)
+			railFill := img.RGBAAt(panelLeft+12, panelTop+8)
+
+			// Specular top rim inside glass perimeter must be brighter than the pane fill.
+			rimSum := int(topRim.R) + int(topRim.G) + int(topRim.B)
+			insideSum := int(inside.R) + int(inside.G) + int(inside.B)
+			if topRim.R <= inside.R || rimSum <= insideSum+12 {
+				t.Fatalf("%s specular top rim missing: rim=%v inside=%v", tc.name, topRim, inside)
+			}
+
+			// macOS layered translucency: left rail lets noticeably more blue
+			// backdrop through than the slightly more solid right options pane.
+			if tc.dark {
+				if railFill.B <= inside.B+4 {
+					t.Fatalf("%s left rail should be more translucent than right pane: rail=%v options=%v", tc.name, railFill, inside)
+				}
+			} else {
+				// Over blue (40,140,240), more white fill raises R closer to 255;
+				// a more translucent rail keeps R lower than the right pane.
+				if railFill.R >= inside.R-8 {
+					t.Fatalf("%s left rail should be more translucent than right pane: rail=%v options=%v", tc.name, railFill, inside)
+				}
+			}
+
+			// Right pane itself must stay genuinely translucent over the blue backdrop.
+			if int(inside.B)-int(inside.R) < 18 {
+				t.Fatalf("%s right pane opaque over colored backdrop: inside=%v", tc.name, inside)
+			}
+
+			// Inner kSurface and modelRowCard must stay translucent (not opaque t.Card).
+			for _, label := range []string{"Glass Inner Card", "Glass Model Card"} {
+				cardRect, ok := tt.Find(label)
+				if !ok {
+					t.Fatalf("%s missing %q", tc.name, label)
+				}
+				px := img.RGBAAt(int(cardRect.X+cardRect.W/2), int(cardRect.Y+cardRect.H/2))
+				if int(px.B)-int(px.R) < 12 {
+					t.Fatalf("%s %q lost backdrop translucency (stacked opaque t.Card?): px=%v pane=%v", tc.name, label, px, inside)
+				}
+			}
+		})
 	}
 }

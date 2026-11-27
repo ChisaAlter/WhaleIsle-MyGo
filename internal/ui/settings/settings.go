@@ -149,12 +149,31 @@ func View(c *ui.Context, m Model) {
 	fg, muted, border := t.Foreground, t.MutedForeground, t.Border
 
 	// The rail and the options column scroll independently inside one panel.
+	glassActive := settingsGlassActive(t)
 	root := ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).Gap(0).AlignItems(ui.Stretch)
+	totalW := root.Bounds().W
+	if totalW <= 0 {
+		if mw := *settingsModalWidthHintState(c); mw > 0 {
+			totalW = mw
+		} else {
+			totalW, _ = c.Size()
+		}
+	}
+	paneHint := settingsPaneWidthHintState(c)
+	prevPaneW := *paneHint
+	if innerW := totalW - design.Sp(52) - 2*design.Sp(6); innerW > 0 {
+		*paneHint = innerW
+	}
+	defer func() { *paneHint = prevPaneW }()
 	query := ui.Local(root, "settings-search", func() string { return "" })
 	searching := strings.TrimSpace(*query) != ""
 	root.Children(func() {
 		nsList(c, m, snap, fg, muted, border, query)
-		ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+		rightCol := ui.Column(c).Grow(1).MinWidth(0).MinHeight(0)
+		if glassActive {
+			rightCol.Background(settingsPaneGlassFill(t.IsDark()))
+		}
+		rightCol.Children(func() {
 			if searching {
 				headerWithTitle(c, m, i18n.T(i18n.KeySettingsParitySearchResults))
 			} else {
@@ -174,7 +193,7 @@ func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 func headerWithTitle(c *ui.Context, m Model, title string) {
 	t := tk(c)
 	bar := ui.Row(c).FillWidth().Height(design.Sp(14)).Shrink(0).PaddingX(design.Sp(6)).Gap(design.Sp(2)).AlignItems(ui.Center).
-		BorderWidth(0, 0, design.BorderWidth/2, 0).BorderColor(t.SidebarBorder).Label(providerCopy("设置页头", "Settings header"))
+		BorderWidth(0, 0, design.BorderWidth/2, 0).BorderColor(settingsGlassDivider(t)).Label(providerCopy("设置页头", "Settings header"))
 	bar.Children(func() {
 		kText(c, title, design.TextBase, design.WeightSemibold, t.Foreground).
 			Grow(1).MinWidth(0).SingleLine().Role(ui.RoleHeading)
@@ -294,8 +313,9 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 	searching := strings.TrimSpace(*query) != ""
 	// The search hit pulse fills with the same sidebar-accent wash.
 	settingsSearchJumpState(c).HitFill = t.SidebarAccent
+	glassActive := settingsGlassActive(t)
 	groups := navigationGroups(m, snap)
-	key := newMemoKey(m.rev()).u(design.Revision()).u(theme.Revision()).s(string(active)).b(searching)
+	key := newMemoKey(m.rev()).u(design.Revision()).u(theme.Revision()).s(string(active), i18n.Locale()).b(searching, glassActive, t.IsDark())
 	for _, group := range groups {
 		key.s(group.label)
 		for _, entry := range group.entries {
@@ -303,11 +323,11 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 		}
 	}
 	railBg := t.Sidebar
-	if t.Glass || chrome.BackdropActive() {
-		railBg = ui.Transparent
+	if glassActive {
+		railBg = settingsRailGlassFill(t.IsDark())
 	}
 	rail := ui.Column(c).Key("settings-rail").Width(design.Sp(52)).Shrink(0).MinHeight(0).Padding(design.Sp(4), 0, 0, 0).Gap(design.Sp(3)).
-		Background(railBg).BorderWidth(0, design.BorderWidth/2, 0, 0).BorderColor(t.SidebarBorder).
+		Background(railBg).BorderWidth(0, design.BorderWidth/2, 0, 0).BorderColor(settingsGlassDivider(t)).
 		Label(providerCopy("设置导航", "Settings navigation"))
 	rail.Children(func() {
 		kText(c, i18n.T(i18n.KeySettingsTitle), design.TextBase, design.WeightSemibold, t.SidebarAccentForeground).PaddingX(design.Sp(4)).Role(ui.RoleHeading)
@@ -351,17 +371,23 @@ func railButton(c *ui.Context, m Model, entry navigationEntry, selected bool, qu
 	iconInk := t.SidebarForeground
 	textInk := t.SidebarForeground.Mix(t.Foreground, 0.55)
 	weight := design.WeightMedium
+	hoverFill := t.SidebarAccent.Alpha(0.45)
+	pressFill := t.SidebarAccent.Alpha(0.75)
+	selFill := t.SidebarAccent
+	if settingsGlassActive(t) && t.SidebarAccent.A < 255 {
+		hoverFill, pressFill, selFill = settingsGlassListWash(t.IsDark())
+	}
 	switch {
 	case selected:
-		button.Background(t.SidebarAccent)
+		button.Background(selFill)
 		iconInk = t.SidebarAccentForeground
 		textInk = t.SidebarAccentForeground
 	case pressed:
-		button.Background(t.SidebarAccent.Alpha(0.75))
+		button.Background(pressFill)
 		iconInk = t.SidebarAccentForeground
 		textInk = t.SidebarAccentForeground
 	case hovered:
-		button.Background(t.SidebarAccent.Alpha(0.45))
+		button.Background(hoverFill)
 		iconInk = t.SidebarForeground.Mix(t.SidebarAccentForeground, 0.45)
 		textInk = textInk.Mix(t.SidebarAccentForeground, 0.45)
 	}
@@ -440,12 +466,18 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		scrollKey = "settings-options-search"
 	}
 	pane := settingsOptionsScroll(c, scrollKey, gap, paneBG)
+	paneHint := settingsPaneWidthHintState(c)
+	prevPaneW := *paneHint
+	if bw := pane.Bounds().W - 2*design.Sp(6); bw > 0 {
+		*paneHint = bw
+	}
+	defer func() { *paneHint = prevPaneW }()
 	// A section switch fades the page in over the swap token — the original's
 	// dsh-motion-swap-in keyframe is an opacity-only 100 ms ease-in-out. The
 	// pane is keyed by its section, so each switch builds a new element whose
 	// lifetime is one opening, and Reveal runs the enter by hand.
 	pane.Opacity(chrome.Reveal(c, pane, chrome.SwapDuration))
-	pane.Children(func() {
+	renderBody := func() {
 		if searching {
 			settingsSearchResults(c, m, snap, *query, fg, muted, tk(c).Accent, func() { *query = "" })
 			return
@@ -525,7 +557,137 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			return
 		}
 		namespaceForm(c, m, snap, fg, muted)
+	}
+	pane.Children(func() {
+		if bodyMemoKey, ok := formPaneMemoKey(c, m, snap, active, *query); ok {
+			// Keep Memo on an inner column (never ui.Scroll itself) so scroll
+			// offsets and post-scroll hit-testing stay completely live.
+			ui.Column(c.Key("settings-body-memo-" + scrollKey)).FillWidth().MinWidth(0).Gap(gap).Memo(bodyMemoKey).Children(renderBody)
+			return
+		}
+		renderBody()
 	})
+}
+
+func bodySettingsAccessMemo(k *memoKey, a *BodySettingsAccess) {
+	if a == nil {
+		k.b(false)
+		return
+	}
+	s := a.Snapshot
+	k.b(true, a.OnChange != nil, a.OnPatch != nil,
+		s.ClientReady, s.HasDocument, s.Described, s.Loading, s.Saving, s.Writable, s.Dirty).
+		u(a.Owner).s(s.Err, s.LastAction, s.SelectedNS).
+		u(uint64(len(s.Namespaces))).u(uint64(len(s.PreferencePending))).u(uint64(len(s.PreferenceErrors)))
+	for _, ns := range s.Namespaces {
+		k.s(ns.NS, string(ns.Value)).f(ns.Revision).u(uint64(len(ns.Fields)))
+	}
+	var pendingXor uint64
+	for fieldKey, pending := range s.PreferencePending {
+		if pending {
+			pendingXor ^= newMemoKey(1).s(fieldKey).sum()
+		}
+	}
+	k.u(pendingXor)
+	var errXor uint64
+	for fieldKey, errText := range s.PreferenceErrors {
+		errXor ^= newMemoKey(2).s(fieldKey, errText).sum()
+	}
+	k.u(errXor)
+	k.b(s.PermissionDefaults.Loaded).s(s.PermissionDefaults.DefaultPreset, s.PermissionDefaults.Err).u(uint64(len(s.PermissionDefaults.Options)))
+	for _, opt := range s.PermissionDefaults.Options {
+		k.s(opt.Value, opt.Name, opt.Description)
+	}
+}
+
+func projectPreferenceMemo(k *memoKey, a *ProjectPreferenceAccess) {
+	if a == nil {
+		k.b(false)
+		return
+	}
+	k.b(true, a.OnSet != nil, a.State.Enabled, a.State.Busy, a.State.RestartCancelled).s(a.State.Error)
+}
+
+func boolPtrMemo(k *memoKey, p *bool) {
+	if p == nil {
+		k.b(false)
+		return
+	}
+	k.b(true, *p)
+}
+
+// formPaneMemoKey returns a complete content-addressed memo version for
+// settings sections whose full view state is enumerable. Sections backed by
+// arbitrary callbacks, live meters, or async background state return ok=false.
+func formPaneMemoKey(c *ui.Context, m Model, snap settings.ViewState, active SectionID, query string) (uint64, bool) {
+	if strings.TrimSpace(query) != "" || (m.SectionContent != nil && m.ActiveSection != "") {
+		return 0, false
+	}
+	jump := settingsSearchJumpState(c)
+	if jump.Pending || c.Now().Before(jump.HighlightUntil) {
+		return 0, false
+	}
+	t := tk(c)
+	notices := preferenceErrorNotices(c)
+	k := newMemoKey(m.rev()).u(design.Revision()).u(theme.Revision()).
+		s(string(active), i18n.Locale(), query, jump.FilterQuery, jump.Target, string(jump.Section), string(jump.Active), m.ThemeID).
+		b(t.Glass, t.IsDark(), chrome.BackdropActive(), c.Theme().Dark, m.SystemDark, notices.closed).
+		u(uint64(len(jump.Revealed))).u(uint64(len(notices.rows))).
+		u(uint64(*settingsPaneWidthHintState(c) * 10))
+
+	switch {
+	case active == SectionPlugins && m.Plugins != nil && len(m.Plugins.Tabs) == 0:
+		a := m.Plugins
+		k.b(a.HasListRPC, a.ClientReady, a.Loading, a.Busy, a.CanRestart,
+			a.Activation.Pending, a.Activation.Failed, a.Activation.Restarting,
+			a.OnRestart != nil, a.OnRefresh != nil, a.OnOpenMarket != nil, a.OnOpenManager != nil,
+			a.OnSetDisabled != nil, a.OnInspect != nil, a.OnOpenView != nil).
+			s(a.Err, a.LastAction, a.OperationMessage).
+			u(uint64(len(a.Rows))).
+			u(pluginInventoryMemoKey(c, a.Inventory, *settingsPaneWidthHintState(c)))
+		for _, row := range a.Rows {
+			k.s(row.Name, row.Status, row.ReadOnlyReason, row.Error).b(row.Disabled, row.CanToggle)
+		}
+		return k.sum(), true
+
+	case active == SectionConversation && m.Conversation != nil:
+		bodySettingsAccessMemo(k, m.Conversation.Host)
+		return k.sum(), true
+
+	case active == SectionInterface && m.Interface != nil:
+		a := m.Interface
+		failure := ui.Local(c.Root(), "interface-write-failure", func() settingsRefusal { return settingsRefusal{} })
+		bodySettingsAccessMemo(k, a.Host)
+		boolPtrMemo(k, a.ShowArchivedList)
+		boolPtrMemo(k, a.ShowViewTabs)
+		boolPtrMemo(k, a.AutoAllowTools)
+		projectPreferenceMemo(k, a.Project)
+		k.b(a.OnSetShowArchivedList != nil, a.OnSetViewTabs != nil, a.OnSetAutoAllowTools != nil, failure.failed()).
+			s(failure.sentence, failure.detail)
+		return k.sum(), true
+
+	case active == SectionFeatures && m.Features != nil:
+		a := m.Features
+		boolPtrMemo(k, a.AssistantEnabled)
+		boolPtrMemo(k, a.RemoteWorkspaceEnabled)
+		projectPreferenceMemo(k, a.Project)
+		projectPreferenceMemo(k, a.Assistant)
+		projectPreferenceMemo(k, a.RemoteWorkspace)
+		k.b(a.OnSetAssistant != nil, a.OnSetRemoteWorkspace != nil)
+		return k.sum(), true
+
+	case active != SectionGeneral && active != SectionAccount && active != SectionAppearance &&
+		active != SectionModels && active != SectionPlugins && active != SectionSkills &&
+		active != SectionAgentPresets && active != SectionMCP && active != SectionAbout &&
+		active != SectionRemote && snap.SelectedNS != "pet" && snap.SelectedNS != "live2d" &&
+		m.Store != nil && m.ReferencedCredentials == nil:
+		k.s(snap.SelectedNS, snap.Err, snap.LastAction).
+			b(snap.Writable, snap.Dirty, snap.Loading, snap.Saving, m.DraftPtr != nil, m.BoolPtr != nil, m.OnDraft != nil).
+			u(uint64(len(snap.Drafts))).u(uint64(len(snap.Resets)))
+		boolPtrMemo(k, m.RevealSecrets)
+		return k.sum(), true
+	}
+	return 0, false
 }
 
 // RequestReplace confirms (optional) then posts a full settings/replace from drafts.

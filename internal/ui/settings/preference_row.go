@@ -31,10 +31,10 @@ func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color
 	help := takeRowHelp()
 	settingsSearchTarget(c, key, title, row)
 	settingsRowRule(c, row)
-	width := row.Bounds().W
+	width := settingsContentWidth(c, row, 0)
 	wide := width >= settingsRowWide
 	row.Draw(func(_ *ui.Painter, bounds ui.Rect) {
-		if bounds.W != width {
+		if (bounds.W >= settingsRowWide) != wide {
 			c.Invalidate()
 		}
 	})
