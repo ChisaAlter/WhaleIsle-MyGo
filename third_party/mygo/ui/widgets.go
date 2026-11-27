@@ -680,6 +680,8 @@ func coreSelect(c *context, selected *string, options []string) *node {
 				coreText(c, opt).Grow(1).MinWidth(0).SingleLine().FontSize(13).FixedLineHeight(20)
 				if opt == *selected {
 					coreIcon(c, menuCheck).Size(14, 14).Shrink(0).TextColor(t.Text)
+				} else {
+					coreBox(c).Size(14, 14).Shrink(0)
 				}
 			})
 		}

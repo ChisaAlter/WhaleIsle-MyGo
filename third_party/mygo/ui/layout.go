@@ -137,7 +137,15 @@ func place(e *node, x, y float32) {
 			s.scrollTo(sx, sy)
 		}
 		if t := e.track; t != nil {
+			prevX, prevY := t.MaxX > 0.5, t.MaxY > 0.5
 			t.MaxX, t.MaxY = float32(mx), float32(my)
+			nowX, nowY := t.MaxX > 0.5, t.MaxY > 0.5
+			if (prevX != nowX || prevY != nowY) && (s.maxFlipFrame == 0 || s.maxFlipFrame+1 < e.c.rt.frame) {
+				s.maxFlipFrame = e.c.rt.frame
+				e.c.rt.memoDirty(s.memo)
+				e.c.rt.memoDirty(s.id)
+				e.c.rt.animating = true
+			}
 		}
 		if s.movedIn(e.c.rt.frame) {
 			// What was built read the old offset, as List's rows or the

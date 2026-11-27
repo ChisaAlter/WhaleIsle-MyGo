@@ -172,14 +172,14 @@ func (in *inspector) iconButton(c *context, icon *SVG, on bool, label string) *n
 // while selected.
 func (in *inspector) tab0(c *context, label string, selected bool, height float32) *node {
 	pal := &in.pal
-	t := coreBox(c).Height(height).PaddingX(10).Center().Label(label).Role(RoleTab)
+	t := coreBox(c).Height(height).PaddingX(10).Center().Label(label).Role(RoleTab).BorderWidth(0, 0, 2, 0).BorderColor(Color{})
 	t.checked = 1
 	color := pal.muted
 	switch {
 	case selected:
 		t.checked = 2
 		color = pal.text
-		t.BorderWidth(0, 0, 2, 0).BorderColor(pal.accent)
+		t.BorderColor(pal.accent)
 	case t.Hovered():
 		color = pal.text
 		t.Background(pal.hover)

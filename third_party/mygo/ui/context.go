@@ -513,6 +513,7 @@ type state struct {
 	track *ScrollState
 	// startX and startY are the offset before frame moveFrame moved it.
 	moveFrame      uint64
+	maxFlipFrame   uint64
 	startX, startY float64
 	// list is the ListState that placed the rows of a List last.
 	list *ListState

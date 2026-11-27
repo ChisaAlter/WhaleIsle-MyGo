@@ -148,4 +148,24 @@ func (t *Tester) SetValue(s, value string) error               { return nil }
 func (t *Tester) PhysicalKeyDown(code string, key Key, mods Modifiers, repeat, blocked, dead bool) {
 }
 func (t *Tester) PhysicalKeyUp(code string, key Key, mods Modifiers, blocked bool) {}
-func (t *Tester) Interactives() []InteractiveBox                                   { return nil }
+
+// TestingT is the minimal testing interface accepted by audit helpers.
+type TestingT interface {
+	Helper()
+	Errorf(format string, args ...any)
+}
+
+// NodeRect describes one non-overlay element's stable identity and box.
+type NodeRect struct {
+	ID    uint64
+	Label string
+	Text  string
+	Role  Role
+	Rect  Rect
+}
+
+func (n NodeRect) String() string { return "" }
+
+func (t *Tester) Interactives() []InteractiveBox       { return nil }
+func (t *Tester) FlowSnapshot() []NodeRect             { return nil }
+func AssertHoverFocusZeroShift(t TestingT, tt *Tester) {}

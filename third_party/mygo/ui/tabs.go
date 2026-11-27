@@ -20,9 +20,9 @@ func coreTabs(c *context, selected *int, labels ...string) *node {
 		for i, label := range labels {
 			tab := tabs.Tab(i).Padding(t.Space(2), t.Space(3)).FocusRing(false)
 			on := i == *selected
-			tab.TextColor(t.TextMuted)
+			tab.TextColor(t.TextMuted).FontWeight(500)
 			if on {
-				tab.TextColor(t.Text).FontWeight(600)
+				tab.TextColor(t.Text)
 			}
 			tab.styleFn = func(tab *node) {
 				if !on && tab.Hovered() {

@@ -187,9 +187,11 @@ func calendarGrid(c *context, date, cursor *time.Time, moveChooses bool, choose 
 					case atCursor:
 						cell.Background(t.SurfaceHover)
 					}
+					borderColor := Color{}
 					if sameDay(day, today) && !chosen {
-						cell.Border(1, t.Accent)
+						borderColor = t.Accent
 					}
+					cell.Border(1, borderColor)
 					cell.styleFn = func(cell *node) {
 						if !chosen && cell.Hovered() {
 							cell.bg = t.SurfaceHover

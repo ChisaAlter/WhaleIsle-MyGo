@@ -690,6 +690,12 @@ func (rt *engine) scrollFrame(w, h, scale float32) bool {
 		rt.wheelStepped = true
 		return false
 	}
+	if e.track != nil {
+		s.track = e.track
+		e.track.X, e.track.Y = float32(s.scrollX), float32(s.scrollY)
+		mx, my := e.maxScroll()
+		e.track.MaxX, e.track.MaxY = float32(mx), float32(my)
+	}
 
 	rt.inFrame = true
 	defer func() { rt.inFrame = false }()
@@ -729,6 +735,15 @@ func (rt *engine) scrollFrame(w, h, scale float32) bool {
 	rt.updateCursor()
 	if rt.access {
 		rt.updateAccess(false)
+	}
+	if e.track != nil && (dx != 0 || dy != 0) {
+		wheelDone := rt.wheelID == 0 || (rt.wheelRemainX == 0 && rt.wheelRemainY == 0)
+		edgeCrossed := (oldX == 0) != (s.scrollX == 0) || (oldY == 0) != (s.scrollY == 0)
+		if wheelDone || edgeCrossed {
+			rt.memoDirty(s.memo)
+			rt.memoDirty(s.id)
+			rt.animating = true
+		}
 	}
 	rt.next()
 	rt.stats.end(rt)
@@ -1156,6 +1171,7 @@ func (rt *engine) commit(root *node, w, h float32) {
 	// The window, which the inspector shares with the root.
 	full := Rect{0, 0, w, h}
 	rt.commitElement(root, full, false)
+	rt.restoreFocus()
 	rt.arrangeFocus()
 	rt.noteGroups()
 }

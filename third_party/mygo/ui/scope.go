@@ -44,17 +44,24 @@ func (rt *engine) enterScope(e *node) focusScope {
 }
 
 // arrangeFocus moves the elements of popovers after their anchors in the
-// focus order, and the focus into the dialog on top when it is out of it.
+// focus order, and the focus into the dialog on top when it first opens or
+// when focus is still on an element behind it. Deliberately clearing focus
+// inside an already-open dialog (rt.focused == 0) is preserved so clicking
+// dialog whitespace does not hijack focus back to the first control.
 func (rt *engine) arrangeFocus() {
 	order, scopes := rt.focusOrder, rt.focusScopes
 	if slices.ContainsFunc(scopes, func(sc focusScope) bool { return sc.anchor != 0 }) {
 		rt.placePopovers(order, scopes)
 	}
 	if m := rt.modal; m != 0 && rt.scopeOf(rt.focused) != m {
-		for i, sc := range rt.focusScopes {
-			if sc.modal == m {
-				rt.focused = rt.focusOrder[i]
-				break
+		ms := rt.states[m]
+		firstFrame := ms != nil && ms.born == rt.frame
+		if firstFrame || rt.focused != 0 {
+			for i, sc := range rt.focusScopes {
+				if sc.modal == m {
+					rt.focused = rt.focusOrder[i]
+					break
+				}
 			}
 		}
 	}
@@ -138,15 +145,25 @@ func (rt *engine) openOverlay(back *node) {
 	}
 }
 
+// stateLive reports whether id was built (or kept by a memo region) in the
+// current frame's final pass.
+func (rt *engine) stateLive(id uint64) bool {
+	if id == 0 {
+		return false
+	}
+	s := rt.states[id]
+	return s != nil && s.seen == rt.frame && s.pass == rt.pass
+}
+
 // restoreFocus gives the focus back to the element that had it as an
 // overlay opened, once the overlay is gone with the focus that was in it.
 func (rt *engine) restoreFocus() {
 	for id, opener := range rt.openers {
-		if rt.states[id] != nil {
+		if rt.stateLive(id) {
 			continue
 		}
 		delete(rt.openers, id)
-		if rt.states[rt.focused] == nil && rt.states[opener] != nil {
+		if !rt.stateLive(rt.focused) && rt.stateLive(opener) {
 			rt.focused = opener
 		}
 	}

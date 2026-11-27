@@ -112,5 +112,7 @@ func menuItemContent(c *context, shown *shownMenu, item *platform.MenuItem) {
 	}
 	if item.Checked {
 		coreIcon(c, menuCheck).Size(14, 14).Shrink(0).TextColor(t.Text)
+	} else {
+		coreBox(c).Size(14, 14).Shrink(0)
 	}
 }
