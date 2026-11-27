@@ -117,6 +117,9 @@ func (p *Painter) snap(r Rect) scene.Rect {
 // ancestor's Blink-floored physical border without altering DIP layout boxes.
 func (p *Painter) snapBox(r Rect) scene.Rect {
 	d := p.snap(r)
+	if r.W <= 0 || r.H <= 0 || d.W <= 0 || d.H <= 0 {
+		return d
+	}
 	if p.seam.left.on && abs32(r.X-p.seam.left.dip) < 0.01 && d.X > p.seam.left.px {
 		d.W += d.X - p.seam.left.px
 		d.X = p.seam.left.px
@@ -250,7 +253,9 @@ func (p *Painter) elementBody(e *node) {
 	if clips {
 		p.pushElementClip(e, box)
 	}
-	if scene.HasBorder(e.border) {
+	if e.scrolls() {
+		p.seam = borderSeam{}
+	} else if scene.HasBorder(e.border) {
 		p.enterBorderSeam(e, box)
 	}
 	if !clips || p.clip.W > 0 && p.clip.H > 0 {

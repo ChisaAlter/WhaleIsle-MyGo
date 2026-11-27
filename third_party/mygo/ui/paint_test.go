@@ -350,3 +350,53 @@ func TestBorderOneClipNoGapAtFractionalDPI(t *testing.T) {
 		}
 	}
 }
+
+// TestBorderOneClipZeroSizedChildPaintsNoGhostPixels pins that zero-width or
+// zero-height children (such as 0% progress bars or collapsed panels) inside a
+// Border(1).Clip() container paint strictly 0 pixels across 100%/150%/250% DPI
+// instead of expanding into 1px ghost strips via borderSeam snapping.
+func TestBorderOneClipZeroSizedChildPaintsNoGhostPixels(t *testing.T) {
+	green := RGB(20, 200, 40)
+	blue := RGB(20, 60, 230)
+	red := RGB(230, 30, 30)
+
+	cases := []struct {
+		name  string
+		child func(c *context)
+	}{
+		{"width-0-left", func(c *context) { coreBox(c).Width(0).FillHeight().Background(red) }},
+		{"width-0-right", func(c *context) { coreBox(c).Absolute().Right(0).Top(0).Bottom(0).Width(0).Background(red) }},
+		{"height-0-top", func(c *context) { coreBox(c).FillWidth().Height(0).Background(red) }},
+		{"height-0-bottom", func(c *context) { coreBox(c).Absolute().Left(0).Right(0).Bottom(0).Height(0).Background(red) }},
+	}
+
+	for _, sc := range []float32{1.0, 1.25, 1.5, 1.75, 2.0, 2.5} {
+		for _, off := range []float32{10, 11, 12, 13} {
+			for _, tc := range cases {
+				tt := coreNewTester(func(c *context) {
+					coreBox(c).Fill().Background(green).Children(func() {
+						coreBox(c).Absolute().Left(off).Top(off).Size(40, 40).Border(1, blue).Clip().Children(func() {
+							tc.child(c)
+						})
+					})
+				}, 80, 80)
+				tt.SetScale(sc)
+				tt.Frame()
+				img := tt.Image()
+				b := img.Bounds()
+				redCount := 0
+				for y := b.Min.Y; y < b.Max.Y; y++ {
+					for x := b.Min.X; x < b.Max.X; x++ {
+						px := img.RGBAAt(x, y)
+						if px.R > 160 && px.G < 80 && px.B < 80 {
+							redCount++
+						}
+					}
+				}
+				if redCount != 0 {
+					t.Fatalf("scale=%.2f off=%g case=%s: painted %d ghost red pixels, want 0", sc, off, tc.name, redCount)
+				}
+			}
+		}
+	}
+}
