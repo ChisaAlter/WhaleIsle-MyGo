@@ -3,6 +3,7 @@ package markdown
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -129,5 +130,67 @@ func TestMarkdownCodeCopyKeepsFenceOwnerInput(t *testing.T) {
 	}
 	if _, ok := tt.Find("Copy code"); ok {
 		t.Fatal("owned fence gained a generic copy action")
+	}
+}
+
+func TestMarkdownCodeCopyRecoversAfterDelayInsideMemo(t *testing.T) {
+	for _, plain := range []bool{false, true} {
+		name := "toolbar"
+		if plain {
+			name = "plain-banner"
+		}
+		t.Run(name, func(t *testing.T) {
+			source := "```go\nfmt.Println(\"ok\")\n```"
+			base := time.Date(2026, 11, 27, 10, 0, 0, 0, time.UTC)
+			tt := ui.NewTester(func(c *ui.Context) {
+				// Constant memo version mimics chat row memoization: build-phase
+				// c.After must keep the region live until the 1s confirmation ends.
+				ui.Column(c).FillWidth().Memo(1).Children(func() {
+					View(c, source, Style{
+						DocumentLayout:  true,
+						PlainCodeBanner: plain,
+						FontSize:        14,
+						CopyLabel:       "Copy source",
+						CopiedLabel:     "Source copied",
+					})
+				})
+			}, 360, 320)
+			tt.SetTime(base)
+
+			tt.SetClipboard("before")
+			if err := tt.Click("Copy source"); err != nil {
+				t.Fatal(err)
+			}
+			if got := tt.Clipboard(); got != "fmt.Println(\"ok\")\n" {
+				t.Fatalf("first copy got %q", got)
+			}
+			if _, ok := tt.Find("Source copied"); !ok {
+				t.Fatal("copy confirmation did not appear")
+			}
+
+			// Mid-delay: confirmation stays active.
+			tt.SetTime(base.Add(500 * time.Millisecond))
+			if _, ok := tt.Find("Source copied"); !ok {
+				t.Fatal("copy confirmation disappeared too early")
+			}
+
+			// Past 1s: button must recover inside the constant-version Memo and
+			// allow copying a second time.
+			tt.SetTime(base.Add(codeCopiedDelay + 50*time.Millisecond))
+			if _, ok := tt.Find("Copy source"); !ok {
+				t.Fatalf("copy button stayed stuck after 1s inside Memo: texts=%q", tt.Texts())
+			}
+			if _, ok := tt.Find("Source copied"); ok {
+				t.Fatal("copied label did not clear after 1s")
+			}
+
+			tt.SetClipboard("cleared")
+			if err := tt.Click("Copy source"); err != nil {
+				t.Fatal(err)
+			}
+			if got := tt.Clipboard(); got != "fmt.Println(\"ok\")\n" {
+				t.Fatalf("second copy after recovery failed: got %q", got)
+			}
+		})
 	}
 }
