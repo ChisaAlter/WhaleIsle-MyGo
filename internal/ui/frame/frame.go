@@ -1746,7 +1746,9 @@ func rightPane(c *ui.Context, m Model) {
 		if t.Glass || chrome.BackdropActive() {
 			ui.Box(c).FillWidth().Height(1).BorderWidth(0, 0, design.BorderWidth*0.5, 0).BorderColor(border)
 		} else {
-			ui.Box(c).Fill().Height(1).Background(border)
+			ui.Box(c).Fill().Height(1).Draw(func(p *ui.Painter, r ui.Rect) {
+				design.DrawHairline(p, r, false, border)
+			})
 		}
 		if tab == "guide" {
 			workspaceResourceGuide(c, m)

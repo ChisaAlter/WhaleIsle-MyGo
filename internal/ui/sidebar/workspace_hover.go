@@ -241,10 +241,10 @@ func workspaceGroupHighlights(m Model, groups []session.WorkspaceGroup) map[stri
 	return active
 }
 
-// Hidden menu controls remain keyboard-addressable but take no width from the
-// resting title. The visible action group is the installed 16px/gap15 layout.
-func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.WorkspaceGroup, muted ui.Color) {
-	hasDirectoryActions := false
+func workspaceRowActionPresence(m Model, g session.WorkspaceGroup) (hasMore, hasCreate, hasReveal, hasDirectoryActions bool) {
+	if g.Kind == "pinned" {
+		return false, false, false, false
+	}
 	if g.Kind == "workspace" || g.Kind == "navigation" {
 		for _, action := range m.DirectoryActions {
 			if _, visible := action.Presentation(g.Workspace.Path, false); visible {
@@ -253,12 +253,37 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 			}
 		}
 	}
+	hasReveal = g.Kind == "workspace" && g.Workspace.Path != "" && (m.OnRevealWorkspace != nil || m.OnRevealWorkspacePath != nil)
+	hasMore = g.Kind == "workspace" && (m.OnBeginWorkspaceRename != nil || m.OnBeginWorkspaceRemoval != nil || hasReveal) || hasDirectoryActions
+	hasCreate = (g.Kind == "workspace" && m.OnCreateWorkspaceSession != nil) || (g.Kind == "scratch" && (m.OnCreateWorkspaceSession != nil || m.OnNoDirectory != nil))
+	return hasMore, hasCreate, hasReveal, hasDirectoryActions
+}
+
+// workspaceRowActionsWidth returns the exact width of the trailing workspace
+// header action cluster: 0 buttons = 0, 1 button = 16, 2 buttons = 47 (16+15+16).
+func workspaceRowActionsWidth(m Model, g session.WorkspaceGroup) float32 {
+	hasMore, hasCreate, _, _ := workspaceRowActionPresence(m, g)
+	count := 0
+	if hasMore {
+		count++
+	}
+	if hasCreate {
+		count++
+	}
+	if count == 0 {
+		return 0
+	}
+	return float32(count)*design.IconSM + float32(count-1)*design.Sp(3.75)
+}
+
+// Hidden menu controls remain keyboard-addressable but take no width from the
+// resting title. The visible action group is the installed 16px/gap15 layout.
+func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.WorkspaceGroup, muted ui.Color) {
+	hasMore, _, hasReveal, _ := workspaceRowActionPresence(m, g)
 	shown := header.Hovered() || header.FocusWithin() || header.MenuOpen()
 	actions := ui.Row(c.Key("workspace-actions:" + g.Key)).Absolute().Right(8).Top(7).Height(20).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(3.75))
 	if !shown {
 		actions.Opacity(0)
-	} else {
-		actions.Draw(sbActionOverlayDraw(tok(c), false, true))
 	}
 	actions.Children(func() {
 		wsName := session.WorkspaceDisplayTitle(g.Workspace.Title, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
@@ -268,8 +293,7 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 		if wsName == "" {
 			wsName = g.Key
 		}
-		hasReveal := g.Kind == "workspace" && g.Workspace.Path != "" && (m.OnRevealWorkspace != nil || m.OnRevealWorkspacePath != nil)
-		if g.Kind == "workspace" && (m.OnBeginWorkspaceRename != nil || m.OnBeginWorkspaceRemoval != nil || hasReveal) || hasDirectoryActions {
+		if hasMore {
 			more := coss.Button(c, "", coss.ButtonOptions{
 				Variant: coss.ButtonGhost,
 				Size:    coss.ButtonIconXS,

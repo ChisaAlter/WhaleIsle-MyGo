@@ -2296,6 +2296,12 @@ func main() {
 
 	go func() {
 		theme.EnsureSkinFonts()
+		state.mu.Lock()
+		win := state.win
+		state.mu.Unlock()
+		if win != nil && !win.IsDestroyed() {
+			win.Invalidate()
+		}
 		chrome.WarmBrandAssets()
 		_ = windowIcon()
 		_ = trayIcon()

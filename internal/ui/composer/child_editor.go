@@ -84,7 +84,7 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 	root.Draw(func(p *ui.Painter, r ui.Rect) {
 		p.Fill(r, fill, radius)
 	}).DrawOver(func(p *ui.Painter, r ui.Rect) {
-		p.Stroke(r, borderCol, radius, design.BorderWidth)
+		p.Stroke(r, borderCol, radius, composerCardBorderWidth(p))
 	})
 	selected := ui.Local(root, "reference-selection", func() int { return 0 })
 	m.SuggestList = ui.Local(root, "references", func() ui.ListState { return ui.ListState{Selected: selected} })

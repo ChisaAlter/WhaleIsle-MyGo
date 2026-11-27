@@ -188,7 +188,7 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 						if copying {
 							text = i18n.T(i18n.KeyMarkdownCopied)
 						}
-						button := ui.ButtonBase(c.Key("copy")).Label(text).Tooltip(text).Background(background).TextColor(secondary).
+						button := ui.ButtonBase(c.Key("copy")).Label(text).Tooltip(text).Background(ui.Transparent).TextColor(secondary).
 							Height(18).Shrink(0).MinWidth(0).Padding(0).Font(theme.RenderPreferences().Chat.Family).FontSize(13).Cursor(ui.CursorPointer)
 						button.Children(func() { ui.Text(c, text).FontSize(13).FixedLineHeight(18).NoWrap().TextColor(secondary) })
 						if button.Clicked() && !copying {

@@ -361,7 +361,9 @@ func TestShippedDraftBlurHidesCaretWithoutChangingSelection(t *testing.T) {
 	selection := client.Selection()
 	input, _ := tt.Find("Composer draft")
 	b, _, _ := client.BoundsForRange(selection.Range)
-	x, y := int(input.X+b.X), int(input.Y+b.Y+1)
+	// Painter.snap rounds fractional caret X to the nearest device pixel; match
+	// that rounding instead of truncating onto the pixel left of the caret.
+	x, y := int(math.Round(float64(input.X+b.X))), int(math.Round(float64(input.Y+b.Y)))+1
 	focusedPixel := tt.Image().RGBAAt(x, y)
 	if err := tt.Click("Outside composer input"); err != nil {
 		t.Fatal(err)

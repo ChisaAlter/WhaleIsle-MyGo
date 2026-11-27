@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	store "whaleisle/internal/store/settings"
@@ -238,7 +239,7 @@ func configurationModalities(c *ui.Context, s store.ViewState, row map[string]an
 }
 
 func configurationSubagent(c *ui.Context, m Model, s store.ViewState, fg, muted ui.Color) {
-	ui.Text(c, providerCopy("子代理可选模型集合", "Selectable subagent models")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+	ui.Text(c, providerCopy("子代理可选模型集合", "Selectable subagent models")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 	ui.Text(c, providerCopy("启用后须至少选择一个模型；此设置影响新会话。", "When enabled, select at least one model. This setting applies to new sessions.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	routes, loading, message := m.Store.ModelConfigurationCatalog()
 	if kButtonDisabled(c, providerCopy("刷新模型目录", "Refresh model catalog"), loading || s.Saving).AlignSelf(ui.Start).Clicked() {

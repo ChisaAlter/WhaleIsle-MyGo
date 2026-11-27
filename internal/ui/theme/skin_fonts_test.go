@@ -3,6 +3,7 @@ package theme
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -51,6 +52,21 @@ func TestSkinFontsShapeWithTheInstalledFaceAndFallback(t *testing.T) {
 		width, height := ui.ShapeTextLine(text, ui.Font{Family: ClaudeProseFamily, Size: 20}, 0).Size()
 		if width <= 0 || height <= 0 {
 			t.Errorf("fallback text %q has no layout", text)
+		}
+	}
+	if runtime.GOOS == "windows" {
+		for _, weight := range []int{400, 500, 600, 700} {
+			want, _ := ui.ShapeTextLine("WhaleIsle 123", ui.Font{Family: "Inter", Size: 16, Weight: weight}, 0).Size()
+			got, _ := ui.ShapeTextLine("WhaleIsle 123", ui.Font{Family: DefaultTextFamily, Size: 16, Weight: weight}, 0).Size()
+			if math.Abs(float64(got-want)) > 0.1 {
+				t.Errorf("Windows DefaultTextFamily weight=%d advance=%g want Inter %g", weight, got, want)
+			}
+		}
+		for _, text := range []string{"鲸屿设置", "WhaleIsle 鲸屿", "😀"} {
+			w, h := ui.ShapeTextLine(text, ui.Font{Family: DefaultTextFamily, Size: 14, Weight: 500}, 0).Size()
+			if w <= 0 || h <= 0 {
+				t.Errorf("Windows DefaultTextFamily fallback text %q has no layout", text)
+			}
 		}
 	}
 }

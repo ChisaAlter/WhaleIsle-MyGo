@@ -390,14 +390,14 @@ func MenuBorderColor(colors theme.Colors, dark bool) ui.Color {
 	return Color(colors.BorderL1)
 }
 
-// GlassOuterBorder returns the 0.5 DIP outer hairline border for frosted glass
-// surfaces: crisp subtle dark ink in light mode (~rgba(15,20,30,0.09)) and
-// deep black/0.45 outer bevel in dark mode.
+// GlassOuterBorder returns the 1-physical-pixel outer hairline border for
+// frosted glass surfaces: subtle slate ink in light mode (Slate900@0.08) and
+// restrained black bevel in dark mode (Black@0.32).
 func GlassOuterBorder(dark bool) ui.Color {
 	if dark {
-		return design.TW.Black.Alpha(0.45)
+		return design.TW.Black.Alpha(0.32)
 	}
-	return design.TW.Slate900.Alpha(0.09)
+	return design.TW.Slate900.Alpha(0.08)
 }
 
 func popoverBlurFor(dark bool) glass.Blur {
@@ -463,24 +463,26 @@ func MaskBlurMaterial(mask ui.Color, radius float32) ui.Material {
 }
 
 // DrawGlassRim paints the refined frosted glass inner edge optics via DrawOver
-// (zero extra OpEffect): an inner 1px specular perimeter stroke plus a crisp
-// curved 1px top highlight lip.
+// (zero extra OpEffect): a seamless 1-physical-pixel inner specular perimeter
+// stroke inset by exactly 1 physical pixel (px = 1 / scale) to eliminate gaps
+// at fractional DPI, plus a soft 1-physical-pixel curved top highlight lip.
 func DrawGlassRim(p *ui.Painter, r ui.Rect, radius float32) {
-	if r.W <= 2 || r.H <= 2 {
+	px := design.PhysicalPixel(p.Scale())
+	if r.W <= 2*px || r.H <= 2*px {
 		return
 	}
-	rim := design.TW.White.Alpha(0.58)
-	top := design.TW.White.Alpha(0.86)
+	rim := design.TW.White.Alpha(0.38)
+	top := design.TW.White.Alpha(0.58)
 	if p.Theme().Dark {
-		rim = design.TW.White.Alpha(0.13)
-		top = design.TW.White.Alpha(0.22)
+		rim = design.TW.White.Alpha(0.09)
+		top = design.TW.White.Alpha(0.16)
 	}
-	inner := ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
-	innerR := max(0, radius-1)
-	p.Stroke(inner, rim, innerR, 1)
+	inner := ui.Rect{X: r.X + px, Y: r.Y + px, W: r.W - 2*px, H: r.H - 2*px}
+	innerR := max(0, radius-px)
+	p.Stroke(inner, rim, innerR, px)
 	p.Clip(inner, innerR, func() {
-		cast := ui.Rect{X: inner.X, Y: inner.Y + 1, W: inner.W, H: inner.H}
-		p.Shadow(cast, innerR, 0, -1, 0, 0, top)
+		cast := ui.Rect{X: inner.X, Y: inner.Y + px, W: inner.W, H: inner.H}
+		p.Shadow(cast, innerR, 0, -px, 0, 0, top)
 	})
 }
 

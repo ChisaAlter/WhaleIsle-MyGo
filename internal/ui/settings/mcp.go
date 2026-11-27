@@ -119,7 +119,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.DeletingID != "" {
 		open := true
 		bodyDialogFooterWidth(c, &open, mcpCatalogText("移除服务器", "Remove server"), 380, func() {
-			ui.Text(c, a.DeletingID).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+			ui.Text(c, a.DeletingID).FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 			ui.Text(c, mcpCatalogText("此操作会移除服务器配置。", "This removes the server configuration.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			if a.Err != "" {
 				settingsFailureLine(c, "mcp:remove", providerCopy("没能删除这个 MCP 服务，请重试。", "The MCP server could not be removed. Try again."), a.Err)
@@ -149,7 +149,7 @@ func mcpEditorForms(c *ui.Context, a *MCPAccess, fg, muted ui.Color) {
 	}
 	formOpen := mcpFormEditor(c, a.Form, a.Busy, a.EditingID, fg, muted)
 	if a.DraftSpec != nil && !formOpen {
-		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsert)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsert)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsertHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		if a.EditingID != "" {
 			ui.Text(c, i18n.T(i18n.KeyFilesEdit)+": "+a.EditingID).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
@@ -274,7 +274,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 			heading := func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
-						ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+						ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 					})
 					detail := mcpRowDetail(r)
 					ui.Text(c, detail).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(detail)

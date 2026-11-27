@@ -9,7 +9,7 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-var inspectorCopyIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3V2.5h-8v8H3"/></svg>`))
+var inspectorCopyIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3V2.5h-8v8H3"/></svg>`))
 
 func inspectorDetails(c *ui.Context, p *SessionInspectorPaneState, object inspectorObject, objects map[string]inspectorObject, rows []session.InspectorRecord, available float32, colors theme.Colors) {
 	t := tk(c)

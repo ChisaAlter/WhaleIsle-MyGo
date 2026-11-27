@@ -179,7 +179,10 @@ func menuPanel(c *ui.Context, t *design.Tokens, panel ui.Element, items []MenuIt
 				it := &items[i]
 				switch it.Kind {
 				case MenuSeparator:
-					ui.Box(c).Key(i).Height(1).Margin(design.Sp(1), design.Sp(2)).Background(t.Border)
+					border := t.Border
+					ui.Box(c).Key(i).Height(1).Margin(design.Sp(1), design.Sp(2)).Draw(func(p *ui.Painter, r ui.Rect) {
+						design.DrawHairline(p, r, false, border)
+					})
 					continue
 				case MenuLabel:
 					pad := design.Sp(2)

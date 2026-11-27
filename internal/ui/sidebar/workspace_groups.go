@@ -438,10 +438,15 @@ func workspaceRowsViewPtr(c *ui.Context, m *Model, items []session.Item, fg, mut
 						Label:   title,
 						Content: func() {},
 					}).Grow(1).MinWidth(0).Height(32).Padding(0, design.Sp(1.5), 0, design.Sp(1.5)).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
+					headerShown := header.Hovered() || header.FocusWithin() || header.MenuOpen()
+					actionsW := workspaceRowActionsWidth(*m, g)
 					titleButton.Children(func() {
 						text := ui.Text(rc, title).FontSize(fs(14)).TextColor(fg).MinWidth(0).Grow(1).SingleLine()
 						if g.Kind == "scratch" || g.Kind == "pinned" {
 							text.FontSize(fs(12)).FontWeight(design.WeightMedium).TextColor(t.MutedForeground).FixedLineHeight(fs(18))
+						}
+						if headerShown && actionsW > 0 {
+							applySidebarTitleFadeOverflow(text, max(float32(0), actionsW-2), sidebarTitleFadeWidth)
 						}
 					})
 					if g.Kind == "workspace" && !layout.Reordering {

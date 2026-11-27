@@ -8,6 +8,7 @@ import (
 
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -26,7 +27,7 @@ func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.
 	}
 	editor := m.Models != nil && m.Models.configurationProvider != ""
 	if !editor {
-		ui.Text(c, providerCopy("供应商与模型配置", "Provider and model configuration")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+		ui.Text(c, providerCopy("供应商与模型配置", "Provider and model configuration")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 		ui.Text(c, providerCopy("编辑后点击保存。凭据仍由凭据管理入口管理。", "Click Save after editing. Credentials remain managed through the credential controls.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	keys := make([]string, 0, len(providers))
@@ -50,7 +51,7 @@ func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.
 		profile.Children(func() {
 			entry, hasEntry := configurationProviderMetadata(m, ns.NS, []string{"providers", route})
 			if !editor {
-				ui.Text(c, route).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+				ui.Text(c, route).FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 				if hasEntry {
 					providerEndpointNotice(c, configurationText(p["baseURL"]), entry, muted)
 				}

@@ -164,12 +164,16 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 		t.SurfaceHover = chrome.Color(colors.Hover)
 		t.SurfacePressed = chrome.Color(colors.Pressed)
 	}
+	scheme := design.Light
+	if dark {
+		scheme = design.Dark
+	}
 	t.Border = chrome.Color(colors.Border)
 	t.Accent = chrome.Color(colors.Accent)
 	t.AccentHover = chrome.Color(colors.ButtonInfoHover)
 	t.AccentPressed = chrome.Color(colors.ButtonInfoHover)
 	t.AccentText = chrome.Color(colors.ButtonFG)
-	t.Focus = t.Accent
+	t.Focus = design.AccessibleRing(scheme, t.Accent)
 	t.Selection = t.Accent.Alpha(.3)
 	// ui-theme/src/styles/scrollbar.css uses a 5 DIP thumb; its colors come from
 	// the theme's scroll bar tokens (--dsw-alias-scrollbar-bg-l1/-hover-l1), which
@@ -194,10 +198,6 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	// accent from here: coss components render with coss's palette for the
 	// scheme and the accent as primary/ring. Surfaces stay opaque coss tokens
 	// unless the glass appearance turns design.SetGlass on.
-	scheme := design.Light
-	if dark {
-		scheme = design.Dark
-	}
 	design.Bind(c, scheme, t.Accent, t.AccentText)
 }
 func (s *mainState) endAppearanceFrame() {

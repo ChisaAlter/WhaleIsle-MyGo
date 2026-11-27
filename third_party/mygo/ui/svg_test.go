@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"bytes"
 	"image"
 	"image/color"
 	"testing"
 
 	"github.com/egoist/mygo/internal/platform"
+	"github.com/egoist/mygo/internal/raster"
+	"github.com/egoist/mygo/internal/scene"
 )
 
 // A square in black, and a check mark in currentColor, as icon sets draw
@@ -229,4 +232,51 @@ func TestParseSVGErrors(t *testing.T) {
 		}
 	}()
 	MustParseSVG([]byte("nope"))
+}
+
+// TestIconAndPathRawMaskNoTextInflation verifies that ui.Icon, Painter.Icon,
+// Painter.StrokePath and Painter.FillPath emit RawMask glyphs whose rendered
+// pixels are unaffected by DirectWrite text contrast/gamma enhancement.
+func TestIconAndPathRawMaskNoTextInflation(t *testing.T) {
+	circleSVG := MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>`))
+	muted := RGB(104, 104, 104)
+	tt := coreNewTester(func(c *context) {
+		coreRow(c).Fill().Background(RGB(255, 255, 255)).Padding(6).Gap(8).Children(func() {
+			coreIcon(c, circleSVG).Size(16, 16).TextColor(muted)
+			coreBox(c).Size(24, 24).Draw(func(p *Painter, r Rect) {
+				var path Path
+				path.Circle(r.X+12, r.Y+12, 8)
+				p.StrokePath(&path, 1, muted)
+			})
+			coreBox(c).Size(24, 24).Draw(func(p *Painter, r Rect) {
+				var path Path
+				path.Circle(r.X+12, r.Y+12, 6)
+				p.FillPath(&path, muted)
+			})
+		})
+	}, 96, 40)
+	tt.SetScale(1.5)
+	tt.Frame()
+
+	if len(tt.rt.scene.Glyphs) != 3 {
+		t.Fatalf("expected 3 mask glyphs (icon + stroke + fill), got %d", len(tt.rt.scene.Glyphs))
+	}
+	for i, g := range tt.rt.scene.Glyphs {
+		if !g.RawMask {
+			t.Fatalf("glyph %d missing RawMask=true: %+v", i, g)
+		}
+	}
+
+	s := tt.rt.scene
+	s.Text = scene.TextParams{}
+	plain := raster.NewImage(s.Width, s.Height)
+	raster.Render(plain, &s)
+
+	s.Text = scene.TextParams{GammaRatios: scene.GammaRatios(1.8), Contrast: 1.0, SubpixelContrast: 0.5}
+	withTextParams := raster.NewImage(s.Width, s.Height)
+	raster.Render(withTextParams, &s)
+
+	if !bytes.Equal(plain.Pix, withTextParams.Pix) {
+		t.Fatal("SVG icon or Path pixels changed under DirectWrite TextParams (RawMask did not bypass textCoverage)")
+	}
 }

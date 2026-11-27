@@ -31,10 +31,6 @@ type FontPreference struct {
 	Size   float32 `json:"size"`
 }
 
-// DefaultTextFamily mirrors ui-theme/src/styles/base.css. MyGo resolves the
-// comma-separated families in order, including CJK fallbacks after Segoe UI.
-const DefaultTextFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif"
-
 // base.css deliberately omits a generic monospace tail from code: Windows
 // CJK text should reach the explicit PingFang/YaHei fallback, not SimSun.
 const DefaultCodeFamily = "'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei'"

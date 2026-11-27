@@ -83,9 +83,9 @@ type Instance struct {
 	// ClipFade holds optional horizontal edge fade (left, right, fadeL, fadeR).
 	Clip, ClipRadii [4]float32
 	// Params is the kind (0 fill, 1 shadow, 2 mask glyph, 3 color glyph, 4
-	// image, 5 subpixel glyph, 6 effect); 1 for a dashed border or a
-	// grayscale image; the shadow's sigma (0 for none), the paint
-	// (scene.Paint) or the size of the squares an effect's backdrop
+	// image, 5 subpixel glyph, 6 effect); 1 for a dashed border, a raw mask
+	// (no textCoverage), or a grayscale image; the shadow's sigma (0 for none),
+	// the paint (scene.Paint) or the size of the squares an effect's backdrop
 	// averages; and the opacity.
 	Params   [4]float32
 	ClipFade [4]float32
@@ -269,28 +269,30 @@ func (b *Builder) Build(s *scene.Scene, image func(*scene.Image) uintptr) {
 				c1, c2 = wideColor(w, scene.WideColor, op.Color), wideColor(w, scene.WideColor2, op.Color2)
 			}
 			for _, g := range s.Glyphs[op.Start:op.End] {
-				a, kind, contrast := s.MaskAtlas, float32(2), s.Text.Contrast
+				a, kind, rawMask, contrast, gamma := s.MaskAtlas, float32(2), float32(0), s.Text.Contrast, s.Text.GammaRatios
 				switch {
 				case g.Colored:
 					a, kind = s.ColorAtlas, 3
 				case g.Subpixel:
 					a, kind, contrast = s.ColorAtlas, 5, s.Text.SubpixelContrast
+				case g.RawMask:
+					rawMask, contrast, gamma = 1, 0, [4]float32{}
 				}
 				if a == nil {
 					continue
 				}
 				boost := float32(0)
-				if g.Thin {
+				if g.Thin && !g.RawMask {
 					boost = scene.ThinBoost
 				}
 				aw, ah := float32(a.W), float32(a.H)
 				in := Instance{
 					Rect:   [4]float32{float32(math.Round(float64(g.X))), float32(math.Round(float64(g.Y))), float32(g.UW), float32(g.VH)},
-					Radii:  s.Text.GammaRatios,
+					Radii:  gamma,
 					Inner:  [4]float32{contrast, boost},
 					UV:     [4]float32{float32(g.U) / aw, float32(g.V) / ah, float32(g.U+g.UW) / aw, float32(g.V+g.VH) / ah},
 					Color:  straight(g.Color),
-					Params: [4]float32{kind, 0, 0, 1},
+					Params: [4]float32{kind, rawMask, 0, 1},
 				}
 				if w := b.wideOf(s, g.Wide); w != nil {
 					in.Color = w.Color

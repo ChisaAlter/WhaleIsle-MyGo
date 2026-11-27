@@ -1,6 +1,7 @@
 package coss
 
 import (
+	"math"
 	"time"
 
 	"github.com/egoist/mygo/plugins/glass"
@@ -116,14 +117,12 @@ func (s *shadowList) scale(sc design.Shadows, c ui.Color, a float32) {
 	}
 }
 
-// ring adds ring-2 ring-offset-1: a gap in offset, then the ring, at amt
-// of their alpha (the 150 ms box-shadow transition).
+// ring adds a restrained 2 DIP translucent focus ring at amt of its alpha.
 func (s *shadowList) ring(t *design.Tokens, amt float32) {
 	if amt <= 0 {
 		return
 	}
-	s.add(0, 0, 0, design.RingOffset, t.Background.Alpha(amt))
-	s.add(0, 0, 0, design.RingOffset+design.RingWidth, t.Ring.Alpha(amt))
+	s.add(0, 0, 0.5, design.RingWidth, t.Ring.Alpha(amt))
 }
 
 // apply sets the outer layers on e, bottom layer first as the toolkit paints
@@ -242,12 +241,29 @@ func (d *deco) paint(p *ui.Painter, r ui.Rect) {
 			}
 		}
 		if amt > 0 {
-			p.Shadow(r, d.radius, 0, 0, 0, design.RingOffset+design.RingWidth, d.ringColor.Alpha(amt))
-			p.Shadow(r, d.radius, 0, 0, 0, design.RingOffset, d.ringBg.Alpha(amt))
+			p.Shadow(r, d.radius, 0, 0, 0.5, design.RingWidth, d.ringColor.Alpha(amt))
 		}
 	}
-	pad := ui.Rect{X: r.X + d.border, Y: r.Y + d.border, W: r.W - 2*d.border, H: r.H - 2*d.border}
-	inner := max(d.radius-d.border, 0)
+	scale := p.Scale()
+	if scale <= 0 {
+		scale = 1
+	}
+	px := design.PhysicalPixel(scale)
+	inset := float32(0)
+	if d.border > 0 {
+		var bpx float32
+		if d.border <= 1 {
+			bpx = max(float32(math.Floor(float64(d.border*scale))), 1)
+		} else {
+			bpx = max(float32(math.Round(float64(d.border*scale))), 1)
+		}
+		inset = bpx / scale
+	}
+	pad := ui.Rect{X: r.X + inset, Y: r.Y + inset, W: r.W - 2*inset, H: r.H - 2*inset}
+	inner := max(d.radius-inset, 0)
+	if pad.W <= 0 || pad.H <= 0 {
+		return
+	}
 	if d.fill.A > 0 {
 		p.Fill(pad, d.fill, inner)
 	}
@@ -256,15 +272,19 @@ func (d *deco) paint(p *ui.Painter, r ui.Rect) {
 		if !l.Inset {
 			continue
 		}
+		lx, ly := l.X, l.Y
+		if l.Blur == 0 && l.Spread == 0 && lx == 0 && (ly == 1 || ly == -1) {
+			ly *= px
+		}
 		// An inset shadow offset by (x, y) is the padding box minus itself
 		// moved by (x, y): the outer shadow of the moved box cast back.
-		cast := ui.Rect{X: pad.X + l.X, Y: pad.Y + l.Y, W: pad.W, H: pad.H}
+		cast := ui.Rect{X: pad.X + lx, Y: pad.Y + ly, W: pad.W, H: pad.H}
 		p.Clip(pad, inner, func() {
-			p.Shadow(cast, inner, -l.X, -l.Y, l.Blur, l.Spread, l.Color)
+			p.Shadow(cast, inner, -lx, -ly, l.Blur, l.Spread, l.Color)
 		})
 	}
 	if d.before && d.beforeC.A > 0 {
-		p.Shadow(pad, inner, 0, d.beforeY, 0, 0, d.beforeC)
+		p.Shadow(pad, inner, 0, d.beforeY*px, 0, 0, d.beforeC)
 	}
 }
 
@@ -382,8 +402,8 @@ func glassBorderWidth(t *design.Tokens) float32 {
 	return design.BorderWidth
 }
 
-// glassOuterBorder returns the refined outer hairline border color for frosted
-// glass overlays (0.5 DIP rgba(15,20,30,0.09) in light, black/0.45 in dark).
+// glassOuterBorder returns the refined 1-physical-pixel outer hairline border
+// color for frosted glass overlays (Slate900@0.08 in light, Black@0.32 in dark).
 func glassOuterBorder(t *design.Tokens) ui.Color {
 	if t == nil || !t.Glass {
 		if t != nil {
@@ -392,9 +412,9 @@ func glassOuterBorder(t *design.Tokens) ui.Color {
 		return ui.Transparent
 	}
 	if t.IsDark() {
-		return black.Alpha(0.45)
+		return design.TW.Black.Alpha(0.32)
 	}
-	return ui.Color{R: 15, G: 20, B: 30, A: 255}.Alpha(0.09)
+	return design.TW.Slate900.Alpha(0.08)
 }
 
 func popupGlassBlur(t *design.Tokens) glass.Blur {
@@ -461,8 +481,9 @@ func applyGlassMaterial(e ui.Element, t *design.Tokens, tint ui.Color, blur glas
 	})
 }
 
-// applyGlassRim paints the refined inner 1px specular rim and top 1px highlight
-// on frosted glass overlays via DrawOver (zero additional OpEffect passes).
+// applyGlassRim paints the refined seamless 1-physical-pixel inner specular rim
+// and soft 1-physical-pixel top highlight on frosted glass overlays via DrawOver
+// (zero additional OpEffect passes).
 func applyGlassRim(e ui.Element, t *design.Tokens, radius float32, tier glassTier) {
 	if t == nil || !t.Glass {
 		return
@@ -471,25 +492,26 @@ func applyGlassRim(e ui.Element, t *design.Tokens, radius float32, tier glassTie
 		return
 	}
 	dark := t.IsDark()
-	rim := white.Alpha(0.58)
-	top := white.Alpha(0.86)
+	rim := design.TW.White.Alpha(0.38)
+	top := design.TW.White.Alpha(0.58)
 	if dark {
-		rim = white.Alpha(0.13)
-		top = white.Alpha(0.22)
+		rim = design.TW.White.Alpha(0.09)
+		top = design.TW.White.Alpha(0.16)
 	}
 	drawerOnlyTop := tier == glassTierDrawer
 	e.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if r.W <= 2 || r.H <= 2 {
+		px := design.PhysicalPixel(p.Scale())
+		if r.W <= 2*px || r.H <= 2*px {
 			return
 		}
-		inner := ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
-		innerR := max(0, radius-1)
+		inner := ui.Rect{X: r.X + px, Y: r.Y + px, W: r.W - 2*px, H: r.H - 2*px}
+		innerR := max(0, radius-px)
 		if !drawerOnlyTop {
-			p.Stroke(inner, rim, innerR, 1)
+			p.Stroke(inner, rim, innerR, px)
 		}
 		p.Clip(inner, innerR, func() {
-			cast := ui.Rect{X: inner.X, Y: inner.Y + 1, W: inner.W, H: inner.H}
-			p.Shadow(cast, innerR, 0, -1, 0, 0, top)
+			cast := ui.Rect{X: inner.X, Y: inner.Y + px, W: inner.W, H: inner.H}
+			p.Shadow(cast, innerR, 0, -px, 0, 0, top)
 		})
 	})
 }

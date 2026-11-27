@@ -37,7 +37,7 @@ func accountAvatarBitmap(_ *ui.Context, rawURL string) *ui.Bitmap {
 	return media.Default().Avatar(rawURL).Bitmap()
 }
 
-var accountPersonIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><circle cx="8" cy="5.4" r="2.6"/><path d="M2.9 13.1c.7-2.4 2.7-3.7 5.1-3.7s4.4 1.3 5.1 3.7"/></svg>`))
+var accountPersonIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"><circle cx="8" cy="5.4" r="2.6"/><path d="M2.9 13.1c.7-2.4 2.7-3.7 5.1-3.7s4.4 1.3 5.1 3.7"/></svg>`))
 
 func accountSignedOut(a Account) bool {
 	return !a.SignedIn && strings.TrimSpace(a.Name) == "" && strings.TrimSpace(a.Detail) == ""

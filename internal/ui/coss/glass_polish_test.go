@@ -524,3 +524,131 @@ func TestMenuSecondClickClosesAndRadiiMatchSpec(t *testing.T) {
 		t.Fatal("DialogPanel failed to lay out")
 	}
 }
+
+func TestGlassRimAndSeparator150DPIPhysicalPixelPrecision(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, testGlassFilter)
+
+	// 1) Glass DialogPanel at 150% DPI has 1px outer border at topPx, seamless
+	// 1px specular rim at topPx+1, and clean interior at topPx+2 (zero gap, no 2px bar).
+	for _, dark := range []bool{false, true} {
+		name := "light"
+		if dark {
+			name = "dark"
+		}
+		t.Run("rim/"+name, func(t *testing.T) {
+			var sb ui.Rect
+			tt := ui.NewTester(func(c *ui.Context) {
+				setTheme(c, dark)
+				ui.Box(c).Fill().Background(ui.RGB(150, 156, 168)).Children(func() {
+					ui.Box(c).Absolute().Left(30).Top(20).Children(func() {
+						sb = DialogPanel(c, DialogOptions{NoClose: true}, func() {
+							ui.Box(c).Size(180, 60)
+						}).Width(220).Bounds()
+					})
+				})
+			}, 320, 200)
+			tt.SetScale(1.5)
+			tt.Frame()
+			img := tt.Image()
+			midX := int((sb.X + sb.W/2) * 1.5)
+			topPx := int(sb.Y * 1.5)
+			outerL := luma(img, midX, topPx)
+			rimL := luma(img, midX, topPx+1)
+			nextL := luma(img, midX, topPx+2)
+			bodyL := luma(img, midX, topPx+16)
+			if outerL >= bodyL {
+				t.Fatalf("%s 150%% outer border at y=%d not darker than body: outer=%.2f body=%.2f", name, topPx, outerL, bodyL)
+			}
+			if rimL <= bodyL+2 {
+				t.Fatalf("%s 150%% inner specular rim at y=%d missing or gapped: rim=%.2f body=%.2f", name, topPx+1, rimL, bodyL)
+			}
+			if nextL > bodyL+2 {
+				t.Fatalf("%s 150%% inner specular rim exceeded 1 physical px at y=%d: next=%.2f body=%.2f", name, topPx+2, nextL, bodyL)
+			}
+		})
+	}
+
+	// 2) Separator stays strictly 1 physical pixel at both even and odd DIPs at 150% DPI.
+	design.SetGlass(false, nil)
+	for _, y := range []float32{20, 21} {
+		tt := ui.NewTester(func(c *ui.Context) {
+			setTheme(c, false)
+			ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)).Children(func() {
+				ui.Box(c).Absolute().Left(10).Top(y).Width(80).Children(func() {
+					Separator(c, Horizontal)
+				})
+			})
+		}, 120, 60)
+		tt.SetScale(1.5)
+		tt.Frame()
+		img := tt.Image()
+		painted := 0
+		for py := 0; py < img.Bounds().Dy(); py++ {
+			if img.RGBAAt(60, py).R < 252 {
+				painted++
+			}
+		}
+		if painted != 1 {
+			t.Fatalf("Separator(Horizontal) at 150%% DPI y=%g painted %d physical rows, want 1", y, painted)
+		}
+	}
+}
+
+func TestCossInputSliderAndSwitchWCAGContrastAndOpaqueThumbInGlass(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, func(s design.Scheme, p *design.Palette) {
+		if s == design.Dark {
+			p.Background = ui.RGBA(21, 21, 23, 0.30)
+		} else {
+			p.Background = ui.RGBA(255, 255, 255, 0.24)
+		}
+	})
+
+	for _, tc := range []struct {
+		name   string
+		dark   bool
+		accent ui.Color
+		bg     ui.Color
+	}{
+		{"light-deepseek", false, ui.Hex("#4176e6"), ui.RGB(208, 220, 229)},
+		{"dark-deepseek", true, ui.Hex("#7aaaff"), ui.RGB(32, 34, 40)},
+		{"dark-neutral-gray", true, ui.Hex("#52525b"), ui.RGB(32, 34, 40)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			val := "hello"
+			on := true
+			var inRect, swRect ui.Rect
+			tt := ui.NewTester(func(c *ui.Context) {
+				setTheme(c, tc.dark)
+				scheme := design.Light
+				if tc.dark {
+					scheme = design.Dark
+				}
+				design.Bind(c, scheme, tc.accent, ui.Color{})
+				ui.Column(c).Fill().Background(tc.bg).Padding(16).Gap(12).Children(func() {
+					inRect = Input(c, &val, InputOptions{Label: "Probe input"}).Bounds()
+					swRect = Switch(c, &on, "", CheckOptions{Label: "Probe switch"}).Bounds()
+				})
+			}, 260, 140)
+			tt.Frame()
+			tt.Key(0, ui.KeyTab)
+			tt.Frame()
+			img := tt.Image()
+			// Focused input 1px border (outer control sits 1 DIP above inner TextInputBase)
+			// must reach >= 3:1 against the glass panel backdrop.
+			borderPx := img.RGBAAt(int(inRect.X+inRect.W/2), int(inRect.Y)-1)
+			borderCol := ui.RGBA(borderPx.R, borderPx.G, borderPx.B, 1)
+			if c := design.Contrast(borderCol, tc.bg); c < 3.0 {
+				t.Fatalf("%s focused Input border %v on %v contrast %.2f < 3.0", tc.name, borderPx, tc.bg, c)
+			}
+			// Switch ON thumb in glass mode must stay opaque with >= 3.5:1 against Primary track.
+			// Track is 30x18; ON thumb sits at [x+13, x+29], center x+21, y+9.
+			thumbPx := img.RGBAAt(int(swRect.X)+21, int(swRect.Y)+9)
+			thumbCol := ui.RGBA(thumbPx.R, thumbPx.G, thumbPx.B, 1)
+			if c := design.Contrast(thumbCol, tc.accent); c < 3.5 {
+				t.Fatalf("%s glass Switch ON thumb %v on track %v contrast %.2f < 3.5", tc.name, thumbPx, tc.accent, c)
+			}
+		})
+	}
+}

@@ -532,3 +532,60 @@ func TestUsesCurrentColor(t *testing.T) {
 		}
 	}
 }
+
+// TestStrokeCurvesNoOverlapInflation verifies that stroking curves uses
+// non-overlapping offset contours rather than additive per-segment quads and
+// corner wedges: the stroked circle's total coverage matches its exact
+// analytical area 2*pi*r*w, and crossing/closed-2pt/mirrored subpaths keep
+// consistent winding without cancellation.
+func TestStrokeCurvesNoOverlapInflation(t *testing.T) {
+	for _, tc := range []struct {
+		size int
+		r    float64
+		w    float64
+		join string
+	}{
+		{48, 16, 1.0, "round"},
+		{48, 16, 1.5, "round"},
+		{48, 16, 2.0, "round"},
+		{48, 16, 1.5, "miter"},
+		{48, 16, 1.5, "bevel"},
+		{24, 8, 1.0, "round"},
+	} {
+		src := fmt.Sprintf(`<svg viewBox="0 0 %d %d"><circle cx="%d" cy="%d" r="%.1f" fill="none" stroke="#000" stroke-width="%.1f" stroke-linejoin="%s"/></svg>`,
+			tc.size, tc.size, tc.size/2, tc.size/2, tc.r, tc.w, tc.join)
+		img := draw(t, src, tc.size, tc.size)
+		want := 2 * math.Pi * tc.r * tc.w
+		got := alphaSum(img)
+		if math.Abs(got/want-1) > 0.03 {
+			t.Errorf("circle r=%.1f w=%.1f join=%s (%dx%d): coverage %.2f, want %.2f (%.1f%% off)",
+				tc.r, tc.w, tc.join, tc.size, tc.size, got, want, (got/want-1)*100)
+		}
+		// Center hole must stay empty.
+		if c := at(img, tc.size/2, tc.size/2); c.A != 0 {
+			t.Errorf("circle r=%.1f w=%.1f center not empty: %v", tc.r, tc.w, c)
+		}
+	}
+
+	// Crossing subpaths (plus-in-circle, like new-session icon) must not cancel
+	// at intersections regardless of circle winding direction.
+	plusInCircle := draw(t, `<svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg>`, 24, 24)
+	if c := at(plusInCircle, 12, 12); c.A != 255 {
+		t.Errorf("crossing plus center cancelled: %v", c)
+	}
+	if c := at(plusInCircle, 12, 3); c.A != 255 {
+		t.Errorf("circle top missing: %v", c)
+	}
+
+	// Closed 2-point foldback subpath must stroke cleanly without cancelling.
+	fold := draw(t, `<svg viewBox="0 0 20 20"><path d="M4 10L16 10Z" fill="none" stroke="#000" stroke-width="4" stroke-linejoin="round"/></svg>`, 20, 20)
+	if got, want := alphaSum(fold), 48+4*math.Pi; math.Abs(got-want) > 1.0 {
+		t.Errorf("closed 2-point round-join coverage %.2f, want %.2f", got, want)
+	}
+
+	// Mirrored transform (negative determinant) preserves stroke and hole.
+	mirrored := draw(t, `<svg viewBox="0 0 24 24"><g transform="translate(24 0) scale(-1 1)"><circle cx="12" cy="12" r="8" fill="none" stroke="#000" stroke-width="2"/></g></svg>`, 24, 24)
+	if at(mirrored, 12, 12).A != 0 || at(mirrored, 12, 4).A < 200 {
+		t.Errorf("mirrored circle stroke failed: center=%v top=%v", at(mirrored, 12, 12), at(mirrored, 12, 4))
+	}
+}

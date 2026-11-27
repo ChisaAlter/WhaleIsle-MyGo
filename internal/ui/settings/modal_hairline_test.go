@@ -103,6 +103,9 @@ func TestSettingsModalGlassClarityAndSingleHairline(t *testing.T) {
 					modelRowCard(c, "glass-model-card", func() {
 						ui.Box(c).Label("Glass Model Card").FillWidth().Height(48)
 					})
+					modelSetupCard(c, "glass-setup-card", func() {
+						ui.Box(c).Label("Glass Setup Card").FillWidth().Height(48)
+					})
 				},
 				OnClose: func() {},
 			}
@@ -154,8 +157,8 @@ func TestSettingsModalGlassClarityAndSingleHairline(t *testing.T) {
 				t.Fatalf("%s right pane opaque over colored backdrop: inside=%v", tc.name, inside)
 			}
 
-			// Inner kSurface and modelRowCard must stay translucent (not opaque t.Card).
-			for _, label := range []string{"Glass Inner Card", "Glass Model Card"} {
+			// Inner kSurface, modelRowCard and modelSetupCard must stay translucent (not opaque t.Card / SelectorFill).
+			for _, label := range []string{"Glass Inner Card", "Glass Model Card", "Glass Setup Card"} {
 				cardRect, ok := tt.Find(label)
 				if !ok {
 					t.Fatalf("%s missing %q", tc.name, label)

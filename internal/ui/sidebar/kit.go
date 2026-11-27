@@ -88,52 +88,25 @@ func sbRowInk(t *design.Tokens, selected bool, fallback ui.Color) ui.Color {
 	return fallback
 }
 
-// sbActionOverlayDraw paints a row-matched backdrop behind an absolutely
-// positioned trailing action cluster so hover controls cover long titles and
-// timestamps cleanly without ever leaving Absolute layout.
-func sbActionOverlayDraw(t *design.Tokens, selected, hovered bool) func(*ui.Painter, ui.Rect) {
-	return func(p *ui.Painter, r ui.Rect) {
-		if r.W <= 0 || r.H <= 0 {
-			return
-		}
-		var overlay ui.Color
-		if selected {
-			overlay = sbSelectedBg(t)
-		} else if hovered {
-			overlay = sbHoverBg(t)
-		}
-		base := t.Sidebar
-		if base.A == 0 {
-			base = t.Background
-		}
-		surface := base
-		if chrome.BackdropActive() {
-			prefs := chrome.BackdropPreferences()
-			mat := chrome.MaterialSidebar
-			fillBase := base
-			if prefs.HideSidebarMask {
-				mat = chrome.MaterialCanvas
-				fillBase = t.Background
-			}
-			surface = chrome.BackdropFill(r, fillBase, mat, prefs, t.IsDark())
-		}
-		if overlay.A > 0 {
-			surface = overlay.Over(surface)
-		}
-		if surface.A == 0 {
-			return
-		}
-		pad := ui.Rect{X: r.X - 2, Y: r.Y, W: r.W + 4, H: r.H}
-		p.Fill(pad, surface, design.RadiusMD)
-		fadeW := min(float32(10), max(float32(0), pad.X))
-		if fadeW > 0 {
-			p.FillGradient(
-				ui.Rect{X: pad.X - fadeW, Y: pad.Y, W: fadeW, H: pad.H},
-				ui.LinearGradient{From: surface.Alpha(0), To: surface, Angle: 90},
-				0,
-			)
-		}
+const sidebarTitleFadeWidth = float32(14)
+
+// applySidebarTitleFadeOverflow reserves a paint-only right inset and horizontal
+// fade on a stationary single-line title so trailing hover actions never collide
+// with long labels and never shift layout.
+func applySidebarTitleFadeOverflow(el ui.Element, insetRight, fadeRight float32) {
+	if !el.Valid() || insetRight <= 0 {
+		return
 	}
+	el.FadeOverflowRight(insetRight, fadeRight)
+}
+
+// drawSidebarCrawlClip restricts crawling title painting to clipR and applies
+// soft horizontal edge fades over fadeL and fadeR DIPs.
+func drawSidebarCrawlClip(p *ui.Painter, clipR ui.Rect, fadeL, fadeR float32, fn func()) {
+	if clipR.W <= 0 || clipR.H <= 0 {
+		return
+	}
+	p.ClipFade(clipR, fadeL, fadeR, fn)
 }
 
 func buildActiveScheduleMap(view schedstore.ViewState) map[string][]schedstore.Entry {

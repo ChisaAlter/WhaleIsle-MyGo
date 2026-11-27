@@ -361,7 +361,7 @@ func Accordion(c *ui.Context, items []AccordionItem) ui.Element {
 				s := interact(tr, false)
 				var sh shadowList
 				if s.Has(StateFocusVisible) {
-					sh.add(0, 0, 0, design.InputRingWidth, t.Ring)
+					sh.add(0, 0, 0.5, design.InputRingWidth, t.Ring)
 				}
 				finish(tr, &sh, nil)
 				tr.Children(func() {
@@ -548,7 +548,10 @@ func ToolbarGroup(c *ui.Context, fn func()) ui.Element {
 
 // ToolbarSeparator is a vertical toolbar divider (6 DIPs from the ends).
 func ToolbarSeparator(c *ui.Context) ui.Element {
-	return ui.Box(c).Width(1).AlignSelf(ui.Stretch).Margin(design.Sp(1.5), 0).Background(tok(c).Border).Shrink(0)
+	border := tok(c).Border
+	return ui.Box(c).Width(1).AlignSelf(ui.Stretch).Margin(design.Sp(1.5), 0).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+		design.DrawHairline(p, r, true, border)
+	})
 }
 
 // TableVariant is the table's look.

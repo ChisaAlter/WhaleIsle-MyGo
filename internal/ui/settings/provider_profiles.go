@@ -2,6 +2,7 @@ package settings
 
 import (
 	"whaleisle/internal/desktop/providerprofiles"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
@@ -27,7 +28,7 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 		r := s.Pending
 		open := true
 		accountDialog(c, &open, providerCopy("移除供应商", "Remove provider"), 480, s.Busy, func() {
-			ui.Text(c, providerCopy("确认删除档案：", "Confirm profile removal: ")+r.DisplayName+" ("+r.Provider+")").FontWeight(600).TextColor(fg)
+			ui.Text(c, providerCopy("确认删除档案：", "Confirm profile removal: ")+r.DisplayName+" ("+r.Provider+")").FontWeight(design.WeightMedium).TextColor(fg)
 			if r.CredentialRef != "" {
 				ui.Text(c, providerCopy("此操作还会移除关联凭证：", "This will also remove the associated credential: ")+r.CredentialRef+providerCopy("。依赖它的模型可能无法使用。", ". Models depending on it may stop working.")).TextColor(fg)
 			} else {

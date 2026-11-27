@@ -150,7 +150,14 @@ func TestRailCellFocusRingOnlyOnKeyboardFocus(t *testing.T) {
 		t.Fatalf("rail cell not found: %v", tt.Texts())
 	}
 	edge := func() color.RGBA { return tt.Image().RGBAAt(int(cell.X)-1, int(cell.Y+cell.H/2)) }
-	isRing := func(px color.RGBA) bool { return px.R == ring.R && px.G == ring.G && px.B == ring.B }
+	want := ring.Over(ui.RGB(255, 255, 255))
+	near := func(a, b uint8) bool {
+		if a > b {
+			return a-b <= 1
+		}
+		return b-a <= 1
+	}
+	isRing := func(px color.RGBA) bool { return near(px.R, want.R) && near(px.G, want.G) && near(px.B, want.B) }
 	if got := edge(); isRing(got) {
 		t.Fatalf("no ring without focus, got %v", got)
 	}
@@ -161,6 +168,6 @@ func TestRailCellFocusRingOnlyOnKeyboardFocus(t *testing.T) {
 	}
 	tt.Key(0, ui.KeyTab)
 	if got := edge(); !isRing(got) {
-		t.Fatalf("keyboard focus should paint the sidebar-ring shadow, got %v want %v", got, ring)
+		t.Fatalf("keyboard focus should paint the sidebar-ring shadow, got %v want %v (composited from %v)", got, want, ring)
 	}
 }

@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	deliverableChevronDownIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5L9 4.5"/></svg>`))
+	deliverableChevronDownIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="0.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5L9 4.5"/></svg>`))
 
 	// Exact 28x28 FileTypeIcon SVGs from @deepseek-ai/dsh-client-ui-primitives/src/FileTypeIcon.tsx
 	fileTypeCodeSVG    = ui.MustParseSVG([]byte(`<svg viewBox="0 0 28 28" fill="none"><path d="M17.291 2C17.8261 2.00018 18.3389 2.21465 18.7148 2.5957L23.4219 7.36719C23.7924 7.74272 24 8.24854 24 8.77637V23C24 24.6569 22.6569 26 21 26H7C5.34315 26 4 24.6569 4 23V5C4 3.34315 5.34315 2 7 2H17.291Z" fill="#4D93F8"/><path d="M18 2.38281C18.2738 2.43173 18.526 2.56293 18.7227 2.7626L23.2256 7.32617C23.4274 7.53068 23.5621 7.7902 23.6123 8.07227L19 8.07129C18.4477 8.07129 18 7.62357 18 7.07129V2.38281Z" fill="#FFFFFF" fill-opacity="0.4"/><path d="M11.3746 14.4004L9.28641 16.588C9.09923 16.7841 9.09923 17.0928 9.28641 17.2889L11.3746 19.4765M16.6251 14.4004L18.7133 16.588C18.9005 16.7841 18.9005 17.0928 18.7133 17.2889L16.6251 19.4765M14.7003 13.7002L13.3003 20.1768" stroke="#FFFFFF" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
@@ -33,7 +33,7 @@ var (
 
 	// OpenTargetButton application icons (Chrome 4-color ring & Terminal/Code badge)
 	openAppChromeSVG = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="#FFFFFF"/><path d="M8 1C10.97 1 13.5 2.85 14.52 5.46H8.15C6.54 5.46 5.21 6.53 4.82 8.01L2.29 3.63C3.57 2.03 5.66 1 8 1Z" fill="#EA4335"/><path d="M1.48 5.46C1.17 6.25 1 7.11 1 8C1 11.54 3.63 14.46 7.04 14.93L9.57 10.55C9.13 10.74 8.64 10.85 8.13 10.85C6.39 10.85 4.98 9.44 4.98 7.7C4.98 6.84 5.33 6.06 5.89 5.49L3.25 2.7C2.46 3.46 1.85 4.4 1.48 5.46Z" fill="#34A853"/><path d="M8 15C7.67 15 7.35 14.98 7.04 14.93L9.57 10.55C10.58 10.09 11.28 9.07 11.28 7.88C11.28 6.95 10.85 6.12 10.17 5.58L14.52 5.46C14.83 6.25 15 7.11 15 8C15 11.87 11.87 15 8 15Z" fill="#FBBC05"/><circle cx="8" cy="8" r="2.75" fill="#4285F4"/></svg>`))
-	openAppCodeSVG   = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="3.5" fill="#20242A" stroke="#4B5263" stroke-width="0.8"/><path d="M4.8 5.5L7.3 8L4.8 10.5" stroke="#61AFEF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 10.5H11.4" stroke="#ABB2BF" stroke-width="1.4" stroke-linecap="round"/></svg>`))
+	openAppCodeSVG   = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="3.5" fill="#20242A" stroke="#4B5263" stroke-width="0.8"/><path d="M4.8 5.5L7.3 8L4.8 10.5" stroke="#61AFEF" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 10.5H11.4" stroke="#ABB2BF" stroke-width="1.1" stroke-linecap="round"/></svg>`))
 )
 
 type deliverablePalette struct {

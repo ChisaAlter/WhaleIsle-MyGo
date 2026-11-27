@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
@@ -192,7 +193,16 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 			main.Transition(shellTrackTransition)
 		}
 		main.Children(center)
-		div.Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(r, tk(c).Border, 0) })
+		t := tk(c)
+		border := t.Border
+		canvasFill := frameCanvasFill(t)
+		splitBackdrop := chrome.BackdropActive()
+		div.Draw(func(p *ui.Painter, r ui.Rect) {
+			if splitBackdrop && canvasFill.A > 0 {
+				p.Fill(r, canvasFill, 0)
+			}
+			design.DrawHairline(p, r, true, border)
+		})
 		if !open {
 			drag.active = false
 			return
@@ -280,4 +290,4 @@ func sidebarDrawer(c *ui.Context, sizes *LayoutSizes, sidebar, center func(), vi
 }
 
 // drawerMenuArtwork is the phone menu glyph: three 1px rules.
-var drawerMenuArtwork = ui.MustParseSVG([]byte(`<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg>`))
+var drawerMenuArtwork = ui.MustParseSVG([]byte(`<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.125" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg>`))

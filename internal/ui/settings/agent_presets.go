@@ -129,7 +129,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 				group = group.Padding(20, 0, 0, 0)
 			}
 			group.Children(func() {
-				ui.Text(c, title).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(16)).FontWeight(600).LetterSpacing(.72).TextColor(muted)
+				ui.Text(c, title).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(16)).FontWeight(design.WeightMedium).LetterSpacing(.72).TextColor(muted)
 				visibleRows := roster.Rows[:0:0]
 				for _, row := range roster.Rows {
 					if row.BuiltIn != builtIn || (row.Hidden && row.Broken == "") {
@@ -184,7 +184,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 									ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 										ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
 											ui.Row(c).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-												ui.Text(c, agentPresetCardName(row)).MinWidth(0).SingleLine().Tooltip(label).FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
+												ui.Text(c, agentPresetCardName(row)).MinWidth(0).SingleLine().Tooltip(label).FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(design.WeightMedium).TextColor(fg)
 												badge := i18n.T(KeyPass4Custom)
 												if row.BuiltIn {
 													badge = i18n.T(KeyPass4BadgeBuiltIn)
@@ -261,8 +261,8 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 
 // presetBookIcon is the handbook glyph at the right edge of a preset card's
 // action row; it opens the same guide view as the text actions.
-var presetBookIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 4.1C6.9 3.3 5.4 3 2.8 3v8.6c2.6 0 4.1.3 5.2 1.1 1.1-.8 2.6-1.1 5.2-1.1V3c-2.6 0-4.1.3-5.2 1.1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 4.1v8.6" stroke="currentColor" stroke-width="1.2"/></svg>`))
+var presetBookIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 4.1C6.9 3.3 5.4 3 2.8 3v8.6c2.6 0 4.1.3 5.2 1.1 1.1-.8 2.6-1.1 5.2-1.1V3c-2.6 0-4.1.3-5.2 1.1z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><path d="M8 4.1v8.6" stroke="currentColor" stroke-width="1"/></svg>`))
 
 // presetDocIcon is the outlined document glyph of the 0.3.13 "view
 // configuration" button (a 12 x 13.3 outline inside the 16 DIP box).
-var presetDocIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4.4 1.7h7.2a1.1 1.1 0 0 1 1.1 1.1v10.4a1.1 1.1 0 0 1-1.1 1.1H4.4a1.1 1.1 0 0 1-1.1-1.1V2.8a1.1 1.1 0 0 1 1.1-1.1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5.6 5.4h4.8M5.6 8.4h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`))
+var presetDocIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4.4 1.7h7.2a1.1 1.1 0 0 1 1.1 1.1v10.4a1.1 1.1 0 0 1-1.1 1.1H4.4a1.1 1.1 0 0 1-1.1-1.1V2.8a1.1 1.1 0 0 1 1.1-1.1z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><path d="M5.6 5.4h4.8M5.6 8.4h3" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`))

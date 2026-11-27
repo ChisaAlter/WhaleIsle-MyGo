@@ -2935,6 +2935,22 @@ func (_handle Element) FadeHorizontal(left float32, right float32) Element {
 	return wrapElement(_node.FadeHorizontal(left, right))
 }
 
+// FadeOverflowRight clips painting insetRight DIPs inside the element's right
+// edge and linearly fades alpha to transparent over fadeRight DIPs inward from
+// that clip edge. For text elements whose laid-out lines do not reach the inset
+// right edge and are not truncated, the right fade is suppressed so short text
+// stays crisp. Negative or nonfinite values are treated as zero. Layout, focus
+// and pointer bounds do not change.
+func (_handle Element) FadeOverflowRight(insetRight float32, fadeRight float32) Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.FadeOverflowRight(insetRight, fadeRight))
+}
+
 // FileDragOver reports whether files dragged from another app are over
 // the element, which takes them if they are dropped, for showing it would.
 func (_handle Element) FileDragOver() bool {

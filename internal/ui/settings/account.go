@@ -13,6 +13,7 @@ import (
 
 	"whaleisle/internal/accountlogout"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -105,7 +106,7 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					if a.Details.Profile.Status == accountdetails.Failed {
 						contact = providerCopy("暂时无法读取账户资料", "Profile unavailable")
 					}
-					ui.Text(c, name).FillWidth().SingleLine().FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+					ui.Text(c, name).FillWidth().SingleLine().FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 					ui.Text(c, contact).FillWidth().SingleLine().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				})
 				if a.OnOpenInfo != nil && kGhost(c, providerCopy("更多账号信息 ↗", "More account information ↗"), false).Shrink(0).Clicked() {

@@ -169,7 +169,10 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 						it := items[idx]
 						if it.Group != "" && it.Group != group {
 							if group != "" {
-								ui.Box(c).Height(1).Margin(design.Sp(2), design.Sp(2)).Background(t.Border)
+								border := t.Border
+								ui.Box(c).Height(1).Margin(design.Sp(2), design.Sp(2)).Draw(func(p *ui.Painter, r ui.Rect) {
+									design.DrawHairline(p, r, false, border)
+								})
 							}
 							group = it.Group
 							ui.Row(c).Padding(design.Sp(1.5), design.Sp(2)).Children(func() {

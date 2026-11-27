@@ -49,8 +49,15 @@ func modelRowCard(c *ui.Context, key string, content func()) {
 }
 
 func modelSetupCard(c *ui.Context, key string, content func()) {
-	ui.Column(c.Key(key)).FillWidth().MinWidth(0).Padding(16).Gap(16).Radius(12).
-		Background(theme.Color(modelColors(c).SelectorFill)).Children(content)
+	t := tk(c)
+	card := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Padding(16).Gap(16).Radius(12)
+	if settingsGlassActive(t) {
+		fill, borderC := settingsGlassInnerCard(t.IsDark())
+		card.Border(design.BorderWidth/2, borderC).Background(fill)
+	} else {
+		card.Background(theme.Color(modelColors(c).SelectorFill))
+	}
+	card.Children(content)
 }
 
 // modelFieldLabel is the 12/18 medium label above a field, in the secondary ink.

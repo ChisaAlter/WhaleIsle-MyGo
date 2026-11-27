@@ -246,3 +246,48 @@ func TestThinLineCoverage(t *testing.T) {
 		}
 	}
 }
+
+func TestRawMaskBypassesTextCoverage(t *testing.T) {
+	mask := scene.NewAtlas(1, 32, 16)
+	patch := make([]byte, 8*8)
+	for i := range patch {
+		patch[i] = 64 // ~25% coverage
+	}
+	u, v, _ := mask.Alloc(8, 8)
+	mask.Put(u, v, 8, 8, patch, 8)
+
+	muted := scene.Color{R: 104, G: 104, B: 104, A: 255}
+	semi := scene.Color{R: 104, G: 104, B: 104, A: 128}
+	s := &scene.Scene{
+		Width:     48,
+		Height:    16,
+		Clear:     scene.Color{R: 255, G: 255, B: 255, A: 255},
+		MaskAtlas: mask,
+		Text:      scene.TextParams{GammaRatios: scene.GammaRatios(1.8), Contrast: 1.0},
+		Glyphs: []scene.Glyph{
+			{X: 2, Y: 4, W: 8, H: 8, U: uint16(u), V: uint16(v), UW: 8, VH: 8, Color: muted},
+			{X: 16, Y: 4, W: 8, H: 8, U: uint16(u), V: uint16(v), UW: 8, VH: 8, Color: muted, RawMask: true},
+			{X: 30, Y: 4, W: 8, H: 8, U: uint16(u), V: uint16(v), UW: 8, VH: 8, Color: semi, RawMask: true},
+		},
+		Ops: []scene.Op{{Kind: scene.OpGlyphs, Start: 0, End: 3}},
+	}
+	dst := NewImage(s.Width, s.Height)
+	Render(dst, s)
+
+	textPx := pixel(dst, 6, 8)
+	rawOpaque := pixel(dst, 20, 8)
+	rawSemi := pixel(dst, 34, 8)
+
+	wantOpaque := int(math.Round(255*(1-64.0/255.0) + 104*(64.0/255.0)))
+	if math.Abs(float64(int(rawOpaque[0])-wantOpaque)) > 1 {
+		t.Fatalf("opaque RawMask R=%d, want linear %d", rawOpaque[0], wantOpaque)
+	}
+	effA := (64.0 / 255.0) * (128.0 / 255.0)
+	wantSemi := int(math.Round(255*(1-effA) + 104*effA))
+	if math.Abs(float64(int(rawSemi[0])-wantSemi)) > 1 {
+		t.Fatalf("translucent RawMask R=%d, want linear %d", rawSemi[0], wantSemi)
+	}
+	if int(textPx[0]) >= int(rawOpaque[0])-10 {
+		t.Fatalf("normal text mask did not apply TextCoverage: text=%d raw=%d", textPx[0], rawOpaque[0])
+	}
+}

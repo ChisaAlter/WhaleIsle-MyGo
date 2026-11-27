@@ -435,7 +435,11 @@ fragment PSOut ps(VSOut v [[stage_in]],
 		res = premul(i.color) * s;
 	} else if (kind < 2.5f) {
 		float4 c = paint(v.p, i.params.z, i.rect, i.color, i.color2, i.grad, wide);
-		res = c * textCoverage(maskTex.sample(samp, v.tex).r, unpremul(c), i.inner.x, i.inner.y, i.radii);
+		float cov = maskTex.sample(samp, v.tex).r;
+		if (i.params.y < 0.5f) {
+			cov = textCoverage(cov, unpremul(c), i.inner.x, i.inner.y, i.radii);
+		}
+		res = c * cov;
 	} else if (kind < 3.5f) {
 		res = colorTex.sample(samp, v.tex) * i.color.a;
 	} else if (kind < 4.5f) {
