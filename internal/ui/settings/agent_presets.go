@@ -74,7 +74,9 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	// the card groups.
 	ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 		acpSettings(c, a.ACP, fg, muted)
-		ui.Text(c, i18n.T(KeyPass4PresetsTitle)).FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
+		if a.ACP != nil {
+			ui.Text(c, i18n.T(KeyPass4PresetsTitle)).FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
+		}
 		ui.Text(c, i18n.T(KeyPass4PresetsHint)).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(17.3)).TextColor(muted)
 		settingsAlert(c, "agent_presets:77", snap.Err != "", providerCopy("没能读取 Agent 预设，请重试。", "Agent presets could not be read. Try again."), snap.Err)
 		settingsNotice(c, "agent_presets:84", snap.Status != "", func() string { return snap.Status })
@@ -128,114 +130,130 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 			}
 			group.Children(func() {
 				ui.Text(c, title).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(16)).FontWeight(600).LetterSpacing(.72).TextColor(muted)
-				grid := ui.Row(c.Key("preset-grid/" + title)).FillWidth().MinWidth(0).Wrap().AlignItems(ui.Start).Gap(12)
-				width := grid.Bounds().W
-				grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
-					if bounds.W != width {
-						c.Invalidate()
+				visibleRows := roster.Rows[:0:0]
+				for _, row := range roster.Rows {
+					if row.BuiltIn != builtIn || (row.Hidden && row.Broken == "") {
+						continue
 					}
-				})
-				// Two cards per row at the reference width, one on narrow panes.
-				columns := 2
-				if width < 548 {
-					columns = 1
+					visibleRows = append(visibleRows, row)
 				}
-				cardWidth := (width - float32(columns-1)*12) / float32(columns)
-				grid.Children(func() {
-					count := 0
-					for _, row := range roster.Rows {
-						if row.BuiltIn != builtIn || (row.Hidden && row.Broken == "") {
-							continue
+				if len(visibleRows) > 0 {
+					grid := ui.Grid(c.Key("preset-grid/" + title)).FillWidth().MinWidth(0).Gap(12)
+					width := grid.Bounds().W
+					grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+						if bounds.W != width {
+							c.Invalidate()
 						}
-						count++
-						label := agentPresetSettingsLabel(row)
-						_, description := agentPresetDisplay(row)
-						active := row.ID == roster.DefaultID
-						// The default preset is the raised card: the selector fill and
-						// the tertiary ink as its 0.667 stroke. The others are the
-						// panel layer at 80% under the l4 stroke.
-						card := ui.Column(c.Key("preset-row/" + row.ID)).Width(cardWidth).MinWidth(0).Gap(0).Radius(20)
-						if active {
-							card = card.Border(.667, fonttheme.Color(colors.Muted)).Background(selectorFill)
-						} else {
-							card = card.Border(.667, cardBorder).Background(modelWell(c).Alpha(.8))
+					})
+					// Two cards per row at the reference width, one on narrow panes.
+					columns := 2
+					if width < 548 {
+						columns = 1
+					}
+					cardWidth := (width - float32(columns-1)*12) / float32(columns)
+					grid.Columns(columns)
+					if columns > 1 {
+						rowCount := (len(visibleRows) + columns - 1) / columns
+						rowTracks := make([]ui.Track, rowCount)
+						for i := range rowTracks {
+							rowTracks[i] = ui.Fr(1)
 						}
-						card.Children(func() {
-							main := ui.ButtonBase(c).Label(providerCopy("设为新任务默认", "Set as new task default")+" · "+label).FillWidth().MinWidth(0).Padding(design.Sp(3.5), design.Sp(4), design.Sp(3), design.Sp(4)).Cursor(ui.CursorPointer).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "")
-							main.Children(func() {
-								ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
-									ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
-										ui.Row(c).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-											ui.Text(c, agentPresetCardName(row)).MinWidth(0).SingleLine().Tooltip(label).FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
-											badge := i18n.T(KeyPass4Custom)
-											if row.BuiltIn {
-												badge = i18n.T(KeyPass4BadgeBuiltIn)
-											}
-											if active {
-												badge = i18n.T(KeyPass4TaskDefault)
-											}
-											chip := ui.Row(c).Padding(1, 8).Radius(10).AlignItems(ui.Center).Shrink(0)
-											ink, weight := muted, 400
-											if active {
-												chip = chip.Background(fg)
-												ink, weight = selectorFill, 500
-											} else {
-												chip = chip.Border(.667, cardBorder)
-											}
-											chip.Children(func() {
-												ui.Text(c, badge).FontSize(fonttheme.InterfaceSize(11)).FixedLineHeight(fonttheme.InterfaceSize(17)).FontWeight(weight).TextColor(ink)
+						grid.RowTracks(rowTracks...)
+					}
+					grid.Children(func() {
+						for _, row := range visibleRows {
+							label := agentPresetSettingsLabel(row)
+							_, description := agentPresetDisplay(row)
+							active := row.ID == roster.DefaultID
+							// The default preset is the raised card: the selector fill and
+							// the tertiary ink as its 0.667 stroke. The others are the
+							// panel layer at 80% under the l4 stroke.
+							// Use a 1-column 3-row Grid (Fr(1), FitContent, FitContent) so
+							// main measures its full natural height during outer-grid row
+							// sizing AND stretches to fill extra height so the divider and
+							// footer stay strictly bottom-aligned across every card.
+							card := ui.Grid(c.Key("preset-row/"+row.ID)).Columns(1).RowTracks(ui.Fr(1), ui.FitContent(), ui.FitContent()).MinWidth(0).Gap(0).Radius(20)
+							if active {
+								card = card.Border(.667, fonttheme.Color(colors.Muted)).Background(selectorFill)
+							} else {
+								card = card.Border(.667, cardBorder).Background(modelWell(c).Alpha(.8))
+							}
+							card.Children(func() {
+								main := ui.ButtonBase(c).Label(providerCopy("设为新任务默认", "Set as new task default")+" · "+label).FillWidth().MinWidth(0).AlignItems(ui.Start).Padding(design.Sp(3.5), design.Sp(4), design.Sp(3), design.Sp(4)).Cursor(ui.CursorPointer).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "")
+								main.Children(func() {
+									ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
+										ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
+											ui.Row(c).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
+												ui.Text(c, agentPresetCardName(row)).MinWidth(0).SingleLine().Tooltip(label).FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
+												badge := i18n.T(KeyPass4Custom)
+												if row.BuiltIn {
+													badge = i18n.T(KeyPass4BadgeBuiltIn)
+												}
+												if active {
+													badge = i18n.T(KeyPass4TaskDefault)
+												}
+												chip := ui.Row(c).Padding(1, 8).Radius(10).AlignItems(ui.Center).Shrink(0)
+												ink := muted
+												if active {
+													chip = chip.Border(.667, ui.Transparent).Background(fg)
+													ink = selectorFill
+												} else {
+													chip = chip.Border(.667, cardBorder)
+												}
+												chip.Children(func() {
+													ui.Text(c, badge).FontSize(fonttheme.InterfaceSize(11)).FixedLineHeight(fonttheme.InterfaceSize(17)).FontWeight(design.WeightMedium).TextColor(ink)
+												})
 											})
+											ui.Text(c, row.ID).MaxWidth(max(0, (cardWidth-32)*.45)).MinWidth(0).SingleLine().Tooltip(row.ID).FontSize(fonttheme.InterfaceSize(11)).FixedLineHeight(fonttheme.InterfaceSize(21)).
+												Font(fonttheme.RenderPreferences().Code.Family).TextColor(muted)
 										})
-										ui.Text(c, row.ID).MaxWidth(max(0, (cardWidth-32)*.45)).MinWidth(0).SingleLine().Tooltip(row.ID).FontSize(fonttheme.InterfaceSize(11)).FixedLineHeight(fonttheme.InterfaceSize(21)).
-											Font(fonttheme.RenderPreferences().Code.Family).TextColor(muted)
+										if description != "" {
+											ui.Text(c, description).FillWidth().MaxLines(3).FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(20.15)).TextColor(secondary).Tooltip(description)
+										}
+										if row.Broken != "" {
+											ui.Text(c, providerCopy("加载失败：", "Failed to load: ")+row.Broken).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+										}
 									})
-									if description != "" {
-										ui.Text(c, description).FillWidth().MaxLines(3).FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(20.15)).TextColor(secondary).Tooltip(description)
-									}
-									if row.Broken != "" {
-										ui.Text(c, providerCopy("加载失败：", "Failed to load: ")+row.Broken).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+								})
+								readerClicked := false
+								ui.Box(c).FillWidth().Height(.667).Background(fonttheme.Color(colors.Border))
+								ui.Row(c).FillWidth().MinWidth(0).Gap(2).Padding(6, 10).AlignItems(ui.Center).Children(func() {
+									ui.Box(c).Grow(1).MinWidth(0).Children(func() { agentPresetGuidePane(c, row, fg, muted) })
+									if a.Reader != nil && agentPresetViewAction(c, a.Reader, label, !roster.Loaded || a.Reader.State.Busy || a.Reader.OnSelect == nil) && a.Reader.OnSelect != nil {
+										readerClicked = true
+										a.Reader.OnSelect(a.Reader.State.Ticket, row.ID)
 									}
 								})
-							})
-							readerClicked := false
-							ui.Box(c).FillWidth().Height(.667).Background(fonttheme.Color(colors.Border))
-							ui.Row(c).FillWidth().MinWidth(0).Gap(2).Padding(6, 10).AlignItems(ui.Center).Children(func() {
-								ui.Box(c).Grow(1).MinWidth(0).Children(func() { agentPresetGuidePane(c, row, fg, muted) })
-								if a.Reader != nil && agentPresetViewAction(c, a.Reader, label, !roster.Loaded || a.Reader.State.Busy || a.Reader.OnSelect == nil) && a.Reader.OnSelect != nil {
-									readerClicked = true
-									a.Reader.OnSelect(a.Reader.State.Ticket, row.ID)
+								if !readerClicked && main.Clicked() && a.Selected != nil {
+									*a.Selected = label
+									if a.OnSaveDefault != nil {
+										a.OnSaveDefault(row.ID)
+									} else if a.Manager != nil {
+										go a.Manager.SaveDefault(context.Background(), row.ID)
+									}
+									if a.Reader != nil && a.Reader.OnClose != nil {
+										a.Reader.OnClose(a.Reader.State.Ticket)
+									}
 								}
-							})
-							if !readerClicked && main.Clicked() && a.Selected != nil {
-								*a.Selected = label
-								if a.OnSaveDefault != nil {
-									a.OnSaveDefault(row.ID)
-								} else if a.Manager != nil {
-									go a.Manager.SaveDefault(context.Background(), row.ID)
-								}
-								if a.Reader != nil && a.Reader.OnClose != nil {
-									a.Reader.OnClose(a.Reader.State.Ticket)
-								}
-							}
 
-						})
-					}
-					if count == 0 && builtIn {
-						ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-					}
-					if !builtIn {
-						// The reference's dashed entry: the Agent drafts a new preset
-						// mode rather than asking for hand-written JSON.
-						label := i18n.T(KeyPass4CreateWithAgent)
-						create := coss.Button(c, label, coss.ButtonOptions{
-							Variant: coss.ButtonOutline,
-							Size:    coss.ButtonXL,
-						}).Label(label).FillWidth().BorderStyle(ui.BorderDashed)
-						if create.Clicked() && a.Creator != nil && a.Creator.OnPrepare != nil {
-							a.Creator.OnPrepare()
+							})
 						}
+					})
+				} else if builtIn {
+					ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				}
+				if !builtIn {
+					// The reference's dashed entry: the Agent drafts a new preset
+					// mode rather than asking for hand-written JSON.
+					label := i18n.T(KeyPass4CreateWithAgent)
+					create := coss.Button(c, label, coss.ButtonOptions{
+						Variant: coss.ButtonOutline,
+						Size:    coss.ButtonXL,
+					}).Label(label).FillWidth().BorderStyle(ui.BorderDashed)
+					if create.Clicked() && a.Creator != nil && a.Creator.OnPrepare != nil {
+						a.Creator.OnPrepare()
 					}
-				})
+				}
 			})
 		}
 	})

@@ -53,7 +53,6 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Plugins
-	ui.Text(c, i18n.T(i18n.KeySettingsSectionPlugins)).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 	// The source's .intro copy is 13px on the normal line box (~17.3 DIP).
 	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(17.3)).TextColor(muted)
 	pluginSettingsTabs(c, a, fg, muted)

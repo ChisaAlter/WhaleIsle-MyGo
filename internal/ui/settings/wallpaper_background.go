@@ -518,21 +518,19 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		}
 		ui.Text(c, minimalOverrideHint(terminalHint)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 		transparent := prefs.Transparent
-		wallpaperBlockSwitch(c, "transparent-theme", providerCopy("透明主题", "Transparent theme"), &transparent, g.Save == nil, fg, func(value bool) {
-			wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.Transparent = value })
-		})
 		transparentHint := providerCopy("开启后界面表层完全透明：侧栏、输入框、菜单和对话框都不再有遮罩，壁纸色彩全量透出。文字可读性可以用「毛玻璃程度」调节；生效时若毛玻璃低于 20% 会自动提到 20%。", "Makes every UI surface fully transparent: the sidebar, composer, menus, and dialogs drop their masks so the wallpaper colors show through everywhere. Use the frosted-glass slider to keep text readable; taking effect raises a frosted glass below 20% to 20% automatically.")
 		if transparent && !hasWallpaper {
 			transparentHint = providerCopy("透明主题需要先设置背景图才会生效。", "The transparent theme takes effect after a wallpaper is set.")
 		} else if transparent && prefs.Blur < 20 {
 			transparentHint = providerCopy("毛玻璃程度低于 20%，文字会直接贴在清晰壁纸上，可能难以阅读。建议把「毛玻璃程度」调高。", "Frosted glass is below 20%, so text sits directly on the sharp wallpaper and may be hard to read. Raise the frosted-glass slider.")
 		}
-		ui.Text(c, minimalOverrideHint(transparentHint)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+		bodyLocalToggle(c, "transparent-theme", providerCopy("透明主题", "Transparent theme"), minimalOverrideHint(transparentHint), &transparent, g.Save == nil, fg, muted, func(value bool) {
+			wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.Transparent = value })
+		})
 		mask := prefs.HideSidebarMask
-		wallpaperBlockSwitch(c, "sidebar-mask", providerCopy("隐藏侧栏遮罩", "Hide sidebar mask"), &mask, g.Save == nil, fg, func(value bool) {
+		bodyLocalToggle(c, "sidebar-mask", providerCopy("隐藏侧栏遮罩", "Hide sidebar mask"), providerCopy("开启后左侧栏不再叠加遮罩，与工作区底色保持一致，只保留中间的分割线。", "The left sidebar drops its extra surface fill and shares the workspace canvas color; only the divider between them stays."), &mask, g.Save == nil, fg, muted, func(value bool) {
 			wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.HideSidebarMask = value })
 		})
-		ui.Text(c, providerCopy("开启后左侧栏不再叠加遮罩，与工作区底色保持一致，只保留中间的分割线。", "The left sidebar drops its extra surface fill and shares the workspace canvas color; only the divider between them stays.")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 	})
 	if !g.pointerShown && g.pointerPreview != nil {
 		g.pointerPreview.Close()
@@ -573,20 +571,4 @@ func wallpaperSliderStepFormat(c *ui.Context, key, label, hint, unit string, val
 // 高级): transparent, 36 DIP tall, primary text, only a hover wash.
 func appearanceGhostButton(c *ui.Context, label string, disabled bool) ui.Element {
 	return coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonLG, Disabled: disabled})
-}
-
-// wallpaperBlockSwitch draws the reference's switch-leading row (.switchRow):
-// the control sits left of its label inside a block, unlike bodyLocalToggle's
-// label-first Setting-Cell.
-func wallpaperBlockSwitch(c *ui.Context, key, label string, value *bool, disabled bool, fg ui.Color, changed func(bool)) {
-	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0)
-	settingsSearchTarget(c, key, label, row)
-	row.Children(func() {
-		ui.Row(c).MinWidth(0).Gap(10).AlignItems(ui.Center).Children(func() {
-			if ui.Switch(c, value).Label(label).Disabled(disabled).Changed() && changed != nil {
-				changed(*value)
-			}
-			ui.Text(c, label).MinWidth(0).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg)
-		})
-	})
 }

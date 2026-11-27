@@ -138,7 +138,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 			if switchAvailable && apiAvailable {
 				guideFailure := ui.Local(c.Root(), "settings-web-search-guide", func() settingsRefusal { return settingsRefusal{} })
 				bodyPreferenceRow(c, "web-api-switch", providerCopy("使用 Search/Fetch API", "Use Search/Fetch API"), providerCopy("同时切换搜索和抓取服务。", "Switches search and fetch providers together."), fg, muted, func() {
-					if ui.Switch(c, &useAPI).Label("Search / Fetch API").Disabled(disabled || invalid || web.Err != "").Changed() {
+					if kSwitch(c, &useAPI, "Search / Fetch API", disabled || invalid || web.Err != "").Changed() {
 						b := m.Store.BindNamespace("web")
 						targets := map[string]string{"searchProvider": "deepseek-official", "fetchProvider": "http"}
 						if useAPI {
@@ -246,7 +246,7 @@ func servedScalar(c *ui.Context, b *store.NamespaceBinding, s store.ViewState, f
 		value := s.Drafts[f.Key]
 		if f.Kind == store.FieldBool {
 			checked := value == "true"
-			if ui.Switch(c, &checked).Label(f.Label).Disabled(disabled).Changed() {
+			if kSwitch(c, &checked, f.Label, disabled).Changed() {
 				if checked {
 					b.SetDraft(f.Key, "true")
 				} else {

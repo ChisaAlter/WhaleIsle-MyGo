@@ -146,7 +146,7 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	bodyDisclosure(c, "interface-local-preferences", providerCopy("本地偏好", "Local preferences"), func() {
 		if localViewTabs && a.ShowViewTabs != nil {
 			desktopRow(c, i18n.T(i18n.KeySettingsInterfaceViewTabs), func() {
-				if ui.Switch(c, a.ShowViewTabs).Label(i18n.T(i18n.KeySettingsInterfaceViewTabs)).Disabled(a.OnSetViewTabs == nil).Changed() {
+				if kSwitch(c, a.ShowViewTabs, i18n.T(i18n.KeySettingsInterfaceViewTabs), a.OnSetViewTabs == nil).Changed() {
 					setInterfaceAccepted(c, failure, a.ShowViewTabs, *a.ShowViewTabs, a.OnSetViewTabs)
 				}
 			}, fg, muted)
@@ -156,7 +156,7 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if a.AutoAllowTools == nil {
 				return
 			}
-			if ui.Switch(c, a.AutoAllowTools).Label(i18n.T(i18n.KeySettingsInterfaceAutoAllow)).Disabled(a.OnSetAutoAllowTools == nil).Changed() {
+			if kSwitch(c, a.AutoAllowTools, i18n.T(i18n.KeySettingsInterfaceAutoAllow), a.OnSetAutoAllowTools == nil).Changed() {
 				setInterfaceAccepted(c, failure, a.AutoAllowTools, *a.AutoAllowTools, a.OnSetAutoAllowTools)
 			}
 		}, fg, muted)

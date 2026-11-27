@@ -71,7 +71,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 				card := ui.Column(c.Key("theme-card-"+family.ID)).Label("Theme card "+family.LocalizedName()).MinWidth(0).Gap(0).Radius(radius).Clip().Border(.5, border).Background(themeLibrarySurface(colors, c.Theme().Dark))
 				hovered := card.Hovered()
 				if hovered {
-					card.Border(.5, chrome.Color(colors.Border)).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .08))
+					card.BorderColor(chrome.Color(colors.Border)).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .08))
 				}
 				actionsVisible := hovered || card.FocusWithin()
 				card.Children(func() {
@@ -117,7 +117,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 	})
 
 	themeCustomEditor(c, e, fg, muted)
-	themeEditorFeedback(c, e)
+	themeEditorFeedbackKey(c, e, "theme-library-error")
 }
 
 func themeFamilyAction(c *ui.Context, family theme.Family, action, label, glyph string, disabled bool) bool {
@@ -182,14 +182,60 @@ func themeLibrarySurface(colors theme.Colors, dark bool) ui.Color {
 	return chrome.Color(colors.Field)
 }
 
+func themeColorLuma(col ui.Color) float32 {
+	return 0.299*float32(col.R) + 0.587*float32(col.G) + 0.114*float32(col.B)
+}
+
+func themeColorDistance(a, b ui.Color) int {
+	dr := int(a.R) - int(b.R)
+	if dr < 0 {
+		dr = -dr
+	}
+	dg := int(a.G) - int(b.G)
+	if dg < 0 {
+		dg = -dg
+	}
+	db := int(a.B) - int(b.B)
+	if db < 0 {
+		db = -db
+	}
+	return dr + dg + db
+}
+
+// themePreviewSelectionColors keeps the selected badge, ring, and checkmark
+// legible on both light and dark preview halves even when dark-mode BrandPrimary
+// is near-white.
+func themePreviewSelectionColors(brand, bg, ink, seedAccent ui.Color) (badgeBg, checkInk ui.Color) {
+	badgeBg = brand
+	if themeColorDistance(badgeBg, bg) < 120 {
+		if themeColorDistance(seedAccent, bg) >= 120 {
+			badgeBg = seedAccent
+		} else {
+			badgeBg = ink
+		}
+	}
+	checkInk = ui.RGB(255, 255, 255)
+	if themeColorLuma(badgeBg) > 155 {
+		if themeColorLuma(bg) < themeColorLuma(ink) {
+			checkInk = bg
+		} else {
+			checkInk = ink
+		}
+	}
+	return badgeBg, checkInk
+}
+
 // themePreviewHalf keeps its pressed semantics without inheriting MyGo's button
 // layout or face. The installed preview is 88px high with a per-half inset ring.
 func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, scheme string, current, disabled bool, colors theme.Colors, radius float32, onPick func()) {
+	bg := chrome.Color(seed.Background)
 	ink := chrome.Color(seed.Foreground)
+	seedAccent := chrome.Color(seed.Accent)
 	brand := themeLibraryBrand(colors, c.Theme().Dark)
+	badgeBg, checkInk := themePreviewSelectionColors(brand, bg, ink, seedAccent)
 	root := ui.ButtonBase(c.Key("theme-half-"+family.ID+"-"+scheme)).Label(family.LocalizedName()+" "+scheme).
 		Basis(0).Grow(1).MinWidth(0).Height(88).Padding(10, 12).BorderWidth(0).
-		Selected(current).Background(chrome.Color(seed.Background)).TextColor(ink).
+		Selected(current).Background(bg).TextColor(ink).
 		AlignItems(ui.Stretch).FocusRing(false).Disabled(disabled)
 	if scheme == "light" {
 		root.Radius(radius, 0, 0, 0)
@@ -203,7 +249,7 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 		ui.Column(c).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Justify(ui.SpaceBetween).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(8).Children(func() {
 				ui.Box(c).Label("Theme accent "+family.LocalizedName()+" "+scheme).Size(16, 16).Shrink(0).Radius(8).
-					Background(chrome.Color(seed.Accent)).Shadow(0, 1, 3, 0, ui.RGBA(0, 0, 0, .18))
+					Background(seedAccent).Shadow(0, 1, 3, 0, ui.RGBA(0, 0, 0, .18))
 				ui.Column(c).Gap(4).Children(func() {
 					ui.Box(c).Size(44, 5).Shrink(0).Radius(3).Background(ink.Alpha(.45))
 					ui.Box(c).Size(28, 5).Shrink(0).Radius(3).Background(ink.Alpha(.25))
@@ -220,10 +266,10 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 			})
 		})
 		if current {
-			ui.Box(c).Absolute().Top(6).Right(6).Size(16, 16).Radius(8).Background(brand).Center().PassThrough().Children(func() {
-				ui.Text(c, "✓").FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(10)).TextColor(ui.RGB(255, 255, 255))
+			ui.Box(c).Absolute().Top(6).Right(6).Size(16, 16).Radius(8).Background(badgeBg).Center().PassThrough().Children(func() {
+				ui.Text(c, "✓").FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(10)).TextColor(checkInk)
 			})
-			ring := ui.Box(c).Absolute().Top(0).Right(0).Bottom(0).Left(0).Border(2, brand).PassThrough()
+			ring := ui.Box(c).Absolute().Top(0).Right(0).Bottom(0).Left(0).Border(2, badgeBg).PassThrough()
 			if scheme == "light" {
 				ring.Radius(radius, 0, 0, 0)
 			} else {
@@ -231,7 +277,7 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 			}
 		}
 		if root.FocusVisible() {
-			ring := ui.Box(c).Absolute().Top(3).Right(3).Bottom(3).Left(3).Border(2, brand).PassThrough()
+			ring := ui.Box(c).Absolute().Top(3).Right(3).Bottom(3).Left(3).Border(2, badgeBg).PassThrough()
 			if scheme == "light" {
 				ring.Radius(max(0, radius-3), 0, 0, 0)
 			} else {
@@ -342,15 +388,19 @@ func bodyFontSizePreference(c *ui.Context, e *theme.Editor, fg, muted ui.Color) 
 		}
 
 	})
-	themeEditorFeedback(c, e)
+	themeEditorFeedbackKey(c, e, "theme-font-error")
 }
 
 func themeEditorFeedback(c *ui.Context, e *theme.Editor) {
+	themeEditorFeedbackKey(c, e, "theme-preference-error")
+}
+
+func themeEditorFeedbackKey(c *ui.Context, e *theme.Editor, alertKey string) {
 	switch e.Status {
 	case "", i18n.T(i18n.KeyThemeEditorSaved), i18n.T(i18n.KeyThemeEditorSaving), i18n.T(i18n.KeyThemeEditorPreview), i18n.T(i18n.KeyThemeEditorRestored):
 		return
 	}
-	settingsAlert(c, "theme-preference-error", true, e.Status, e.StatusDetail)
+	settingsAlert(c, alertKey, true, e.Status, e.StatusDetail)
 }
 
 func generalFontRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func()) {

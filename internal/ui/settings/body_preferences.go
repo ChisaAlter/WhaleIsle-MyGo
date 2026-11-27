@@ -29,15 +29,16 @@ func settingsPreferenceButton(c *ui.Context, label string) ui.Element {
 }
 
 // settingsPreferenceSelect is a preference row's coss Select: native select
-// admission, focus, arrow-key navigation and Changed semantics.
+// admission, focus, arrow-key navigation and Changed semantics. A uniform
+// width keeps triggers across rows aligned on one left edge.
 func settingsPreferenceSelect(c *ui.Context, value *string, options []string) ui.Element {
-	return kSelect(c, value, options, "", false)
+	return kSelect(c, value, options, "", false).Width(design.Sp(52)).MaxWidthPercent(100)
 }
 
 // settingsPreferenceSelectRadius is settingsPreferenceSelect; coss gives every
 // select trigger the same rounded-lg corner, so radius is ignored.
 func settingsPreferenceSelectRadius(c *ui.Context, value *string, options []string, _ float32) ui.Element {
-	return kSelect(c, value, options, "", false)
+	return kSelect(c, value, options, "", false).Width(design.Sp(52)).MaxWidthPercent(100)
 }
 
 // settingsOptionsScroll is the options pane: coss's ScrollArea inset of 24 DIPs

@@ -46,7 +46,6 @@ func DeepSeekToolsPane(c *ui.Context, a *DeepSeekToolsAccess, fg, muted ui.Color
 	body := func(text string) {
 		ui.Text(c, text).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 	}
-	ui.Text(c, providerCopy("DeepSeek 应用接口", "DeepSeek app APIs")).FillWidth().FontSize(fonttheme.InterfaceSize(20)).FontWeight(600).TextColor(fg)
 	body(providerCopy(
 		"让 AI 生成语音、转录音频、识别文档。开启后，对应工具会出现在对话的可用工具里。",
 		"Let the assistant generate speech, transcribe audio and read documents. Enabled tools appear in the conversation's tool list."))

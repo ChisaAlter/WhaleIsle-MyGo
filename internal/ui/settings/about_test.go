@@ -171,7 +171,10 @@ func TestAboutUpdateCenterContextualPhasesAndActions(t *testing.T) {
 		t.Fatalf("installs = %d, want 1", installs)
 	}
 
-	if err := tt.Click("Open Update Center"); err != nil {
+	if tt.HasText("Open Update Center") {
+		t.Fatalf("duplicate Open Update Center button should be removed: %v", tt.Texts())
+	}
+	if err := tt.Click(i18n.T(i18n.KeySettingsParityAboutCenterOpen)); err != nil {
 		t.Fatal(err)
 	}
 	if centerOpens != 1 {

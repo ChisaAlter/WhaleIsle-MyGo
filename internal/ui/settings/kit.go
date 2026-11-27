@@ -109,6 +109,12 @@ func kCheckbox(c *ui.Context, checked *bool, label string, off bool) ui.Element 
 	return coss.Checkbox(c, checked, label, coss.CheckOptions{Disabled: off})
 }
 
+// kSwitch is coss's Switch with an empty inline label and accessible name so
+// every settings toggle shares the exact 30×18 geometry.
+func kSwitch(c *ui.Context, checked *bool, label string, off bool) ui.Element {
+	return coss.Switch(c, checked, "", coss.CheckOptions{Label: label, Disabled: off})
+}
+
 // kTextarea is coss's Textarea.
 func kTextarea(c *ui.Context, value *string, o coss.TextareaOptions) ui.Element {
 	return coss.Textarea(c, value, o)

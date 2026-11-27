@@ -33,7 +33,7 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 			if kInputRow(c, &query, coss.InputOptions{
 				Size:        coss.InputLG,
-				Label:       "MCP search",
+				Label:       mcpCatalogText("搜索 MCP 服务器", "MCP search"),
 				Placeholder: mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL"),
 			}).Changed() && a.OnQuery != nil {
 				a.OnQuery(query)
@@ -51,7 +51,7 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 			ui.Box(c).Width(88).Shrink(0).Clip().Children(func() {
 				filtered = coss.Select(c, &current, kOptions(labels), coss.SelectOptions{
 					Size:  coss.InputLG,
-					Label: "MCP filter",
+					Label: mcpCatalogText("筛选 MCP 服务器", "MCP filter"),
 				}).FillWidth().Changed()
 			})
 			if filtered && a.OnFilter != nil {

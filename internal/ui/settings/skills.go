@@ -100,7 +100,6 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(4)).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(3)).Wrap().Children(func() {
 			ui.Column(c).Grow(1).MinWidth(180).Gap(0).Children(func() {
-				kText(c, i18n.T(i18n.KeySettingsSkillsTitle), design.TextBase, design.WeightMedium, fg)
 				kBody(c, providerCopy("查找并管理用户、当前项目与捆绑技能。", "Find and manage user, current-project, and bundled skills.")).TextColor(muted)
 			})
 			ui.Row(c).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
@@ -243,7 +242,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						current = choice.label
 					}
 				}
-				if settingsPreferenceSelect(c, &current, options).Label("Skill source filter").Changed() {
+				if settingsPreferenceSelect(c, &current, options).Width(design.Sp(36)).Label(providerCopy("技能来源筛选", "Skill source filter")).Changed() {
 					for _, choice := range choices {
 						if current == choice.label {
 							*a.SourceFilter = choice.value

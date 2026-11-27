@@ -132,9 +132,9 @@ func TestSettingsRailScrollbarDoesNotOverlapNavPills(t *testing.T) {
 
 // TestSettingsRailActiveAndHoverAreVisuallyDistinct verifies that hovering an
 // inactive rail entry next to the active entry never renders two identical
-// active pills: active owns the full sidebar-accent fill plus its leading
-// sidebar-primary indicator, hover uses a lighter wash without indicator, and
-// leaving or switching sections clears the previous highlight through Memo.
+// active pills: active owns the full sidebar-accent fill with neutral ink and
+// NO leading blue/primary vertical bar, hover uses a lighter wash, and leaving
+// or switching sections clears the previous highlight cleanly.
 func TestSettingsRailActiveAndHoverAreVisuallyDistinct(t *testing.T) {
 	previous := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleZH)
@@ -224,19 +224,25 @@ func TestSettingsRailActiveAndHoverAreVisuallyDistinct(t *testing.T) {
 				t.Fatalf("hover wash %v should be subtler than active wash %v over idle %v", hovFill, selFill, idleFill)
 			}
 
-			// Active cell paints the SidebarPrimary leading indicator; hovered
-			// and idle cells must not.
-			selInd := sampleIndicator(sel)
-			hovInd := sampleIndicator(hov)
-			wantInd := color.RGBA{R: tokens.SidebarPrimary.R, G: tokens.SidebarPrimary.G, B: tokens.SidebarPrimary.B, A: 255}
-			if dist(selInd, wantInd) > 12 {
-				t.Fatalf("active leading indicator=%v, want SidebarPrimary~%v", selInd, wantInd)
+			// Active, hovered, and idle cells must NEVER paint a SidebarPrimary
+			// leading vertical bar: the left edge (X+2..X+4) must stay uniform
+			// with the pill's own fill.
+			primaryRGB := color.RGBA{R: tokens.SidebarPrimary.R, G: tokens.SidebarPrimary.G, B: tokens.SidebarPrimary.B, A: 255}
+			for dx := 2; dx <= 4; dx++ {
+				selLeft := img.RGBAAt(int(sel.X)+dx, int(sel.Y+sel.H/2))
+				if dist(selLeft, selFill) > 4 {
+					t.Fatalf("active cell left edge dx=%d painted unexpected stripe %v (want selFill %v; primary=%v)", dx, selLeft, selFill, primaryRGB)
+				}
+				if dist(primaryRGB, selFill) > 20 && dist(selLeft, primaryRGB) <= 12 {
+					t.Fatalf("active cell left edge dx=%d still paints SidebarPrimary bar %v (primary=%v)", dx, selLeft, primaryRGB)
+				}
 			}
+			hovInd := sampleIndicator(hov)
 			if dist(hovInd, hovFill) > 6 {
-				t.Fatalf("hovered cell should not paint an active indicator: left=%v fill=%v", hovInd, hovFill)
+				t.Fatalf("hovered cell should not paint a leading indicator: left=%v fill=%v", hovInd, hovFill)
 			}
 
-			// Moving pointer onto the options pane must clear hover through Memo.
+			// Moving pointer onto the options pane must clear hover cleanly.
 			tt.Move(600, 300)
 			tt.Frame()
 			img = tt.Image()
@@ -245,7 +251,7 @@ func TestSettingsRailActiveAndHoverAreVisuallyDistinct(t *testing.T) {
 				t.Fatalf("hover highlight stuck after pointer left rail: got %v want idle %v", afterLeave, idleFill)
 			}
 
-			// Clicking Agent 预设 transfers active cleanly (no dual active).
+			// Clicking Agent 预设 transfers active cleanly (no dual active, no blue bar).
 			tt.ClickAt(hov.X+hov.W/2, hov.Y+hov.H/2)
 			tt.Move(600, 300)
 			tt.Frame()
@@ -256,10 +262,58 @@ func TestSettingsRailActiveAndHoverAreVisuallyDistinct(t *testing.T) {
 			if dist(sampleFill(sel), idleFill) > 2 {
 				t.Fatalf("previous active 模型 kept highlight after switch: got %v want idle %v", sampleFill(sel), idleFill)
 			}
-			if dist(sampleIndicator(hov), wantInd) > 12 {
-				t.Fatalf("new active Agent 预设 missing leading indicator: got %v want ~%v", sampleIndicator(hov), wantInd)
+			newSelFill := sampleFill(hov)
+			if dist(newSelFill, selFill) > 4 {
+				t.Fatalf("new active Agent 预设 fill=%v, want selFill~%v", newSelFill, selFill)
+			}
+			if dist(sampleIndicator(hov), newSelFill) > 4 {
+				t.Fatalf("new active Agent 预设 left edge painted stripe %v, want uniform fill %v", sampleIndicator(hov), newSelFill)
 			}
 		})
+	}
+}
+
+// TestSettingsRailClickAfterScrollHitsVisibleTarget verifies that scrolling
+// the settings navigation rail and clicking a scrolled-in entry activates the
+// clicked entry without Memo hit-test offset drift.
+func TestSettingsRailClickAfterScrollHitsVisibleTarget(t *testing.T) {
+	previous := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(previous) })
+
+	active := SectionGeneral
+	m := fullRailModel()
+	m.OnSelectAbout = func() { active = SectionAbout }
+	m.SectionContent = func(c *ui.Context) { ui.Text(c, "body") }
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		cur := m
+		cur.ActiveSection = active
+		View(c, cur)
+	}, 900, 360)
+	tt.Frame()
+
+	railRect, ok := tt.Find("设置导航")
+	if !ok {
+		t.Fatalf("rail missing: %v", tt.Texts())
+	}
+	// Scroll the rail down to bring 关于 into view, then click it directly.
+	tt.Scroll(railRect.X+railRect.W/2, railRect.Y+railRect.H/2, 0, 600)
+	tt.Frame()
+
+	var about ui.Rect
+	for _, r := range tt.FindAll("关于") {
+		if r.X < railRect.X+railRect.W && r.W*r.H > about.W*about.H {
+			about = r
+		}
+	}
+	if about.W == 0 {
+		t.Fatalf("关于 rail button missing after scroll")
+	}
+	tt.ClickAt(about.X+about.W/2, about.Y+about.H/2)
+	tt.Frame()
+	if active != SectionAbout {
+		t.Fatalf("clicking 关于 after scrolling rail selected %q, want %q (about rect=%+v)", active, SectionAbout, about)
 	}
 }
 

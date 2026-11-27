@@ -137,8 +137,7 @@ func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, f
 		im := cat.IMDefault
 		bodyPreferenceRow(c, "pet-whale-im", i18n.T(i18n.KeySettingsWhaleIM),
 			i18n.T(i18n.KeySettingsWhaleIMHint), fg, muted, func() {
-				if ui.Switch(c, &im).Label("Whale IM toggle").Size(44, 24).
-					Disabled(a.OnUpdateWhale == nil).Changed() && a.OnUpdateWhale != nil {
+				if kSwitch(c, &im, i18n.T(i18n.KeySettingsWhaleIM)+providerCopy("开关", " toggle"), a.OnUpdateWhale == nil).Changed() && a.OnUpdateWhale != nil {
 					update(whale.Patch{IMDefault: &im})
 				}
 			})
@@ -211,7 +210,7 @@ func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, f
 						row := ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Padding(4, 0)
 						row.Children(func() {
 							ui.Text(c, skill.Name).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-							toggle := ui.Switch(c, &enabled).Size(44, 24).Label("Whale skill " + skill.Name).Disabled(a.OnToggleSkill == nil)
+							toggle := kSwitch(c, &enabled, providerCopy("鲸鱼娘技能 · ", "Whale skill ")+skill.Name, a.OnToggleSkill == nil)
 							if toggle.Changed() && a.OnToggleSkill != nil {
 								a.OnToggleSkill(skill.Name, enabled)
 							}

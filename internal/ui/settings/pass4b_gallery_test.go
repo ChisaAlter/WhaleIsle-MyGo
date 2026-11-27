@@ -3,6 +3,7 @@ package settings
 import (
 	"fmt"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -92,6 +93,50 @@ func TestPass4bPresetCardsUseTwoColumns(t *testing.T) {
 	}
 	if d := first.W - second.W; d < -.01 || d > .01 || first.Y != second.Y {
 		t.Fatalf("cards are not a uniform 2-up grid: %+v %+v", first, second)
+	}
+	third, ok := tt.Find("设为新任务默认 · 极简模式")
+	if !ok {
+		t.Fatal("third card missing")
+	}
+	fourth, ok := tt.Find("设为新任务默认 · 创造模式")
+	if !ok {
+		t.Fatal("fourth card missing")
+	}
+	// All 4 built-in cards must have equal height (< 0.5 DIP variance),
+	// with same-row top & bottom edges and footer action bars aligned.
+	cards := []ui.Rect{first, second, third, fourth}
+	minH, maxH := cards[0].H, cards[0].H
+	for _, r := range cards[1:] {
+		if r.H < minH {
+			minH = r.H
+		}
+		if r.H > maxH {
+			maxH = r.H
+		}
+	}
+	if maxH-minH >= 0.5 {
+		t.Fatalf("built-in preset cards are not uniform height (diff=%.2f): standard=%+v ptc=%+v minimal=%+v cordis=%+v", maxH-minH, first, second, third, fourth)
+	}
+	if math.Abs(float64(first.Y-second.Y)) >= 0.5 || math.Abs(float64((first.Y+first.H)-(second.Y+second.H))) >= 0.5 {
+		t.Fatalf("row 1 top/bottom misaligned: first=%+v second=%+v", first, second)
+	}
+	if math.Abs(float64(third.Y-fourth.Y)) >= 0.5 || math.Abs(float64((third.Y+third.H)-(fourth.Y+fourth.H))) >= 0.5 {
+		t.Fatalf("row 2 top/bottom misaligned: third=%+v fourth=%+v", third, fourth)
+	}
+	for _, pair := range [][2]string{
+		{"查看配置 · 标准模式", "查看配置 · PTC 模式"},
+		{"查看配置 · 极简模式", "查看配置 · 创造模式"},
+		{"模式说明 · standard", "模式说明 · ptc"},
+		{"模式说明 · minimal", "模式说明 · cordis"},
+	} {
+		leftBtn, ok1 := tt.Find(pair[0])
+		rightBtn, ok2 := tt.Find(pair[1])
+		if !ok1 || !ok2 {
+			t.Fatalf("footer action pair %v missing (ok=%v,%v) texts=%v", pair, ok1, ok2, tt.Texts())
+		}
+		if math.Abs(float64(leftBtn.Y-rightBtn.Y)) >= 0.5 {
+			t.Fatalf("footer buttons %v misaligned vertically: left=%+v right=%+v", pair, leftBtn, rightBtn)
+		}
 	}
 	if !tt.HasText(i18n.T(KeyPass4TaskDefault)) || !tt.HasText(i18n.T(KeyPass4BadgeBuiltIn)) {
 		t.Fatalf("preset badges missing: %v", tt.Texts())

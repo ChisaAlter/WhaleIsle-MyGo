@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets"
 
@@ -28,21 +29,18 @@ func voicePreferenceSelect(c *ui.Context, key, label, current string, options []
 	}
 	root.Children(func() {
 		ui.Text(c, label).FontSize(13)
-		parts := ui.SelectBase(c, &choice.Value)
-		caption := current
+		opts := make([]coss.SelectOption, 0, len(options))
 		for _, option := range options {
-			if option.ID == current {
-				caption = option.Label
-				break
-			}
+			opts = append(opts, coss.SelectOption{Value: option.ID, Label: option.Label})
 		}
-		parts.Trigger.Label(label).Grow(1).MinWidth(0).Disabled(disabled).Children(func() { ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine(); ui.Text(c, "▾") })
-		parts.Popup(func(panel ui.Element) {
-			for _, option := range options {
-				parts.Item(option.ID).Label(option.Label).Children(func() { ui.Text(c, option.Label) })
-			}
+		changed := false
+		ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+			changed = coss.Select(c, &choice.Value, opts, coss.SelectOptions{
+				Label:    label,
+				Disabled: disabled,
+			}).FillWidth().Changed()
 		})
-		if parts.Trigger.Changed() {
+		if changed {
 			value := choice.Value
 			choice.Value = current
 			pick(value)

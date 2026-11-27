@@ -59,10 +59,8 @@ func appearanceChoiceCards(c *ui.Context, key string, value *string, choices [][
 	ui.Row(c.Key(key)).FillWidth().Wrap().Gap(8).Children(func() {
 		for _, choice := range choices {
 			id, label := choice[0], choice[1]
-			button := chrome.FrostSurface(ui.ButtonBase(c.Key(id)).Label(label).Width(104).MinHeight(68).Padding(10), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, c.Theme().Border).Disabled(disabled)
-			if *value == id {
-				button.Border(2, c.Theme().Accent)
-			}
+			selected := *value == id
+			button := chrome.FrostSurface(ui.ButtonBase(c.Key(id)).Label(label).Width(104).MinHeight(68).Padding(10), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, c.Theme().Border).Selected(selected).Disabled(disabled)
 			if button.Hovered() {
 				button.Background(c.Theme().SurfaceHover)
 			}
@@ -81,6 +79,9 @@ func appearanceChoiceCards(c *ui.Context, key string, value *string, choices [][
 					}
 					ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Text).SingleLine()
 				})
+				if selected {
+					ui.Box(c).Absolute().Top(0).Right(0).Bottom(0).Left(0).Radius(design.RadiusXL).Border(2, c.Theme().Accent).PassThrough()
+				}
 			})
 			if button.Clicked() {
 				*value = id
