@@ -265,14 +265,25 @@ func (s *surface) SetFramePacer(p platform.FramePacer) {
 // shouldDeferPaint reports whether WM_PAINT should yield back to the Win32
 // event loop and wait on the swap chain's DXGI waitable handle instead of
 // blocking input dispatch inside Present(1, 0).
+//
+// Even on paths that bypass deferral (immediate resize redraws, modal size/move
+// or menu loops, deferred timeout fallback, or outside the main loop), we still
+// perform a non-blocking TryAcquireFrame so any already-signaled DXGI waitable
+// token is consumed 1:1 with the imminent Present instead of drifting >= 2.
 func (s *surface) shouldDeferPaint() bool {
 	if s.immediatePaint || s.deferredForce {
 		s.deferredForce = false
 		s.frameDeferred = false
+		if s.pacer != nil && s.pacer.WaitHandle() != 0 {
+			s.pacer.TryAcquireFrame()
+		}
 		return false
 	}
 	if s.pacer == nil || s.w == nil || s.w.b == nil || !s.w.b.inMainLoop || s.w.inMenu || s.w.inSizeMove {
 		s.frameDeferred = false
+		if s.pacer != nil && s.pacer.WaitHandle() != 0 {
+			s.pacer.TryAcquireFrame()
+		}
 		return false
 	}
 	if s.pacer.WaitHandle() == 0 {

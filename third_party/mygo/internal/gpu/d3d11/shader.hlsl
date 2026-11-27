@@ -333,14 +333,18 @@ PSOut ps(VSOut i) {
 // The passes computing the backdrop of an effect draw a quad over their
 // target, scissored to the texels they compute.
 cbuffer PassConstants : register(b1) {
-	int2 passOrigin; // down: the first pixel of the area read, in the frame
-	int2 passLimit;  // the last texel that may be read: in the frame for down
-	int2 passShift;  // down: subtracted from frame pixels to read the source
-	int2 passDir;    // blur: along rows (1, 0) or columns (0, 1)
-	int passDown;    // down: the size of the squares averaged
-	int passRadius;  // blur: how far it reaches each way
-	float passSigma; // blur: its standard deviation, 0 for none
+	int2 passOrigin;     // down: the first pixel of the area read, in the frame
+	int2 passLimit;      // the last texel that may be read: in the frame for down
+	int2 passShift;      // down: subtracted from frame pixels to read the source
+	int2 passDir;        // blur: along rows (1, 0) or columns (0, 1)
+	int passDown;        // down: the size of the squares averaged (1, 2, 4 or 8)
+	int passRadius;      // blur: how far it reaches each way
+	float passSigma;     // blur: its standard deviation, 0 for none
+	int passTapCount;    // blur: number of precomputed bilinear tap pairs in passTaps
+	float2 passInvSize;  // 1 / source texture dimensions, for SampleLevel
+	float passCenterW;   // blur: normalized weight of the center texel (o = 0)
 	float passPad;
+	float4 passTaps[64]; // blur: .x = linear sample offset, .y = combined normalized weight
 };
 
 Texture2D passSrc : register(t4);
@@ -350,9 +354,38 @@ float4 passvs(uint vid : SV_VertexID) : SV_Position {
 	return float4(corner * 2 - 1, 0, 1);
 }
 
-// down averages the square of the area that texel stands for, repeating
-// the area's last pixels past its far edges.
+// down averages the square of the area that texel stands for using hardware
+// bilinear SampleLevel (2x2 blocks per tap), repeating the area's last pixels
+// past its far edges.
 float4 downps(float4 pos : SV_Position) : SV_Target {
+	float2 base = float2(passOrigin - passShift + int2(pos.xy) * passDown);
+	float2 maxC = float2(passLimit - passShift) + 0.5;
+	if (passDown <= 1) {
+		return passSrc.SampleLevel(samp, min(base + 0.5, maxC) * passInvSize, 0);
+	}
+	if (passDown == 2) {
+		return passSrc.SampleLevel(samp, min(base + 1.0, maxC) * passInvSize, 0);
+	}
+	if (passDown == 4) {
+		float4 c = passSrc.SampleLevel(samp, min(base + float2(1.0, 1.0), maxC) * passInvSize, 0);
+		c += passSrc.SampleLevel(samp, min(base + float2(3.0, 1.0), maxC) * passInvSize, 0);
+		c += passSrc.SampleLevel(samp, min(base + float2(1.0, 3.0), maxC) * passInvSize, 0);
+		c += passSrc.SampleLevel(samp, min(base + float2(3.0, 3.0), maxC) * passInvSize, 0);
+		return c * 0.25;
+	}
+	if (passDown == 8) {
+		float4 c = float4(0, 0, 0, 0);
+		[unroll]
+		for (int y = 0; y < 4; y++) {
+			float py = float(y * 2 + 1);
+			[unroll]
+			for (int x = 0; x < 4; x++) {
+				float px = float(x * 2 + 1);
+				c += passSrc.SampleLevel(samp, min(base + float2(px, py), maxC) * passInvSize, 0);
+			}
+		}
+		return c * (1.0 / 16.0);
+	}
 	int2 o = passOrigin + int2(pos.xy) * passDown;
 	float4 c = float4(0, 0, 0, 0);
 	for (int y = 0; y < passDown; y++) {
@@ -363,15 +396,30 @@ float4 downps(float4 pos : SV_Position) : SV_Target {
 	return c * (1.0 / float(passDown * passDown));
 }
 
-// blur blurs along a row or a column, clamping at its ends.
+// blur blurs along a row or a column using precomputed normalized Gaussian
+// weights and hardware bilinear 2-tap combining, clamping at its valid ends.
 float4 blurps(float4 pos : SV_Position) : SV_Target {
-	int2 at = int2(pos.xy);
+	if (passTapCount > 0) {
+		float2 at = floor(pos.xy) + 0.5;
+		float2 maxC = float2(passLimit) + 0.5;
+		float2 dir = float2(passDir);
+		float4 c = passSrc.SampleLevel(samp, min(at, maxC) * passInvSize, 0) * passCenterW;
+		for (int k = 0; k < passTapCount; k++) {
+			float2 tap = passTaps[k].xy;
+			float2 d = dir * tap.x;
+			float2 p1 = min(at + d, maxC) * passInvSize;
+			float2 p2 = max(at - d, float2(0.5, 0.5)) * passInvSize;
+			c += (passSrc.SampleLevel(samp, p1, 0) + passSrc.SampleLevel(samp, p2, 0)) * tap.y;
+		}
+		return c;
+	}
+	int2 iat = int2(pos.xy);
 	float4 c = float4(0, 0, 0, 0);
 	float sum = 0;
 	for (int o = -passRadius; o <= passRadius; o++) {
 		float x = float(o);
 		float w = passSigma > 0 ? exp(-(x * x) / (2 * passSigma * passSigma)) : 1;
-		c += passSrc.Load(int3(clamp(at + passDir * o, int2(0, 0), passLimit), 0)) * w;
+		c += passSrc.Load(int3(clamp(iat + passDir * o, int2(0, 0), passLimit), 0)) * w;
 		sum += w;
 	}
 	return c / sum;

@@ -185,6 +185,48 @@ func TestBlurString(t *testing.T) {
 	if s := (Blur{Radius: 40, Saturation: 0.5}).String(); s != "blur(40) saturate(150%)" {
 		t.Errorf("String: %q", s)
 	}
+	if s := (Blur{Radius: 20, LuminosityOffset: 0.03, Tint: ui.RGB(255, 255, 255), TintMix: 0.44}).String(); s != "blur(20) lum(+0.03) tint(#ffffff 44%)" {
+		t.Errorf("String: %q", s)
+	}
+}
+
+func TestBlurSinglePassTintAndLuminosity(t *testing.T) {
+	under := func(b Blur) [3]int {
+		view := func(c *ui.Context) {
+			ui.Box(c).Fill().Background(ui.RGB(40, 80, 160)).Children(func() {
+				ui.Box(c).Absolute().Left(0).Top(0).Size(80, 40).Material(b)
+			})
+		}
+		return pixelAt(ui.NewTester(view, 80, 40).Image(), 40, 20)
+	}
+	// Zero-value Tint / TintMix / LuminosityOffset preserves existing untinted output.
+	plain := under(Blur{Radius: 4})
+	if absInt(plain[0]-40) > 2 || absInt(plain[1]-80) > 2 || absInt(plain[2]-160) > 2 {
+		t.Fatalf("plain blur altered backdrop: %v", plain)
+	}
+
+	// Explicit Tint + TintMix blends white at 50% in the same blur pass.
+	// Expected: 0.5*(40,80,160) + 0.5*(255,255,255) = (147.5, 167.5, 207.5).
+	tinted := under(Blur{Radius: 4, Tint: ui.RGB(255, 255, 255), TintMix: 0.5})
+	if absInt(tinted[0]-148) > 3 || absInt(tinted[1]-168) > 3 || absInt(tinted[2]-208) > 3 {
+		t.Fatalf("explicit Tint+TintMix gave %v, want ~[148 168 208]", tinted)
+	}
+
+	// Tint with alpha and zero TintMix falls back to Tint.A / 255.
+	alphaTint := under(Blur{Radius: 4, Tint: ui.RGBA(255, 255, 255, 0.5)})
+	if absInt(alphaTint[0]-tinted[0]) > 2 || absInt(alphaTint[1]-tinted[1]) > 2 || absInt(alphaTint[2]-tinted[2]) > 2 {
+		t.Fatalf("alpha-fallback Tint gave %v, want close to %v", alphaTint, tinted)
+	}
+
+	// Positive LuminosityOffset lifts channels, negative deepens them.
+	lifted := under(Blur{Radius: 4, LuminosityOffset: 0.1})
+	deepened := under(Blur{Radius: 4, LuminosityOffset: -0.1})
+	if lifted[0] <= plain[0]+15 || lifted[1] <= plain[1]+15 || lifted[2] <= plain[2]+15 {
+		t.Fatalf("LuminosityOffset(+0.1) did not lift: plain=%v lifted=%v", plain, lifted)
+	}
+	if deepened[0] >= plain[0]-15 || deepened[1] >= plain[1]-15 || deepened[2] >= plain[2]-15 {
+		t.Fatalf("LuminosityOffset(-0.1) did not deepen: plain=%v deepened=%v", plain, deepened)
+	}
 }
 
 // TestBlurSaturation checks that a blur's Saturation saturates what shows

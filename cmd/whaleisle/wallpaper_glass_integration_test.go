@@ -533,18 +533,20 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 				if gotTokens.Input != ui.RGBA(0, 0, 0, 0.095) {
 					t.Fatalf("light Input = %+v, want rgba(0,0,0,0.095)", gotTokens.Input)
 				}
-				if gotTokens.MutedForeground != ui.RGB(63, 68, 74) ||
-					gotTokens.SidebarForeground != ui.RGB(44, 49, 56) {
-					t.Fatalf("light foreground contrast tokens diverged: mutedFg=%+v sidebarFg=%+v",
-						gotTokens.MutedForeground, gotTokens.SidebarForeground)
+				if gotTokens.Foreground != ui.RGB(17, 19, 24) ||
+					gotTokens.PopoverForeground != ui.RGB(17, 19, 24) ||
+					gotTokens.MutedForeground != ui.RGB(52, 57, 66) ||
+					gotTokens.SidebarForeground != ui.RGB(36, 41, 48) {
+					t.Fatalf("light foreground contrast tokens diverged: fg=%+v popFg=%+v mutedFg=%+v sidebarFg=%+v",
+						gotTokens.Foreground, gotTokens.PopoverForeground, gotTokens.MutedForeground, gotTokens.SidebarForeground)
 				}
 			}
 
 			dlg := findDialogRect()
-			// Left rail background vs right content pane background across the
-			// 208-DIP rail divider (both over the main canvas, away from the app's
-			// outer left sidebar): both must sit on the unified glass panel with no
-			// double-layered seam.
+			// macOS-style layered frosted glass across the 208-DIP rail divider:
+			// both regions stay genuinely translucent over the blue wallpaper, the
+			// left rail lets noticeably more backdrop color through than the right
+			// options pane, and the step stays gentle (no opaque double-layer seam).
 			railPx := img.RGBAAt(int(dlg.X)+196, int(dlg.Y+dlg.H)-24)
 			panePx := img.RGBAAt(int(dlg.X)+220, int(dlg.Y+dlg.H)-24)
 			channelDiff := max(
@@ -554,22 +556,38 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 					int(math.Abs(float64(railPx.B)-float64(panePx.B))),
 				),
 			)
-			if channelDiff > 22 {
+			if channelDiff > 48 {
 				t.Fatalf("%s settings modal rail vs pane seam too strong (rail=%+v pane=%+v maxDiff=%d)", tc.name, railPx, panePx, channelDiff)
 			}
-
-			// Single crisp outer hairline border on top edge of settings modal.
-			midX := int(dlg.X + dlg.W/2)
-			outerBorder := img.RGBAAt(midX, int(dlg.Y))
-			interior := img.RGBAAt(midX, int(dlg.Y)+16)
 			if tc.dark {
-				if outerBorder.R <= interior.R {
-					t.Fatalf("dark modal outer border not visible over interior: border=%+v interior=%+v", outerBorder, interior)
+				railChroma := int(railPx.B) - int(railPx.R)
+				paneChroma := int(panePx.B) - int(panePx.R)
+				if railChroma <= paneChroma+2 || railPx.R >= panePx.R {
+					t.Fatalf("dark settings rail should retain more backdrop chroma than right pane: rail=%+v (B-R=%d) pane=%+v (B-R=%d)", railPx, railChroma, panePx, paneChroma)
+				}
+				if paneChroma < 12 {
+					t.Fatalf("dark settings right pane lost blue backdrop translucency: pane=%+v", panePx)
 				}
 			} else {
-				if outerBorder.R >= interior.R {
-					t.Fatalf("light modal outer border not visible over interior: border=%+v interior=%+v", outerBorder, interior)
+				if railPx.R >= panePx.R-6 {
+					t.Fatalf("light settings rail should be more translucent than right pane: rail=%+v pane=%+v", railPx, panePx)
 				}
+				if int(panePx.B)-int(panePx.R) < 40 {
+					t.Fatalf("light settings right pane lost blue backdrop translucency: pane=%+v", panePx)
+				}
+			}
+
+			// Frosted modal edge optics: 0.5 DIP dark/slate outer bevel border at
+			// dlg.Y plus bright 1px inner specular rim & top highlight at dlg.Y+1.
+			midX := int(dlg.X + dlg.W/2)
+			outerBorder := img.RGBAAt(midX, int(dlg.Y))
+			innerRim := img.RGBAAt(midX, int(dlg.Y)+1)
+			interior := img.RGBAAt(midX, int(dlg.Y)+16)
+			if outerBorder.R >= interior.R {
+				t.Fatalf("%s modal outer bevel border not darker than interior: border=%+v interior=%+v", tc.name, outerBorder, interior)
+			}
+			if innerRim.R <= interior.R {
+				t.Fatalf("%s modal inner specular top rim not brighter than interior: rim=%+v interior=%+v", tc.name, innerRim, interior)
 			}
 
 			// Turning GlassTheme OFF restores 100% original opaque coss tokens & rail/pane contrast.
@@ -617,17 +635,37 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	}
 
 	// 2. Verify Windows Acrylic curve (g=80% -> 0.30 canvas, ShowThroughAlpha sidebar,
-	// 0.80 card, 0.64 dark popover) and light menu opacity (g=80% -> 0.64).
+	// 0.80 card, 0.48 dark popover) and light menu opacity (g=80% -> 0.44), plus
+	// continuous 0%..100% slider boundaries.
 	prefs := wallpapers.Defaults()
 	prefs.Glass = 80
 	if got := acrylicCanvasAlpha(prefs); math.Abs(float64(got)-0.30) > 0.001 {
 		t.Fatalf("acrylicCanvasAlpha(80) = %.4f, want 0.30", got)
 	}
-	if got := darkGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
-		t.Fatalf("darkGlassMenuAlpha(80) = %.4f, want 0.64", got)
+	if got := darkGlassMenuAlpha(prefs); math.Abs(float64(got)-0.48) > 0.001 {
+		t.Fatalf("darkGlassMenuAlpha(80) = %.4f, want 0.48", got)
 	}
-	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
-		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.64", got)
+	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.44) > 0.001 {
+		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.44", got)
+	}
+	for _, tc := range []struct {
+		glass float64
+		dark  float32
+		light float32
+	}{
+		{0, 0.00, 0.00},
+		{40, 0.24, 0.22},
+		{80, 0.48, 0.44},
+		{100, 1.00, 1.00},
+	} {
+		p := wallpapers.Defaults()
+		p.Glass = tc.glass
+		if got := darkGlassMenuAlpha(p); math.Abs(float64(got-tc.dark)) > 0.001 {
+			t.Fatalf("darkGlassMenuAlpha(%.0f) = %.4f, want %.2f", tc.glass, got, tc.dark)
+		}
+		if got := lightGlassMenuAlpha(p); math.Abs(float64(got-tc.light)) > 0.001 {
+			t.Fatalf("lightGlassMenuAlpha(%.0f) = %.4f, want %.2f", tc.glass, got, tc.light)
+		}
 	}
 
 	filter := glassSurfaceFilter(designGlassSignature{
@@ -647,8 +685,8 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	if pal.Card != chrome.MaterialFill(ui.RGB(32, 32, 35), 0.80) {
 		t.Fatalf("Acrylic Card = %+v, want #202023 @ 0.80", pal.Card)
 	}
-	if pal.Popover != chrome.MaterialFill(ui.RGB(38, 39, 43), 0.64) {
-		t.Fatalf("Acrylic Popover = %+v, want rgb(38,39,43) @ 0.64", pal.Popover)
+	if pal.Popover != chrome.MaterialFill(ui.RGB(38, 39, 43), 0.48) {
+		t.Fatalf("Acrylic Popover = %+v, want rgb(38,39,43) @ 0.48", pal.Popover)
 	}
 }
 

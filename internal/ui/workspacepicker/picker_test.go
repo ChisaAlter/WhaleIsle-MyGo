@@ -16,8 +16,10 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -237,6 +239,60 @@ func TestDeleteWorkspaceModalParity(t *testing.T) {
 	}
 	if cancelBtn, ok := tt.Find("取消"); !ok || cancelBtn.H != 36 {
 		t.Fatalf("cancel button geometry=%+v ok=%v (want height 36)", cancelBtn, ok)
+	}
+}
+
+func TestRegistrationAndManagementDialogsUseFrostedGlass(t *testing.T) {
+	t.Cleanup(func() { chrome.ConfigureBackdrop("", wallpapers.Defaults()) })
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Preset = "aurora"
+	prefs.Glass = 80
+	chrome.ConfigureBackdrop("", prefs)
+
+	paintStripes := func(p *ui.Painter, r ui.Rect) {
+		for i, x := 0, float32(0); x < r.W; i, x = i+1, x+4 {
+			col := ui.RGB(20, 110, 240)
+			if i%2 == 1 {
+				col = ui.RGB(245, 130, 30)
+			}
+			p.Fill(ui.Rect{X: r.X + x, Y: r.Y, W: 4, H: r.H}, col, 0)
+		}
+	}
+	for _, kind := range []string{"registration", "management"} {
+		t.Run(kind, func(t *testing.T) {
+			store := session.New()
+			tt := ui.NewTester(func(c *ui.Context) {
+				ui.Box(c).Fill().Draw(paintStripes).Children(func() {
+					if kind == "registration" {
+						registrationDialog(c, Model{Store: store}, &session.WorkspaceNavigationState{Token: 1, Mode: "pick", Draft: "/host/app"}, theme.Resolve("system").Light)
+					} else {
+						managementDialog(c, Model{Store: store}, session.ViewState{Workspaces: []session.WorkspaceRow{{WorkspaceID: "w1", Title: "App"}}}, &session.WorkspaceNavigationState{Token: 2, Mode: "remove", TargetID: "w1", TargetTitle: "App"}, theme.Resolve("system").Light)
+					}
+				})
+			}, 540, 380)
+			start := time.Unix(1000, 0)
+			tt.SetTime(start)
+			tt.SetTime(start.Add(time.Second))
+			img := tt.Image()
+			// Center of modal should show blurred blended warmth from the blue/orange
+			// stripes (not pure opaque white/gray and not sharp raw stripes).
+			loR, hiR := 255, 0
+			for x := 230; x < 310; x++ {
+				r := int(img.RGBAAt(x, 190).R)
+				loR, hiR = min(loR, r), max(hiR, r)
+			}
+			if span := hiR - loR; span > 35 {
+				t.Fatalf("%s dialog did not blur backdrop stripes: span=%d", kind, span)
+			}
+			// Sampled pixel must differ from pure solid white #ffffff/#f5f6f7 because
+			// the translucent modal glass lets the colored stripes tint through.
+			mid := img.RGBAAt(270, 190)
+			if mid.R > 240 && mid.G > 240 && mid.B > 240 {
+				t.Fatalf("%s dialog appears solid white instead of frosted glass: %+v", kind, mid)
+			}
+		})
 	}
 }
 

@@ -48,15 +48,16 @@ const (
 	kindDrawer
 )
 
-// backdropLook is coss's bg-black/32 backdrop. In glass mode it uses a pure
-// dim scrim without fullscreen backdrop blur (--dsw-mask-blur: none).
+// backdropLook is coss's bg-black/32 backdrop. In glass mode it uses a light,
+// clean dim scrim without fullscreen backdrop blur (--dsw-mask-blur: none) so
+// wallpapers stay vibrant instead of turning muddy gray.
 func backdropLook(back ui.Element, t *design.Tokens, part string) {
 	c := black.Alpha(0.32)
 	if t != nil && t.Glass {
 		if t.IsDark() {
-			c = black.Alpha(0.42)
+			c = black.Alpha(0.32)
 		} else {
-			c = black.Alpha(0.24)
+			c = ui.Color{R: 18, G: 22, B: 30, A: 255}.Alpha(0.12)
 		}
 	}
 	back.Background(c)
@@ -175,6 +176,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 	d := deco{border: bw}
 	d.highlight(t, 0.04, 0.06)
 	panel.Background(t.Popover).TextColor(t.PopoverForeground)
+	borderCol := glassOuterBorder(t)
 	footRadius := radius - 1
 	switch kind {
 	case kindSheet:
@@ -198,7 +200,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		} else {
 			panel.FillWidth()
 		}
-		panel.BorderColor(t.Border)
+		panel.BorderColor(borderCol)
 		part := `sheet/sheet-popup[when:side === "right"]`
 		switch o.Side {
 		case SideLeft:
@@ -210,7 +212,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		}
 		motion(panel, part, 0, 0)
 	case kindDrawer:
-		panel.FillWidth().BorderWidth(bw, 0, 0, 0).BorderColor(t.Border).Radius(radius, radius, 0, 0)
+		panel.FillWidth().BorderWidth(bw, 0, 0, 0).BorderColor(borderCol).Radius(radius, radius, 0, 0)
 		footRadius = 0
 		if forced == 0 {
 			panel.Transition(ui.ElementTransition{Duration: design.DurationDrawer, Ease: design.EaseDrawer, Position: true,
@@ -221,7 +223,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		if maxW == 0 {
 			maxW = 512
 		}
-		panel.Width(min(maxW, ww-2*design.Sp(4))).Radius(radius).Border(bw, t.Border)
+		panel.Width(min(maxW, ww-2*design.Sp(4))).Radius(radius).Border(bw, borderCol)
 		part := "dialog/dialog-popup"
 		if kind == kindAlert {
 			part = "alert-dialog/alert-dialog-popup"
@@ -243,9 +245,10 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 	case kindDrawer:
 		tier = glassTierDrawer
 	}
-	applyGlassMaterial(panel, t, t.Popover, 40, 0.50)
+	applyGlassMaterial(panel, t, modalGlassTint(t), modalGlassBlur(t))
 	applyGlassElevation(t, &sh, &d, tier)
 	finish(panel, &sh, &d)
+	applyGlassRim(panel, t, radius, tier)
 	panel.Children(func() {
 		if kind == kindDrawer {
 			// drawer-bar: a 4×48 input-colored pill in 12 DIPs of padding.

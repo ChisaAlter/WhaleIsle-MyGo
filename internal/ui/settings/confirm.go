@@ -138,32 +138,36 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 		dismissal = options[0]
 	}
 	ui.DialogBaseWithOptions(c, open, dismissal, func(backdrop, panel ui.Element) {
+		chrome.NoteBackdropOverlayActive()
 		t := tk(c)
 		w, h := c.Size()
 		inset := design.Sp(4)
 		dlgRadius := theme.ContextRadii(c).Dialog
 		backdrop.Column().Justify(ui.Center).AlignItems(ui.Center).Padding(inset)
-		mask := design.TW.Black
-		scrimAlpha := modalScrimAlpha(t.IsDark())
-		glassActive := t.Glass || chrome.BackdropActive()
+		glassActive := settingsGlassActive(t)
+		scrim := modalScrim(t.IsDark(), glassActive)
 		borderWidth := design.BorderWidth
+		borderColor := t.Border
 		if glassActive {
 			borderWidth = design.BorderWidth / 2
+			borderColor = chrome.GlassOuterBorder(t.IsDark())
 		}
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
-		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(scrimAlpha), progress)
+		chrome.ApplyDialogBackdropMask(c, backdrop, scrim, progress)
 		panel.Width(max(0, min(width, w-2*inset))).MaxHeight(max(0, h-2*inset)).Radius(dlgRadius).Clip().
-			Border(borderWidth, t.Border).TextColor(t.PopoverForeground).Role(ui.RoleDialog)
+			Border(borderWidth, borderColor).TextColor(t.PopoverForeground).Role(ui.RoleDialog)
 		chrome.RevealDialogPanel(c, panel, progress)
 		if glassActive {
-			if t.Glass && !chrome.BackdropActive() {
-				panel.Material(chrome.MenuGlassMaterial())
-			}
-			panelBase := t.Popover
-			if t.IsDark() {
-				panelBase = t.Card
-			}
-			panel.Draw(chrome.SettingsPanelGlass(panelBase, t.Background, mask.Alpha(scrimAlpha*progress), dlgRadius))
+			panel.Material(chrome.ModalGlassMaterial())
+			fill := settingsDialogGlassFill(t.IsDark())
+			panel.Draw(func(p *ui.Painter, r ui.Rect) {
+				if r.W > 0 && r.H > 0 {
+					p.Fill(r, fill, dlgRadius)
+				}
+			})
+			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				chrome.DrawGlassRim(p, r, dlgRadius)
+			})
 			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)
@@ -181,6 +185,16 @@ func modalScrimAlpha(dark bool) float32 {
 		return 0.48
 	}
 	return 0.24
+}
+
+func modalScrim(dark, glass bool) ui.Color {
+	if glass {
+		if dark {
+			return design.TW.Black.Alpha(0.32)
+		}
+		return design.TW.Gray900.Alpha(0.12)
+	}
+	return design.TW.Black.Alpha(modalScrimAlpha(dark))
 }
 
 func dialogFooterStyle(t *design.Tokens) (ui.Color, float32) {

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"bytes"
 	"strings"
 
 	store "whaleisle/internal/store/settings"
@@ -39,28 +40,36 @@ func secretField(field store.Field) bool {
 	return field.Role != "credential-ref" && field.Key != "apiKeyEnv" && (SecretLikeKey(field.Key) || SecretLikeKey(field.Label))
 }
 
+var (
+	secretTokAPIKey   = []byte("apikey")
+	secretTokToken    = []byte("token")
+	secretTokSecret   = []byte("secret")
+	secretTokPassword = []byte("password")
+	secretTokPasswd   = []byte("passwd")
+)
+
 func SecretLikeKey(key string) bool {
-	k := strings.ToLower(strings.TrimSpace(key))
-	if k == "" {
+	trimmed := strings.TrimSpace(key)
+	if trimmed == "" {
 		return false
 	}
-	compact := strings.NewReplacer("-", "", "_", "", ".", "").Replace(k)
-	if strings.Contains(compact, "apikey") ||
-		strings.Contains(compact, "token") ||
-		strings.Contains(compact, "secret") ||
-		strings.Contains(compact, "password") ||
-		strings.Contains(compact, "passwd") {
-		return true
+	var stack [64]byte
+	compact := stack[:0]
+	for i := 0; i < len(trimmed); i++ {
+		c := trimmed[i]
+		if c == '-' || c == '_' || c == '.' {
+			continue
+		}
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		compact = append(compact, c)
 	}
-	seg := k
-	if i := strings.LastIndex(k, "."); i >= 0 {
-		seg = k[i+1:]
-	}
-	switch strings.NewReplacer("-", "", "_", "").Replace(seg) {
-	case "apikey", "token", "secret", "password", "passwd":
-		return true
-	}
-	return false
+	return bytes.Contains(compact, secretTokAPIKey) ||
+		bytes.Contains(compact, secretTokToken) ||
+		bytes.Contains(compact, secretTokSecret) ||
+		bytes.Contains(compact, secretTokPassword) ||
+		bytes.Contains(compact, secretTokPasswd)
 }
 
 // MultilineStringField is the generic-form heuristic for description-heavy strings.

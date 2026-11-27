@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"image"
 	"math"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -363,25 +364,39 @@ type cached struct {
 	prev, next *cached
 }
 
-var shared = sync.OnceValue(newSystem)
+var shared = sync.OnceValue(func() *System {
+	s := newSystem()
+	s.ColorAtlas = initialColorAtlas()
+	return s
+})
 
 func newSystem() *System {
 	return &System{
-		fonts:     map[Style]*Font{},
-		layouts:   map[Params]*cached{},
-		shapes:    map[Params]*cached{},
-		marks:     map[markKey]float32{},
-		glyphs:    map[glyphKey]*atlasEntry{},
-		places:    map[placeKey]placement{},
-		runs:      map[runKey]*atlasEntry{},
-		masks:     map[uint64]*atlasEntry{},
-		transient: map[uint64]GlyphImage{},
-		recent:    map[uint64]uint64{},
-		MaskAtlas: scene.NewAtlas(1, 256, 256),
-		// Most interfaces have no color or subpixel glyphs. Keep just a
-		// transparent texel until one asks for room.
+		fonts:      map[Style]*Font{},
+		layouts:    map[Params]*cached{},
+		shapes:     map[Params]*cached{},
+		marks:      map[markKey]float32{},
+		glyphs:     map[glyphKey]*atlasEntry{},
+		places:     map[placeKey]placement{},
+		runs:       map[runKey]*atlasEntry{},
+		masks:      map[uint64]*atlasEntry{},
+		transient:  map[uint64]GlyphImage{},
+		recent:     map[uint64]uint64{},
+		MaskAtlas:  scene.NewAtlas(1, 256, 256),
 		ColorAtlas: scene.NewAtlas(4, 1, 1),
 	}
+}
+
+// initialColorAtlas returns the starting RGBA glyph atlas. On Windows,
+// DirectWrite ClearType renders nearly all opaque-background text as subpixel
+// glyphs into ColorAtlas; pre-sizing to 2048×1024 avoids repeated Grow + Repack
+// + full-frame repaint + 16 MiB texture upload spikes on first scroll/tab switch
+// (including CJK at 150%+ DPI).
+func initialColorAtlas() *scene.Atlas {
+	if runtime.GOOS == "windows" {
+		return scene.NewAtlas(4, 2048, 1024)
+	}
+	return scene.NewAtlas(4, 1, 1)
 }
 
 // Shared returns the process-wide text system.

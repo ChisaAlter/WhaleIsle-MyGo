@@ -29,36 +29,35 @@ func ModalView(c *ui.Context, m Model) {
 	topInset, bottomInset, sideInset := settingsModalInsets(vw, vh, bar)
 	w, h := settingsModalSizeFor(vw, vh, bar)
 	ui.DialogBase(c.Key("settings-modal"), &open, func(backdrop, panel ui.Element) {
+		chrome.NoteBackdropOverlayActive()
 		ui.ShortcutModalScope(panel, "settings")
 		if topInset > design.Sp(4) {
 			backdrop.Padding(topInset, sideInset, bottomInset, sideInset)
 		}
-		mask := design.TW.Black
-		scrimAlpha := modalScrimAlpha(t.IsDark())
-		glassActive := t.Glass || chrome.BackdropActive()
+		glassActive := settingsGlassActive(t)
+		scrim := modalScrim(t.IsDark(), glassActive)
 		borderWidth := design.BorderWidth
+		borderColor := t.Border
 		if glassActive {
 			borderWidth = design.BorderWidth / 2
+			borderColor = chrome.GlassOuterBorder(t.IsDark())
 		}
 		dlgRadius := theme.ContextRadii(c).Dialog
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
-		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(scrimAlpha), progress)
+		chrome.ApplyDialogBackdropMask(c, backdrop, scrim, progress)
 		panel.Width(w).Height(h).MaxWidthPercent(100).MaxHeightPercent(100).
 			Role(ui.RoleDialog).Label(i18n.T(i18n.KeySettingsTitle)).
 			Radius(dlgRadius).Clip().
-			Border(borderWidth, t.Border).TextColor(t.PopoverForeground)
+			Border(borderWidth, borderColor).TextColor(t.PopoverForeground)
 		chrome.RevealDialogPanel(c, panel, progress)
 		if glassActive {
-			if t.Glass && !chrome.BackdropActive() {
-				// BackdropActive uses SettingsPanelGlass's single blur pass;
-				// desktop-glass without a live backdrop blurs via Material once.
-				panel.Material(chrome.MenuGlassMaterial())
-			}
-			panelBase := t.Popover
-			if t.IsDark() {
-				panelBase = t.Card
-			}
-			panel.Draw(chrome.SettingsPanelGlass(panelBase, t.Background, mask.Alpha(scrimAlpha*progress), dlgRadius))
+			// Single GPU OpEffect modal blur on the outer frame (R=24/26,
+			// high vibrancy saturation); left rail and right options pane
+			// paint their disjoint layered translucent fills over it.
+			panel.Material(chrome.ModalGlassMaterial())
+			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				chrome.DrawGlassRim(p, r, dlgRadius)
+			})
 			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)
@@ -67,7 +66,13 @@ func ModalView(c *ui.Context, m Model) {
 				panel.Shadow(l.X, l.Y, l.Blur, l.Spread, design.TW.Black.Alpha(0.05))
 			}
 		}
-		panel.Children(func() { View(c, m) })
+		panel.Children(func() {
+			modalW := settingsModalWidthHintState(c)
+			prevW := *modalW
+			*modalW = w
+			defer func() { *modalW = prevW }()
+			View(c, m)
+		})
 	})
 	if !open && m.OnClose != nil {
 		ClearPreferenceErrorNotices(c)

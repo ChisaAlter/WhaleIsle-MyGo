@@ -295,6 +295,18 @@ func finish(e ui.Element, sh *shadowList, d *deco) {
 	}
 }
 
+// OnGlassOverlayActive, when installed by chrome, is notified whenever a coss
+// frosted glass popup, menu, dialog, sheet, drawer or command palette builds
+// (painted == false) or paints (painted == true) so the ambient backdrop can
+// pause and keep backdrop blur cache hit rates high while overlays are open.
+var OnGlassOverlayActive func(painted bool)
+
+func notifyGlassOverlay(painted bool) {
+	if fn := OnGlassOverlayActive; fn != nil {
+		fn(painted)
+	}
+}
+
 // glassTier distinguishes surface elevation levels in frosted glass mode.
 type glassTier uint8
 
@@ -314,6 +326,7 @@ type glassSurfaceMaterial struct {
 // PaintMaterial paints the GPU backdrop blur with vibrancy saturation and
 // overlays the translucent surface tint within radii.
 func (m glassSurfaceMaterial) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
+	notifyGlassOverlay(true)
 	m.blur.PaintMaterial(p, box, radii)
 	if m.tint.A == 0 || box.W <= 0 || box.H <= 0 {
 		return
@@ -369,22 +382,121 @@ func glassBorderWidth(t *design.Tokens) float32 {
 	return design.BorderWidth
 }
 
+// glassOuterBorder returns the refined outer hairline border color for frosted
+// glass overlays (0.5 DIP rgba(15,20,30,0.09) in light, black/0.45 in dark).
+func glassOuterBorder(t *design.Tokens) ui.Color {
+	if t == nil || !t.Glass {
+		if t != nil {
+			return t.Border
+		}
+		return ui.Transparent
+	}
+	if t.IsDark() {
+		return black.Alpha(0.45)
+	}
+	return ui.Color{R: 15, G: 20, B: 30, A: 255}.Alpha(0.09)
+}
+
+func popupGlassBlur(t *design.Tokens) glass.Blur {
+	if t != nil && t.IsDark() {
+		return glass.Blur{Radius: 22, Saturation: 0.70, Dither: true}
+	}
+	return glass.Blur{Radius: 20, Saturation: 0.85, Dither: true}
+}
+
+func modalGlassBlur(t *design.Tokens) glass.Blur {
+	if t != nil && t.IsDark() {
+		return glass.Blur{Radius: 26, Saturation: 0.68, Dither: true}
+	}
+	return glass.Blur{Radius: 24, Saturation: 0.80, Dither: true}
+}
+
+func popupGlassTint(t *design.Tokens) ui.Color {
+	if t == nil {
+		return ui.Transparent
+	}
+	if t.Popover.A < 255 {
+		return t.Popover
+	}
+	if t.IsDark() {
+		return ui.Color{R: 32, G: 34, B: 40, A: 255}.Alpha(0.48)
+	}
+	return white.Alpha(0.44)
+}
+
+func modalGlassTint(t *design.Tokens) ui.Color {
+	if t == nil {
+		return ui.Transparent
+	}
+	base := white
+	if t.IsDark() {
+		base = ui.Color{R: 30, G: 32, B: 38, A: 255}
+	}
+	if t.Popover.A < 255 {
+		a := float32(t.Popover.A) / 255
+		if t.IsDark() {
+			a = min(1, a*9/8)
+		} else {
+			a = min(1, a*12/11)
+		}
+		return base.Alpha(a)
+	}
+	if t.IsDark() {
+		return base.Alpha(0.54)
+	}
+	return base.Alpha(0.48)
+}
+
 // applyGlassMaterial attaches frosted backdrop blur and translucent surface
 // tint to floating overlays (popup, modal, sheet, drawer) when t.Glass is true.
 // Resting surfaces such as Card and ChatBubble must not call this.
-func applyGlassMaterial(e ui.Element, t *design.Tokens, tint ui.Color, radius, saturation float32) {
+func applyGlassMaterial(e ui.Element, t *design.Tokens, tint ui.Color, blur glass.Blur) {
 	if t == nil || !t.Glass {
 		return
 	}
+	notifyGlassOverlay(false)
 	e.Material(glassSurfaceMaterial{
-		blur: glass.Blur{Radius: radius, Saturation: saturation, Dither: true},
+		blur: blur,
 		tint: tint,
 	})
 }
 
+// applyGlassRim paints the refined inner 1px specular rim and top 1px highlight
+// on frosted glass overlays via DrawOver (zero additional OpEffect passes).
+func applyGlassRim(e ui.Element, t *design.Tokens, radius float32, tier glassTier) {
+	if t == nil || !t.Glass {
+		return
+	}
+	if tier == glassTierCard || tier == glassTierSheet {
+		return
+	}
+	dark := t.IsDark()
+	rim := white.Alpha(0.58)
+	top := white.Alpha(0.86)
+	if dark {
+		rim = white.Alpha(0.13)
+		top = white.Alpha(0.22)
+	}
+	drawerOnlyTop := tier == glassTierDrawer
+	e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if r.W <= 2 || r.H <= 2 {
+			return
+		}
+		inner := ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
+		innerR := max(0, radius-1)
+		if !drawerOnlyTop {
+			p.Stroke(inner, rim, innerR, 1)
+		}
+		p.Clip(inner, innerR, func() {
+			cast := ui.Rect{X: inner.X, Y: inner.Y + 1, W: inner.W, H: inner.H}
+			p.Shadow(cast, innerR, 0, -1, 0, 0, top)
+		})
+	})
+}
+
 // applyGlassElevation upgrades sh and d with dark/light adaptive dual-layer
-// shadows when t.Glass is true, disabling the non-glass top highlight so glass
-// surfaces keep a single restrained outer border with no inner rim.
+// shadows when t.Glass is true, disabling the non-glass top highlight because
+// glass overlays paint their specular rim via DrawOver.
 func applyGlassElevation(t *design.Tokens, sh *shadowList, d *deco, tier glassTier) {
 	if t == nil || !t.Glass {
 		return
@@ -394,43 +506,43 @@ func applyGlassElevation(t *design.Tokens, sh *shadowList, d *deco, tier glassTi
 	switch tier {
 	case glassTierCard:
 		if dark {
-			sh.add(0, 8, 20, -2, black.Alpha(0.22))
-			sh.add(0, 2, 6, 0, black.Alpha(0.12))
+			sh.add(0, 12, 32, -3, black.Alpha(0.38))
+			sh.add(0, 3, 8, 0, black.Alpha(0.20))
 		} else {
-			sh.add(0, 6, 16, -2, black.Alpha(0.07))
-			sh.add(0, 1, 4, 0, black.Alpha(0.04))
+			sh.add(0, 10, 26, -3, black.Alpha(0.11))
+			sh.add(0, 2, 6, 0, black.Alpha(0.05))
 		}
 	case glassTierPopup:
 		if dark {
-			sh.add(0, 10, 28, -2, black.Alpha(0.32))
-			sh.add(0, 3, 8, 0, black.Alpha(0.16))
+			sh.add(0, 18, 44, -4, black.Alpha(0.46))
+			sh.add(0, 3, 10, 0, black.Alpha(0.24))
 		} else {
-			sh.add(0, 10, 28, -2, black.Alpha(0.10))
-			sh.add(0, 3, 8, 0, black.Alpha(0.05))
+			sh.add(0, 14, 36, -4, black.Alpha(0.14))
+			sh.add(0, 2, 6, 0, black.Alpha(0.06))
 		}
 	case glassTierModal:
 		if dark {
-			sh.add(0, 18, 40, -4, black.Alpha(0.32))
-			sh.add(0, 4, 12, 0, black.Alpha(0.16))
+			sh.add(0, 22, 52, -4, black.Alpha(0.48))
+			sh.add(0, 4, 12, 0, black.Alpha(0.26))
 		} else {
-			sh.add(0, 18, 40, -4, black.Alpha(0.10))
-			sh.add(0, 4, 12, 0, black.Alpha(0.05))
+			sh.add(0, 18, 44, -4, black.Alpha(0.16))
+			sh.add(0, 3, 10, 0, black.Alpha(0.07))
 		}
 	case glassTierSheet:
 		if dark {
-			sh.add(0, 0, 32, 0, black.Alpha(0.32))
-			sh.add(0, 0, 10, 0, black.Alpha(0.16))
+			sh.add(0, 0, 40, 0, black.Alpha(0.42))
+			sh.add(0, 0, 10, 0, black.Alpha(0.22))
 		} else {
-			sh.add(0, 0, 28, 0, black.Alpha(0.10))
-			sh.add(0, 0, 8, 0, black.Alpha(0.05))
+			sh.add(0, 0, 32, 0, black.Alpha(0.14))
+			sh.add(0, 0, 8, 0, black.Alpha(0.06))
 		}
 	case glassTierDrawer:
 		if dark {
-			sh.add(0, -10, 28, 0, black.Alpha(0.32))
-			sh.add(0, -2, 8, 0, black.Alpha(0.16))
+			sh.add(0, -18, 44, 0, black.Alpha(0.46))
+			sh.add(0, -3, 10, 0, black.Alpha(0.24))
 		} else {
-			sh.add(0, -10, 28, 0, black.Alpha(0.10))
-			sh.add(0, -2, 8, 0, black.Alpha(0.05))
+			sh.add(0, -14, 36, 0, black.Alpha(0.14))
+			sh.add(0, -2, 6, 0, black.Alpha(0.06))
 		}
 	}
 	if d == nil {

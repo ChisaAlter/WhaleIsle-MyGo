@@ -25,13 +25,15 @@ func settingsPreferenceSwitch(c *ui.Context, value *bool, style settingsSwitchSt
 	_ = style
 	t := tk(c)
 	switcher := ui.SwitchBase(c, value).Size(toggleWidth, toggleHeight).Shrink(0).Radius(design.RadiusFull).FocusRing(false).Cursor(ui.CursorPointer)
+	handle := ui.Local(switcher, "switch-handle", func() ui.Handle { return ui.Handle{} })
+	switcher.Bind(handle)
 	position := switcher.AnimateWith("settings-switch-thumb", b01(*value), design.MotionFast, design.EaseInOut)
 	off, on, thumb, ring, gap := t.Input, t.Primary, t.Background, t.Ring, t.Background
 	shadow := design.TW.Black.Alpha(0.05)
 	switcher.DisabledOpacity(design.OpacityDisabled)
 	switcher.Draw(func(p *ui.Painter, bounds ui.Rect) {
 		track := ui.Rect{X: bounds.X + (bounds.W-toggleWidth)/2, Y: bounds.Y + (bounds.H-toggleHeight)/2, W: toggleWidth, H: toggleHeight}
-		if switcher.FocusVisible() && !switcher.IsDisabled() {
+		if el := c.Resolve(*handle); el.Valid() && el.FocusVisible() && !el.IsDisabled() {
 			o := design.RingOffset + design.RingWidth
 			p.Fill(ui.Rect{X: track.X - o, Y: track.Y - o, W: track.W + 2*o, H: track.H + 2*o}, ring, track.H)
 			g := design.RingOffset

@@ -293,12 +293,17 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 						t.Fatalf("%s expected deeper adaptive glass shadow below panel: off=%.2f on=%.2f", sc.name, shadowOffLuma, shadowOnLuma)
 					}
 
-					// No harsh inner white rim along y = Top + 1 over uniform backdrop.
+					// Floating glass overlays paint an inner 1px specular rim + top highlight
+					// along y = Top + 1; resting Card stays clean without a rim.
 					rimX := int(sb.X + sb.W/2)
 					topInner := luma(ttShOn.Image(), rimX, int(sb.Y)+1)
 					bodyLuma := luma(ttShOn.Image(), rimX, int(sb.Y)+8)
-					if topInner > bodyLuma+4 {
-						t.Fatalf("%s unexpected bright inner specular rim: topInner=%.2f body=%.2f", sc.name, topInner, bodyLuma)
+					if sc.expectBlur {
+						if topInner <= bodyLuma+2 {
+							t.Fatalf("%s missing bright inner specular rim + top highlight: topInner=%.2f body=%.2f", sc.name, topInner, bodyLuma)
+						}
+					} else if topInner > bodyLuma+4 {
+						t.Fatalf("%s unexpected bright inner specular rim on resting card: topInner=%.2f body=%.2f", sc.name, topInner, bodyLuma)
 					}
 				})
 			}
@@ -380,12 +385,16 @@ func TestGlassDialogBackdropPureDimScrim(t *testing.T) {
 			opaqueScrim := renderBackdropPixel(false)
 			glassScrim := renderBackdropPixel(true)
 			if dark {
-				if glassScrim >= opaqueScrim {
-					t.Fatalf("expected dark glass scrim (0.42) to dim more than non-glass (0.32): opaque=%d glass=%d", opaqueScrim, glassScrim)
+				// Dark glass scrim stays restrained at 0.32 (never crushing wallpaper
+				// to muddy 0.42–0.48 gray) while still visibly dimming the backdrop.
+				if glassScrim > opaqueScrim+2 || glassScrim < 140 {
+					t.Fatalf("expected restrained dark glass scrim (~0.32): opaque=%d glass=%d", opaqueScrim, glassScrim)
 				}
 			} else {
-				if glassScrim <= opaqueScrim {
-					t.Fatalf("expected light glass scrim (0.24) to preserve more brightness than non-glass (0.32): opaque=%d glass=%d", opaqueScrim, glassScrim)
+				// Light glass scrim drops to rgba(18,22,30,0.12), preserving far more
+				// wallpaper brightness than non-glass 0.32.
+				if glassScrim <= opaqueScrim+30 {
+					t.Fatalf("expected light glass scrim (0.12) to preserve much more brightness than non-glass (0.32): opaque=%d glass=%d", opaqueScrim, glassScrim)
 				}
 			}
 

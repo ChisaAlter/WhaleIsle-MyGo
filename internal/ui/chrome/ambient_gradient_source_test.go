@@ -367,7 +367,8 @@ func TestAmbientGradientPresetAndPanelSamples(t *testing.T) {
 		t.Fatal("slot override/token fallback")
 	}
 	// Uniform input checks composed backdrop order: gradient-mask is already in
-	// pixels, then canvas .45, dialog mask, blur, and finally saturation.
+	// pixels, then canvas alpha, light modal scrim rgba(18,22,30,0.12), blur,
+	// and saturation.
 	src := image.NewRGBA(image.Rect(0, 0, 2, 2))
 	for i := 0; i < len(src.Pix); i += 4 {
 		src.Pix[i], src.Pix[i+1], src.Pix[i+2], src.Pix[i+3] = 100, 100, 100, 255
@@ -375,8 +376,9 @@ func TestAmbientGradientPresetAndPanelSamples(t *testing.T) {
 	frame := &gradientFrame{pixels: src, config: c}
 	panel := gradientPanelPixels(frame, ui.RGB(255, 255, 255), p, false)
 	canvasAlpha := float64(MaterialAlpha(MaterialCanvas, p, false))
-	want := uint8(math.Round((255*canvasAlpha + 100*(1-canvasAlpha)) * (1 - 61.0/255)))
-	if math.Abs(float64(panel.Pix[0])-float64(want)) > 1 {
+	scrimAlpha := float64(ui.RGBA(18, 22, 30, 0.12).A) / 255
+	want := uint8(math.Round(18*scrimAlpha + (255*canvasAlpha+100*(1-canvasAlpha))*(1-scrimAlpha)))
+	if math.Abs(float64(panel.Pix[0])-float64(want)) > 2 {
 		t.Fatalf("panel backdrop=%d want%d", panel.Pix[0], want)
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/renderpolicy"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 func TestAmbientGradientAnimatesLiveAcrossAllVariants(t *testing.T) {
@@ -270,5 +272,330 @@ func TestAmbientGradientZeroHzWhenWindowInactiveOrReduced(t *testing.T) {
 	tt.SetTime(t6)
 	if !bytes.Equal(pixReduced, tt.Image().Pix) {
 		t.Fatal("ambient gradient animated under prefers-reduced-motion")
+	}
+}
+
+func TestAmbientGradientPacedAt24FPSAndFreezesDuringOverlay(t *testing.T) {
+	prevGlass := renderpolicy.Glass()
+	prevMinimal := renderpolicy.Minimal()
+	renderpolicy.SetMinimal(false)
+	renderpolicy.SetGlass(true)
+	t.Cleanup(func() {
+		renderpolicy.SetGlass(prevGlass)
+		renderpolicy.SetMinimal(prevMinimal)
+		resetBackdropPowerForTest()
+		ConfigureBackdrop("", wallpapers.Defaults())
+	})
+
+	resetBackdropPowerForTest()
+	setBackdropWindowActiveHook(func() bool { return true })
+	mainAmbientClock.reset()
+
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Preset = "aurora"
+	prefs.Variant = "chaos"
+	prefs.Speed = 240
+	prefs.Count = 5
+
+	showPopup := false
+	now := time.Unix(12000, 0)
+	NoteBackdropActivity(now)
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		paint := WallpaperBackgroundPainter("", prefs, false)
+		ui.Box(c).Fill().Draw(paint).Children(func() {
+			if showPopup {
+				MenuSurface(ui.Box(c).Absolute().Left(10).Top(10).Width(40).Height(30),
+					darkGlassPopoverBase, GlassOuterBorder(true), 8)
+			}
+		})
+	}, 160, 120)
+	tt.SetTime(now)
+	pix0 := bytes.Clone(tt.Image().Pix)
+
+	// High-frequency pointer/hover repaints inside the 42ms cadence window
+	// keep identical ambient gradient output so bdCache hits stay high.
+	for _, dt := range []time.Duration{6 * time.Millisecond, 12 * time.Millisecond, 24 * time.Millisecond, 36 * time.Millisecond} {
+		ts := now.Add(dt)
+		NoteBackdropActivity(ts)
+		tt.SetTime(ts)
+		if !bytes.Equal(pix0, tt.Image().Pix) {
+			t.Fatalf("ambient gradient changed within 42ms cadence at +%v (would thrash bdCache at 156Hz)", dt)
+		}
+	}
+
+	// Advancing well past the 42ms cadence smoothly animates the backdrop.
+	tMoved := now.Add(2 * time.Second)
+	NoteBackdropActivity(tMoved)
+	tt.SetTime(tMoved)
+	if bytes.Equal(pix0, tt.Image().Pix) {
+		t.Fatal("ambient gradient did not advance past 42ms cadence")
+	}
+
+	// Opening a frosted popup automatically freezes the ambient backdrop time
+	// so repeated hover/scroll repaints hit bdCache instead of invalidating it.
+	showPopup = true
+	tOpen := tMoved.Add(100 * time.Millisecond)
+	NoteBackdropActivity(tOpen)
+	tt.SetTime(tOpen)
+	// Sample backdrop region outside the popup (bottom half y=60..120).
+	cropBottom := func(pix []byte) []byte { return bytes.Clone(pix[60*160*4:]) }
+	openBg := cropBottom(tt.Image().Pix)
+	for _, dt := range []time.Duration{500 * time.Millisecond, 2 * time.Second, 4 * time.Second} {
+		ts := tOpen.Add(dt)
+		NoteBackdropActivity(ts)
+		tt.SetTime(ts)
+		if !bytes.Equal(openBg, cropBottom(tt.Image().Pix)) {
+			t.Fatalf("ambient gradient advanced while frosted overlay was open (+%v)", dt)
+		}
+	}
+
+	// Closing the popup resumes ambient progression cleanly on subsequent frames.
+	showPopup = false
+	tClose := tOpen.Add(5 * time.Second)
+	NoteBackdropActivity(tClose)
+	tt.SetTime(tClose)
+	tResume := tClose.Add(3 * time.Second)
+	NoteBackdropActivity(tResume)
+	tt.SetTime(tResume)
+	if bytes.Equal(openBg, cropBottom(tt.Image().Pix)) {
+		t.Fatal("ambient gradient failed to resume after frosted overlay closed")
+	}
+
+	// Explicit SetBackdropOverlayActive(true) also freezes the backdrop.
+	SetBackdropOverlayActive(true)
+	tGate := tResume.Add(100 * time.Millisecond)
+	NoteBackdropActivity(tGate)
+	tt.SetTime(tGate)
+	gateBg := cropBottom(tt.Image().Pix)
+	tGateLater := tGate.Add(3 * time.Second)
+	NoteBackdropActivity(tGateLater)
+	tt.SetTime(tGateLater)
+	if !bytes.Equal(gateBg, cropBottom(tt.Image().Pix)) {
+		t.Fatal("SetBackdropOverlayActive(true) did not freeze ambient gradient")
+	}
+	SetBackdropOverlayActive(false)
+}
+
+func TestAmbientGradientFreezesDuringCossOverlays(t *testing.T) {
+	prevGlass := renderpolicy.Glass()
+	prevMinimal := renderpolicy.Minimal()
+	renderpolicy.SetMinimal(false)
+	renderpolicy.SetGlass(true)
+	design.SetGlass(true, func(_ design.Scheme, p *design.Palette) {
+		p.Popover = p.Popover.Alpha(0.48)
+	})
+	t.Cleanup(func() {
+		design.SetGlass(false, nil)
+		renderpolicy.SetGlass(prevGlass)
+		renderpolicy.SetMinimal(prevMinimal)
+		resetBackdropPowerForTest()
+		ConfigureBackdrop("", wallpapers.Defaults())
+	})
+
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Preset = "aurora"
+	prefs.Variant = "chaos"
+	prefs.Speed = 240
+	prefs.Count = 5
+
+	for _, tc := range []struct {
+		name string
+		kind string
+	}{
+		{"coss-dialog", "dialog"},
+		{"coss-menu", "menu"},
+		{"coss-select", "select"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetBackdropPowerForTest()
+			setBackdropWindowActiveHook(func() bool { return true })
+			mainAmbientClock.reset()
+
+			open := false
+			selected := "a"
+			now := time.Unix(20000, 0)
+			NoteBackdropActivity(now)
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(ui.DarkTheme())
+				design.Bind(c, design.Dark, ui.Color{}, ui.Color{})
+				paint := WallpaperBackgroundPainter("", prefs, false)
+				ui.Box(c).Fill().Draw(paint).Children(func() {
+					switch tc.kind {
+					case "dialog":
+						coss.Dialog(c, &open, coss.DialogOptions{Title: "Test", NoClose: true}, func() {
+							ui.Box(c).Size(60, 24)
+						})
+					case "menu":
+						trigger := coss.Button(c, "MenuTrigger", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM})
+						coss.Menu(c, trigger, &open, []coss.MenuItem{{ID: "a", Label: "Alpha"}}, coss.MenuOptions{})
+					case "select":
+						coss.Select(c, &selected, []coss.SelectOption{{Value: "a", Label: "Alpha"}, {Value: "b", Label: "Beta"}}, coss.SelectOptions{Label: "SelectTrigger"})
+					}
+				})
+			}, 240, 180)
+			tt.SetTime(now)
+
+			// Advance without overlay: gradient animates normally.
+			t1 := now.Add(2 * time.Second)
+			NoteBackdropActivity(t1)
+			tt.SetTime(t1)
+			// Top edge strip (y=0..8) stays clear of centered dialog/menu panels and
+			// their downward drop shadows so pixel comparisons observe only the backdrop.
+			cropEdge := func(pix []byte) []byte { return bytes.Clone(pix[:8*240*4]) }
+
+			// Open overlay.
+			if tc.kind == "select" {
+				if err := tt.Click("SelectTrigger"); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				open = true
+			}
+			tOpen := t1.Add(100 * time.Millisecond)
+			NoteBackdropActivity(tOpen)
+			tt.SetTime(tOpen)
+			// Step one layout frame (coss.Dialog computes its vertical margin from
+			// panel.Bounds().H on frame 2) plus a settled frame past enter/position
+			// transitions before asserting pixel-identical frozen ambient output.
+			tLayout := tOpen.Add(50 * time.Millisecond)
+			NoteBackdropActivity(tLayout)
+			tt.SetTime(tLayout)
+			tSettled := tLayout.Add(600 * time.Millisecond)
+			NoteBackdropActivity(tSettled)
+			tt.SetTime(tSettled)
+			frozenBg := cropEdge(tt.Image().Pix)
+
+			for _, dt := range []time.Duration{500 * time.Millisecond, 2 * time.Second, 4 * time.Second} {
+				ts := tSettled.Add(dt)
+				NoteBackdropActivity(ts)
+				tt.SetTime(ts)
+				if !bytes.Equal(frozenBg, cropEdge(tt.Image().Pix)) {
+					t.Fatalf("%s did not freeze ambient gradient at +%v", tc.name, dt)
+				}
+			}
+
+			// Close overlay and confirm gradient resumes.
+			if tc.kind == "select" {
+				tt.Key(0, ui.KeyEscape)
+			} else {
+				open = false
+			}
+			tClose := tSettled.Add(5 * time.Second)
+			NoteBackdropActivity(tClose)
+			tt.SetTime(tClose)
+			// Let any exit transition finish and the follow-up recheck clear the
+			// frozen latch before comparing post-close ambient progression.
+			tCloseSettled := tClose.Add(600 * time.Millisecond)
+			NoteBackdropActivity(tCloseSettled)
+			tt.SetTime(tCloseSettled)
+			tUnfrozen := tCloseSettled.Add(100 * time.Millisecond)
+			NoteBackdropActivity(tUnfrozen)
+			tt.SetTime(tUnfrozen)
+			resumedStart := cropEdge(tt.Image().Pix)
+			tResume := tUnfrozen.Add(3 * time.Second)
+			NoteBackdropActivity(tResume)
+			tt.SetTime(tResume)
+			if bytes.Equal(resumedStart, cropEdge(tt.Image().Pix)) {
+				t.Fatalf("%s did not resume ambient gradient after closing", tc.name)
+			}
+		})
+	}
+}
+
+func TestAmbientGradientFreezesDuringPaintedOnlyMenuAfterModalClose(t *testing.T) {
+	prevGlass := renderpolicy.Glass()
+	prevMinimal := renderpolicy.Minimal()
+	renderpolicy.SetMinimal(false)
+	renderpolicy.SetGlass(true)
+	t.Cleanup(func() {
+		renderpolicy.SetGlass(prevGlass)
+		renderpolicy.SetMinimal(prevMinimal)
+		resetBackdropPowerForTest()
+		ConfigureBackdrop("", wallpapers.Defaults())
+	})
+
+	resetBackdropPowerForTest()
+	setBackdropWindowActiveHook(func() bool { return true })
+	mainAmbientClock.reset()
+
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Preset = "aurora"
+	prefs.Variant = "chaos"
+	prefs.Speed = 240
+	prefs.Count = 5
+
+	showTracked := false
+	showPaintOnlyMenu := false
+	now := time.Unix(25000, 0)
+	NoteBackdropActivity(now)
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		paint := WallpaperBackgroundPainter("", prefs, false)
+		ui.Box(c).Fill().Draw(paint).Children(func() {
+			if showTracked {
+				MenuSurface(ui.Box(c).Absolute().Left(10).Top(10).Width(40).Height(30),
+					darkGlassPopoverBase, GlassOuterBorder(true), 8)
+			}
+			if showPaintOnlyMenu {
+				// Simulates toolkit ui.Menu using Theme.Menu.Material (menuPanelGlass),
+				// which reports NoteBackdropOverlayPainted() without a tracked build helper.
+				ui.Box(c).Absolute().Left(10).Top(10).Width(40).Height(30).Material(MenuGlassMaterial())
+			}
+		})
+	}, 160, 120)
+	cropBottom := func(pix []byte) []byte { return bytes.Clone(pix[60*160*4:]) }
+
+	tt.SetTime(now)
+
+	// 1. Open and close a tracked overlay so overlayBuiltGen becomes non-zero,
+	// then advance one closed frame so the close transition consumes overlayBuiltGen.
+	showTracked = true
+	t1 := now.Add(200 * time.Millisecond)
+	NoteBackdropActivity(t1)
+	tt.SetTime(t1)
+
+	showTracked = false
+	t2 := t1.Add(200 * time.Millisecond)
+	NoteBackdropActivity(t2)
+	tt.SetTime(t2)
+
+	// 2. Open a paint-only overlay (ui.Menu path). Frame 1 paints the menu
+	// (recording overlayPainted=true); subsequent frames must stay frozen.
+	showPaintOnlyMenu = true
+	t3 := t2.Add(200 * time.Millisecond)
+	NoteBackdropActivity(t3)
+	tt.SetTime(t3)
+	frozenBg := cropBottom(tt.Image().Pix)
+
+	for _, dt := range []time.Duration{500 * time.Millisecond, 2 * time.Second, 4 * time.Second} {
+		ts := t3.Add(dt)
+		NoteBackdropActivity(ts)
+		tt.SetTime(ts)
+		if !bytes.Equal(frozenBg, cropBottom(tt.Image().Pix)) {
+			t.Fatalf("paint-only ui.Menu did not freeze ambient gradient after prior modal close (+%v)", dt)
+		}
+	}
+
+	// 3. Closing the paint-only menu resumes ambient progression cleanly.
+	showPaintOnlyMenu = false
+	tClose := t3.Add(5 * time.Second)
+	NoteBackdropActivity(tClose)
+	tt.SetTime(tClose)
+	tAfterClose := tClose.Add(100 * time.Millisecond)
+	NoteBackdropActivity(tAfterClose)
+	tt.SetTime(tAfterClose)
+	resumedStart := cropBottom(tt.Image().Pix)
+	tResume := tAfterClose.Add(3 * time.Second)
+	NoteBackdropActivity(tResume)
+	tt.SetTime(tResume)
+	if bytes.Equal(resumedStart, cropBottom(tt.Image().Pix)) {
+		t.Fatal("ambient gradient did not resume after paint-only menu closed")
 	}
 }

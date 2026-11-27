@@ -142,17 +142,60 @@ const (
 // ptr turns an address from native code into a pointer.
 func ptr(a uintptr) unsafe.Pointer { return *(*unsafe.Pointer)(unsafe.Pointer(&a)) }
 
-// call calls method i of a COM object; the pointers passed as uintptr stay
-// valid until it returns.
-//
-//go:uintptrescapes
-func call(obj uintptr, i int, args ...uintptr) uintptr {
+// comMethod resolves method i from the COM object's vtable.
+func comMethod(obj uintptr, i int) uintptr {
 	vtbl := *(*uintptr)(ptr(obj))
-	fn := *(*uintptr)(unsafe.Add(ptr(vtbl), i*int(unsafe.Sizeof(uintptr(0)))))
-	var a [16]uintptr
-	a[0] = obj
-	n := copy(a[1:], args)
-	r, _, _ := syscall.SyscallN(fn, a[:n+1]...)
+	return *(*uintptr)(unsafe.Add(ptr(vtbl), i*int(unsafe.Sizeof(uintptr(0)))))
+}
+
+// Fixed-arity COM call helpers avoid variadic slice heap escapes under
+// //go:uintptrescapes on the render hot path.
+
+//go:uintptrescapes
+func call0(obj uintptr, i int) uintptr {
+	r, _, _ := syscall.Syscall(comMethod(obj, i), 1, obj, 0, 0)
+	return r
+}
+
+//go:uintptrescapes
+func call1(obj uintptr, i int, a1 uintptr) uintptr {
+	r, _, _ := syscall.Syscall(comMethod(obj, i), 2, obj, a1, 0)
+	return r
+}
+
+//go:uintptrescapes
+func call2(obj uintptr, i int, a1, a2 uintptr) uintptr {
+	r, _, _ := syscall.Syscall(comMethod(obj, i), 3, obj, a1, a2)
+	return r
+}
+
+//go:uintptrescapes
+func call3(obj uintptr, i int, a1, a2, a3 uintptr) uintptr {
+	r, _, _ := syscall.Syscall6(comMethod(obj, i), 4, obj, a1, a2, a3, 0, 0)
+	return r
+}
+
+//go:uintptrescapes
+func call4(obj uintptr, i int, a1, a2, a3, a4 uintptr) uintptr {
+	r, _, _ := syscall.Syscall6(comMethod(obj, i), 5, obj, a1, a2, a3, a4, 0)
+	return r
+}
+
+//go:uintptrescapes
+func call5(obj uintptr, i int, a1, a2, a3, a4, a5 uintptr) uintptr {
+	r, _, _ := syscall.Syscall6(comMethod(obj, i), 6, obj, a1, a2, a3, a4, a5)
+	return r
+}
+
+//go:uintptrescapes
+func call6(obj uintptr, i int, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+	r, _, _ := syscall.Syscall9(comMethod(obj, i), 7, obj, a1, a2, a3, a4, a5, a6, 0, 0)
+	return r
+}
+
+//go:uintptrescapes
+func call8(obj uintptr, i int, a1, a2, a3, a4, a5, a6, a7, a8 uintptr) uintptr {
+	r, _, _ := syscall.Syscall9(comMethod(obj, i), 9, obj, a1, a2, a3, a4, a5, a6, a7, a8)
 	return r
 }
 
@@ -160,9 +203,64 @@ func failed(hr uintptr) bool { return int32(uint32(hr)) < 0 }
 
 func free(obj *uintptr) {
 	if *obj != 0 {
-		call(*obj, release)
+		call0(*obj, release)
 		*obj = 0
 	}
+}
+
+// maxBlurTaps is the maximum number of precomputed bilinear tap pairs passed
+// to blurps via PassConstants.passTaps (covering passRadius up to 128).
+const maxBlurTaps = 64
+
+// passConstants mirrors cbuffer PassConstants : register(b1) in shader.hlsl.
+type passConstants struct {
+	Origin, Limit, Shift, Dir [2]int32
+	Down, Radius              int32
+	Sigma                     float32
+	TapCount                  int32
+	InvSize                   [2]float32
+	CenterW, Pad              float32
+	Taps                      [maxBlurTaps][4]float32
+}
+
+// computeBlurTaps precomputes normalized 1D Gaussian weights and merges pairs of
+// adjacent discrete taps into hardware bilinear sample offsets + combined
+// weights (Daniel Rakos' linear-sampling Gaussian blur). Returns tapCount == 0
+// when radius <= 0 or exceeds maxBlurTaps*2 so the shader falls back safely.
+func computeBlurTaps(radius int, sigma float32) (centerW float32, tapCount int, taps [maxBlurTaps][4]float32) {
+	if radius <= 0 || (radius+1)/2 > maxBlurTaps {
+		return 0, 0, taps
+	}
+	var raw [maxBlurTaps*2 + 1]float32
+	raw[0] = scene.BlurWeight(0, sigma)
+	sum := float64(raw[0])
+	for o := 1; o <= radius; o++ {
+		w := scene.BlurWeight(o, sigma)
+		raw[o] = w
+		sum += 2 * float64(w)
+	}
+	if sum <= 0 {
+		return 1, 0, taps
+	}
+	invSum := 1.0 / sum
+	centerW = float32(float64(raw[0]) * invSum)
+	k := 0
+	for o := 1; o <= radius; o += 2 {
+		wa := float64(raw[o]) * invSum
+		if o+1 <= radius {
+			wb := float64(raw[o+1]) * invSum
+			wSum := wa + wb
+			off := float64(o)
+			if wSum > 0 {
+				off = (float64(o)*wa + float64(o+1)*wb) / wSum
+			}
+			taps[k] = [4]float32{float32(off), float32(wSum), 0, 0}
+		} else {
+			taps[k] = [4]float32{float32(o), float32(wa), 0, 0}
+		}
+		k++
+	}
+	return centerW, k, taps
 }
 
 type bufferDesc struct {
@@ -275,13 +373,16 @@ type Renderer struct {
 	// swapChain2 is the swap chain's IDXGISwapChain2 (Windows 8.1), bw×bh
 	// the size of its buffers, larger than w×h while resizing, and
 	// resizedAt when the window last changed size.
-	swapChain2   uintptr
-	scFlags      uint32  // DXGI_SWAP_CHAIN_FLAG_* kept consistent across ResizeBuffers
-	waitable     uintptr // HANDLE from GetFrameLatencyWaitableObject (closed in Release)
-	slotAcquired bool    // true once a waitable frame slot has been consumed for the next frame
-	bw, bh       int
-	resizing     bool
-	resizedAt    time.Time
+	swapChain2      uintptr
+	scFlags         uint32    // DXGI_SWAP_CHAIN_FLAG_* kept consistent across ResizeBuffers
+	waitable        uintptr   // HANDLE from GetFrameLatencyWaitableObject (closed in Release)
+	waitProc        uintptr   // cached kernel32!WaitForSingleObject address
+	slotAcquired    bool      // true once a waitable frame slot has been consumed for the next frame
+	unpacedPresents int       // forced/immediate presents submitted while semaphore count was 0
+	lastPresentAt   time.Time // timestamp of the previous Present for distinguishing back-to-back forced frames from timeout recovery
+	bw, bh          int
+	resizing        bool
+	resizedAt       time.Time
 
 	vs, ps, layout                 uintptr
 	blend, maskBlend, raster, samp uintptr
@@ -313,6 +414,33 @@ type Renderer struct {
 	// effects are the pixel shaders of the effects drawn, made as first
 	// drawn.
 	effects map[*scene.Effect]*effectShader
+
+	// Precomputed Gaussian blur tap cache (shared across H/V passes and frames).
+	blurCacheRadius   int
+	blurCacheSigma    float32
+	blurCacheCenterW  float32
+	blurCacheTapCount int
+	blurCacheTaps     [maxBlurTaps][4]float32
+
+	// Scratch storage on the heap-allocated Renderer so taking addresses for
+	// COM calls on the render hot path avoids per-call heap allocations.
+	scratch struct {
+		mapped    mapped
+		globals   [4]float32
+		clear     [4]float32
+		boundSRV  uintptr
+		scissor   gpu.Scissor
+		viewport  viewport
+		stride    uint32
+		offset    uint32
+		views     [4]uintptr
+		noneViews [5]uintptr
+		copyBox   box
+		back      uintptr
+		passSrc   uintptr
+		passNone  uintptr
+		passConst passConstants
+	}
 
 	b gpu.Builder
 
@@ -351,7 +479,7 @@ func newRenderer(hwnd uintptr, composed bool) (*Renderer, error) {
 func (r *Renderer) init() error {
 	// The factory that made the device's adapter makes the swap chain.
 	var dxgiDev, adapter uintptr
-	if failed(call(r.device, 0, uintptr(unsafe.Pointer(&iidIDXGIDevice)), uintptr(unsafe.Pointer(&dxgiDev)))) {
+	if failed(call2(r.device, 0, uintptr(unsafe.Pointer(&iidIDXGIDevice)), uintptr(unsafe.Pointer(&dxgiDev)))) {
 		return errors.New("d3d11: no DXGI device")
 	}
 	defer free(&dxgiDev)
@@ -359,15 +487,15 @@ func (r *Renderer) init() error {
 	// input of when it was drawn while frames follow each other, as when
 	// scrolling or animating.
 	var dxgiDev1 uintptr
-	if !failed(call(r.device, 0, uintptr(unsafe.Pointer(&iidIDXGIDevice1)), uintptr(unsafe.Pointer(&dxgiDev1)))) {
-		call(dxgiDev1, dxgiDevSetMaxLatency, 1)
+	if !failed(call2(r.device, 0, uintptr(unsafe.Pointer(&iidIDXGIDevice1)), uintptr(unsafe.Pointer(&dxgiDev1)))) {
+		call1(dxgiDev1, dxgiDevSetMaxLatency, 1)
 		free(&dxgiDev1)
 	}
-	if failed(call(dxgiDev, dxgiDevGetAdapter, uintptr(unsafe.Pointer(&adapter)))) {
+	if failed(call1(dxgiDev, dxgiDevGetAdapter, uintptr(unsafe.Pointer(&adapter)))) {
 		return errors.New("d3d11: no adapter")
 	}
 	defer free(&adapter)
-	if failed(call(adapter, dxgiGetParent, uintptr(unsafe.Pointer(&iidIDXGIFactory2)), uintptr(unsafe.Pointer(&r.factory)))) {
+	if failed(call2(adapter, dxgiGetParent, uintptr(unsafe.Pointer(&iidIDXGIFactory2)), uintptr(unsafe.Pointer(&r.factory)))) {
 		return errors.New("d3d11: DXGI 1.2 is required")
 	}
 
@@ -384,7 +512,7 @@ func (r *Renderer) init() error {
 	}{{code.vs, &r.vs, devCreateVertexShader, "vertex"}, {code.ps, &r.ps, devCreatePixelShader, "pixel"},
 		{code.passVS, &r.passVS, devCreateVertexShader, "pass vertex"}, {code.down, &r.downPS, devCreatePixelShader, "down"},
 		{code.blur, &r.blurPS, devCreatePixelShader, "blur"}} {
-		if len(s.code) == 0 || failed(call(r.device, s.vtbl, uintptr(unsafe.Pointer(&s.code[0])), uintptr(len(s.code)), 0, uintptr(unsafe.Pointer(s.out)))) {
+		if len(s.code) == 0 || failed(call4(r.device, s.vtbl, uintptr(unsafe.Pointer(&s.code[0])), uintptr(len(s.code)), 0, uintptr(unsafe.Pointer(s.out)))) {
 			return fmt.Errorf("d3d11: cannot create the %s shader", s.name)
 		}
 	}
@@ -397,7 +525,7 @@ func (r *Renderer) init() error {
 		elems[i] = inputElement{SemanticName: &cstr[i][0], SemanticIndex: indices[i], Format: formatR32G32B32A32Float,
 			AlignedByteOffset: uint32(16 * i), InputSlotClass: 1, InstanceDataStepRate: 1}
 	}
-	if failed(call(r.device, devCreateInputLayout, uintptr(unsafe.Pointer(&elems[0])), uintptr(len(elems)),
+	if failed(call5(r.device, devCreateInputLayout, uintptr(unsafe.Pointer(&elems[0])), uintptr(len(elems)),
 		uintptr(unsafe.Pointer(&vsCode[0])), uintptr(len(vsCode)), uintptr(unsafe.Pointer(&r.layout)))) {
 		return errors.New("d3d11: cannot create the input layout")
 	}
@@ -407,47 +535,43 @@ func (r *Renderer) init() error {
 	// D3D11_BLEND_INV_SRC1_COLOR and D3D11_BLEND_INV_SRC1_ALPHA).
 	bd := blendDesc{}
 	bd.RenderTarget[0] = rtBlend{BlendEnable: 1, SrcBlend: 2, DestBlend: 17, BlendOp: 1, SrcBlendAlpha: 2, DestBlendAlpha: 19, BlendOpAlpha: 1, WriteMask: 0xf}
-	if failed(call(r.device, devCreateBlendState, uintptr(unsafe.Pointer(&bd)), uintptr(unsafe.Pointer(&r.blend)))) {
+	if failed(call2(r.device, devCreateBlendState, uintptr(unsafe.Pointer(&bd)), uintptr(unsafe.Pointer(&r.blend)))) {
 		return errors.New("d3d11: cannot create the blend state")
 	}
 	mbd := blendDesc{}
 	mbd.RenderTarget[0] = rtBlend{BlendEnable: 1, SrcBlend: 1, DestBlend: 6, BlendOp: 1, SrcBlendAlpha: 1, DestBlendAlpha: 6, BlendOpAlpha: 1, WriteMask: 0xf}
-	if failed(call(r.device, devCreateBlendState, uintptr(unsafe.Pointer(&mbd)), uintptr(unsafe.Pointer(&r.maskBlend)))) {
+	if failed(call2(r.device, devCreateBlendState, uintptr(unsafe.Pointer(&mbd)), uintptr(unsafe.Pointer(&r.maskBlend)))) {
 		return errors.New("d3d11: cannot create the mask blend state")
 	}
 	rd := rasterizerDesc{FillMode: 3, CullMode: 1, DepthClip: 1, Scissor: 1}
-	if failed(call(r.device, devCreateRasterizerState, uintptr(unsafe.Pointer(&rd)), uintptr(unsafe.Pointer(&r.raster)))) {
+	if failed(call2(r.device, devCreateRasterizerState, uintptr(unsafe.Pointer(&rd)), uintptr(unsafe.Pointer(&r.raster)))) {
 		return errors.New("d3d11: cannot create the rasterizer state")
 	}
 	sd := samplerDesc{Filter: 0x15, AddressU: 3, AddressV: 3, AddressW: 3, ComparisonFunc: 1, MaxLOD: math.MaxFloat32}
-	if failed(call(r.device, devCreateSamplerState, uintptr(unsafe.Pointer(&sd)), uintptr(unsafe.Pointer(&r.samp)))) {
+	if failed(call2(r.device, devCreateSamplerState, uintptr(unsafe.Pointer(&sd)), uintptr(unsafe.Pointer(&r.samp)))) {
 		return errors.New("d3d11: cannot create the sampler")
 	}
 	cd := bufferDesc{ByteWidth: 16, Usage: usageDefault, BindFlags: bindConstantBuffer}
-	if failed(call(r.device, devCreateBuffer, uintptr(unsafe.Pointer(&cd)), 0, uintptr(unsafe.Pointer(&r.cbuf)))) {
+	if failed(call3(r.device, devCreateBuffer, uintptr(unsafe.Pointer(&cd)), 0, uintptr(unsafe.Pointer(&r.cbuf)))) {
 		return errors.New("d3d11: cannot create the constant buffer")
 	}
-	cd.ByteWidth = uint32(unsafe.Sizeof(gpu.Pass{}))
-	if failed(call(r.device, devCreateBuffer, uintptr(unsafe.Pointer(&cd)), 0, uintptr(unsafe.Pointer(&r.passCB)))) {
+	cd.ByteWidth = uint32(unsafe.Sizeof(passConstants{}))
+	if failed(call3(r.device, devCreateBuffer, uintptr(unsafe.Pointer(&cd)), 0, uintptr(unsafe.Pointer(&r.passCB)))) {
 		return errors.New("d3d11: cannot create the constant buffer of passes")
 	}
 	return nil
 }
 
-// Resizing the buffers of a swap chain, as each step of a resize would,
-// takes DWM longer than a frame for a window about as large as a 4K
-// screen. So while the window changes size, the swap chain has three
-// buffers, a quarter larger than the window, and shows the window's size
-// of them (SetSourceSize): they are resized only when the window outgrows
-// them, and a frame is free to draw while DWM holds two. A frame
-// settleDelay after the last change, which the settle timer asks for,
-// gives the swap chain two buffers of the window's size again. A swap chain
-// for composition stretches the size it shows over its buffers' instead,
-// which would magnify the frames: it shows its buffers whole, and the
-// window clips what is beyond the frame, which the frame leaves transparent.
+// Keep three flip-model swap-chain buffers in steady state while capping
+// IDXGISwapChain2::SetMaximumFrameLatency at 1: input latency stays 1 frame,
+// while a free back buffer remains available when DWM holds two buffers during
+// high-refresh (165Hz+) composition, eliminating double-buffer backpressure
+// spikes. While resizing, buffers are oversized by a quarter so ResizeBuffers
+// is only called when the window outgrows them, then settled back to w×h.
 const (
-	resizeBuffers = 3
-	settleTimer   = 0x6d79 // the timer's ID on the window
+	defaultBuffers = 3
+	resizeBuffers  = 3
+	settleTimer    = 0x6d79 // the timer's ID on the window
 )
 
 var settleDelay = time.Second
@@ -457,12 +581,12 @@ func (r *Renderer) resize(w, h int) error {
 	if r.swapChain != 0 && w == r.w && h == r.h {
 		if r.resizing && time.Since(r.resizedAt) >= settleDelay/2 {
 			r.resizing = false
-			return r.buffers(w, h, w, h, 2)
+			return r.buffers(w, h, w, h, defaultBuffers)
 		}
 		return nil
 	}
 	if r.swapChain == 0 || r.swapChain2 == 0 {
-		return r.buffers(w, h, w, h, 2)
+		return r.buffers(w, h, w, h, defaultBuffers)
 	}
 	r.resizedAt = time.Now()
 	r.armSettle()
@@ -489,34 +613,38 @@ func (r *Renderer) buffers(w, h, bw, bh, n int) error {
 				return err
 			}
 		} else {
-			hr := call(r.factory, factoryCreateSwapChainHwnd, r.device, r.hwnd, uintptr(unsafe.Pointer(&desc)), 0, 0, uintptr(unsafe.Pointer(&r.swapChain)))
+			hr := call6(r.factory, factoryCreateSwapChainHwnd, r.device, r.hwnd, uintptr(unsafe.Pointer(&desc)), 0, 0, uintptr(unsafe.Pointer(&r.swapChain)))
 			if failed(hr) && desc.Flags != 0 {
 				// Fallback for older DXGI/drivers that reject the waitable flag.
 				desc.Flags = 0
-				hr = call(r.factory, factoryCreateSwapChainHwnd, r.device, r.hwnd, uintptr(unsafe.Pointer(&desc)), 0, 0, uintptr(unsafe.Pointer(&r.swapChain)))
+				hr = call6(r.factory, factoryCreateSwapChainHwnd, r.device, r.hwnd, uintptr(unsafe.Pointer(&desc)), 0, 0, uintptr(unsafe.Pointer(&r.swapChain)))
 			}
 			if failed(hr) {
 				return fmt.Errorf("d3d11: cannot create the swap chain: %#x", uint32(hr))
 			}
 			r.scFlags = desc.Flags
 			const noAltEnter = 2
-			call(r.factory, factoryMakeWindowAssoc, r.hwnd, noAltEnter)
+			call2(r.factory, factoryMakeWindowAssoc, r.hwnd, noAltEnter)
 		}
-		call(r.swapChain, 0, uintptr(unsafe.Pointer(&iidIDXGISwapChain2)), uintptr(unsafe.Pointer(&r.swapChain2)))
+		call2(r.swapChain, 0, uintptr(unsafe.Pointer(&iidIDXGISwapChain2)), uintptr(unsafe.Pointer(&r.swapChain2)))
 		r.initWaitable()
-	} else if hr := call(r.swapChain, scResizeBuffers, uintptr(n), uintptr(bw), uintptr(bh), 0, uintptr(r.scFlags)); failed(hr) {
+	} else if hr := call5(r.swapChain, scResizeBuffers, uintptr(n), uintptr(bw), uintptr(bh), 0, uintptr(r.scFlags)); failed(hr) {
 		return fmt.Errorf("d3d11: cannot resize the swap chain: %#x", uint32(hr))
+	} else {
+		// ResizeBuffers flushes previously queued frames; clear any stale
+		// unpaced debt so the next Present reconciles the semaphore cleanly.
+		r.unpacedPresents = 0
 	}
 	if err := r.setSourceSize(w, h); err != nil {
 		return err
 	}
 	r.bw, r.bh = bw, bh
 	var back uintptr
-	if hr := call(r.swapChain, scGetBuffer, 0, uintptr(unsafe.Pointer(&iidID3D11Texture2D)), uintptr(unsafe.Pointer(&back))); failed(hr) {
+	if hr := call3(r.swapChain, scGetBuffer, 0, uintptr(unsafe.Pointer(&iidID3D11Texture2D)), uintptr(unsafe.Pointer(&back))); failed(hr) {
 		return fmt.Errorf("d3d11: no back buffer: %#x", uint32(hr))
 	}
 	defer free(&back)
-	if hr := call(r.device, devCreateRenderTargetView, back, 0, uintptr(unsafe.Pointer(&r.rtv))); failed(hr) {
+	if hr := call3(r.device, devCreateRenderTargetView, back, 0, uintptr(unsafe.Pointer(&r.rtv))); failed(hr) {
 		return fmt.Errorf("d3d11: cannot create the render target view: %#x", uint32(hr))
 	}
 	r.w, r.h = w, h
@@ -529,11 +657,44 @@ func (r *Renderer) initWaitable() {
 	if r.swapChain2 == 0 || r.scFlags&dxgiSwapChainFlagWaitable == 0 {
 		return
 	}
-	call(r.swapChain2, scSetMaximumFrameLatency, 1)
-	h := call(r.swapChain2, scGetFrameLatencyWaitableObject)
+	call1(r.swapChain2, scSetMaximumFrameLatency, 1)
+	h := call0(r.swapChain2, scGetFrameLatencyWaitableObject)
 	if h != 0 && h != ^uintptr(0) {
 		r.waitable = h
 		r.slotAcquired = false
+		r.unpacedPresents = 0
+		r.lastPresentAt = time.Time{}
+	}
+}
+
+// waitFrameNonBlocking performs a zero-timeout WaitForSingleObject on the
+// waitable handle without allocating a variadic argument slice.
+func (r *Renderer) waitFrameNonBlocking() bool {
+	if r.waitable == 0 {
+		return false
+	}
+	if r.waitProc == 0 {
+		if err := procWaitForSingleObject.Find(); err != nil {
+			return false
+		}
+		r.waitProc = procWaitForSingleObject.Addr()
+	}
+	ret, _, _ := syscall.Syscall(r.waitProc, 2, r.waitable, 0, 0)
+	return ret == waitObject0
+}
+
+// drainExtraWaitable drains any excess semaphore count beyond the single frame
+// slot permitted by SetMaximumFrameLatency(1). It must only be called when the
+// caller already owns a slot (slotAcquired == true) or is immediately about to
+// Present, so it can never starve the event loop of the next frame's signal.
+func (r *Renderer) drainExtraWaitable() {
+	for range 16 {
+		if !r.waitFrameNonBlocking() {
+			return
+		}
+		if r.unpacedPresents > 0 {
+			r.unpacedPresents--
+		}
 	}
 }
 
@@ -545,23 +706,54 @@ func (r *Renderer) WaitHandle() uintptr { return r.waitable }
 // It returns true when a frame may be drawn and presented without blocking on
 // VSync, or when waitable pacing is inactive.
 func (r *Renderer) TryAcquireFrame() bool {
-	if r.waitable == 0 || r.slotAcquired {
+	if r.waitable == 0 {
 		return true
 	}
-	ret, _, _ := procWaitForSingleObject.Call(r.waitable, 0)
-	if ret == waitObject0 {
-		r.slotAcquired = true
+	if r.slotAcquired {
+		r.drainExtraWaitable()
 		return true
 	}
-	return false
+	// Reconcile any unpaced (forced/immediate) presents before acquiring the
+	// next slot so a delayed completion signal from an earlier frame cannot
+	// leave the semaphore permanently shifted (+1) and force Present(1, 0) to
+	// block on every subsequent frame.
+	for r.unpacedPresents > 0 {
+		if !r.waitFrameNonBlocking() {
+			return false
+		}
+		r.unpacedPresents--
+	}
+	if !r.waitFrameNonBlocking() {
+		return false
+	}
+	r.slotAcquired = true
+	r.drainExtraWaitable()
+	return true
 }
 
 // MarkFrameReady records that the platform event loop was woken by WaitHandle
-// (consuming its semaphore count), allowing the next frame to proceed at once.
+// (consuming its semaphore count), allowing the next frame to proceed at once
+// once any unpaced present debt has been reconciled.
 func (r *Renderer) MarkFrameReady() {
-	if r.waitable != 0 {
-		r.slotAcquired = true
+	if r.waitable == 0 {
+		return
 	}
+	if r.unpacedPresents > 0 {
+		// The signal consumed by MsgWait repays an unpaced present; check
+		// whether another signal is already available for the next frame.
+		r.unpacedPresents--
+		for r.unpacedPresents > 0 {
+			if !r.waitFrameNonBlocking() {
+				return
+			}
+			r.unpacedPresents--
+		}
+		if !r.waitFrameNonBlocking() {
+			return
+		}
+	}
+	r.slotAcquired = true
+	r.drainExtraWaitable()
 }
 
 // setSourceSize makes the swap chain show the w×h pixels at the top left
@@ -570,7 +762,7 @@ func (r *Renderer) setSourceSize(w, h int) error {
 	if r.swapChain2 == 0 || r.composed {
 		return nil
 	}
-	if hr := call(r.swapChain2, scSetSourceSize, uintptr(w), uintptr(h)); failed(hr) {
+	if hr := call2(r.swapChain2, scSetSourceSize, uintptr(w), uintptr(h)); failed(hr) {
 		return fmt.Errorf("d3d11: cannot set the swap chain's source size: %#x", uint32(hr))
 	}
 	return nil
@@ -586,7 +778,7 @@ func (r *Renderer) composeSwapChain(desc swapChainDesc1) error {
 		return fmt.Errorf("d3d11: no DirectComposition: %w", err)
 	}
 	var dxgiDev uintptr
-	if failed(call(r.device, 0, uintptr(unsafe.Pointer(&iidIDXGIDevice)), uintptr(unsafe.Pointer(&dxgiDev)))) {
+	if failed(call2(r.device, 0, uintptr(unsafe.Pointer(&iidIDXGIDevice)), uintptr(unsafe.Pointer(&dxgiDev)))) {
 		return errors.New("d3d11: no DXGI device")
 	}
 	hr, _, _ := procDCompositionCreateDevice.Call(dxgiDev, uintptr(unsafe.Pointer(&iidIDCompositionDevice)), uintptr(unsafe.Pointer(&r.dcomp)))
@@ -597,29 +789,29 @@ func (r *Renderer) composeSwapChain(desc swapChainDesc1) error {
 	// A swap chain for composition flips in sequence and stretches, the
 	// only ways it takes.
 	desc.SwapEffect, desc.AlphaMode = 3 /* flip sequential */, 1 /* premultiplied */
-	hr = call(r.factory, factoryCreateSwapChainComp, r.device, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&r.swapChain)))
+	hr = call4(r.factory, factoryCreateSwapChainComp, r.device, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&r.swapChain)))
 	if failed(hr) && desc.Flags != 0 {
 		// Fallback for older DXGI/drivers that reject the waitable flag.
 		desc.Flags = 0
-		hr = call(r.factory, factoryCreateSwapChainComp, r.device, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&r.swapChain)))
+		hr = call4(r.factory, factoryCreateSwapChainComp, r.device, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&r.swapChain)))
 	}
 	if failed(hr) {
 		return fmt.Errorf("d3d11: cannot create the swap chain for composition: %#x", uint32(hr))
 	}
 	r.scFlags = desc.Flags
-	if hr := call(r.dcomp, dcompCreateTarget, r.hwnd, 1, uintptr(unsafe.Pointer(&r.target))); failed(hr) {
+	if hr := call3(r.dcomp, dcompCreateTarget, r.hwnd, 1, uintptr(unsafe.Pointer(&r.target))); failed(hr) {
 		return fmt.Errorf("d3d11: cannot compose the window: %#x", uint32(hr))
 	}
-	if hr := call(r.dcomp, dcompCreateVisual, uintptr(unsafe.Pointer(&r.visual))); failed(hr) {
+	if hr := call1(r.dcomp, dcompCreateVisual, uintptr(unsafe.Pointer(&r.visual))); failed(hr) {
 		return fmt.Errorf("d3d11: cannot create the visual: %#x", uint32(hr))
 	}
-	if hr := call(r.visual, dcompVisualSetContent, r.swapChain); failed(hr) {
+	if hr := call1(r.visual, dcompVisualSetContent, r.swapChain); failed(hr) {
 		return fmt.Errorf("d3d11: cannot show the swap chain in the visual: %#x", uint32(hr))
 	}
-	if hr := call(r.target, dcompTargetSetRoot, r.visual); failed(hr) {
+	if hr := call1(r.target, dcompTargetSetRoot, r.visual); failed(hr) {
 		return fmt.Errorf("d3d11: cannot show the visual on the window: %#x", uint32(hr))
 	}
-	if hr := call(r.dcomp, dcompCommit); failed(hr) {
+	if hr := call0(r.dcomp, dcompCommit); failed(hr) {
 		return fmt.Errorf("d3d11: cannot commit the composition: %#x", uint32(hr))
 	}
 	return nil
@@ -667,8 +859,8 @@ func (r *Renderer) Release() {
 		procKillTimer.Call(r.hwnd, settleTimer)
 	}
 	if r.ctx != 0 {
-		call(r.ctx, ctxClearState)
-		call(r.ctx, ctxFlush)
+		call0(r.ctx, ctxClearState)
+		call0(r.ctx, ctxFlush)
 	}
 	for _, t := range r.images {
 		free(&t.srv)
@@ -693,6 +885,7 @@ func (r *Renderer) Release() {
 		procCloseHandle.Call(r.waitable)
 		r.waitable = 0
 		r.slotAcquired = false
+		r.unpacedPresents = 0
 	}
 	// The target goes first: a window has one at most, which another
 	// renderer of it then makes.
@@ -711,10 +904,10 @@ func (r *Renderer) newTexture(t *texture, w, h int, format uint32, pix []byte, b
 	if len(pix) >= w*h*bpp {
 		init = &subresourceData{SysMem: uintptr(unsafe.Pointer(&pix[0])), SysMemPitch: uint32(w * bpp)}
 	}
-	if hr := call(r.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), uintptr(unsafe.Pointer(init)), uintptr(unsafe.Pointer(&t.tex))); failed(hr) {
+	if hr := call3(r.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), uintptr(unsafe.Pointer(init)), uintptr(unsafe.Pointer(&t.tex))); failed(hr) {
 		return fmt.Errorf("d3d11: cannot create a %dx%d texture: %#x", w, h, uint32(hr))
 	}
-	if hr := call(r.device, devCreateShaderResourceView, t.tex, 0, uintptr(unsafe.Pointer(&t.srv))); failed(hr) {
+	if hr := call3(r.device, devCreateShaderResourceView, t.tex, 0, uintptr(unsafe.Pointer(&t.srv))); failed(hr) {
 		return fmt.Errorf("d3d11: cannot create a texture view: %#x", uint32(hr))
 	}
 	t.w, t.h = w, h
@@ -735,12 +928,12 @@ func (r *Renderer) syncAtlas(t *texture, a *scene.Atlas, format uint32) error {
 	}
 	rects, full := a.Changes(t.gen, t.ver)
 	if full {
-		call(r.ctx, ctxUpdateSubresource, t.tex, 0, 0, uintptr(unsafe.Pointer(&a.Pix[0])), uintptr(a.W*a.BPP), 0)
+		call6(r.ctx, ctxUpdateSubresource, t.tex, 0, 0, uintptr(unsafe.Pointer(&a.Pix[0])), uintptr(a.W*a.BPP), 0)
 	}
 	for _, rc := range rects {
-		b := box{Left: uint32(rc.Min.X), Top: uint32(rc.Min.Y), Front: 0, Right: uint32(rc.Max.X), Bottom: uint32(rc.Max.Y), Back: 1}
+		r.scratch.copyBox = box{Left: uint32(rc.Min.X), Top: uint32(rc.Min.Y), Front: 0, Right: uint32(rc.Max.X), Bottom: uint32(rc.Max.Y), Back: 1}
 		src := a.Pix[(rc.Min.Y*a.W+rc.Min.X)*a.BPP:]
-		call(r.ctx, ctxUpdateSubresource, t.tex, 0, uintptr(unsafe.Pointer(&b)), uintptr(unsafe.Pointer(&src[0])), uintptr(a.W*a.BPP), 0)
+		call6(r.ctx, ctxUpdateSubresource, t.tex, 0, uintptr(unsafe.Pointer(&r.scratch.copyBox)), uintptr(unsafe.Pointer(&src[0])), uintptr(a.W*a.BPP), 0)
 	}
 	t.ver = a.Version()
 	return nil
@@ -793,8 +986,8 @@ func (r *Renderer) evictImages(budget int64, allowCurrentFrame bool) {
 // stops drawing frames.
 func (r *Renderer) Idle() {
 	if r.ctx != 0 {
-		call(r.ctx, ctxClearState)
-		call(r.ctx, ctxFlush)
+		call0(r.ctx, ctxClearState)
+		call0(r.ctx, ctxFlush)
 	}
 	for _, t := range []*texture{&r.grab, &r.backdrop[0], &r.backdrop[1]} {
 		free(&t.rtv)
@@ -830,8 +1023,8 @@ func (r *Renderer) Trim() {
 	r.instCap = 0
 	r.b = gpu.Builder{}
 	if r.ctx != 0 {
-		call(r.ctx, ctxClearState)
-		call(r.ctx, ctxFlush)
+		call0(r.ctx, ctxClearState)
+		call0(r.ctx, ctxFlush)
 	}
 }
 
@@ -873,7 +1066,7 @@ func (r *Renderer) imageView(img *scene.Image) uintptr {
 			r.imageBytes += size - oldBytes
 			t.bytes = size
 		} else {
-			call(r.ctx, ctxUpdateSubresource, t.tex, 0, 0, uintptr(unsafe.Pointer(&img.Pix[0])), uintptr(img.W*4), 0)
+			call6(r.ctx, ctxUpdateSubresource, t.tex, 0, 0, uintptr(unsafe.Pointer(&img.Pix[0])), uintptr(img.W*4), 0)
 		}
 		t.ver = img.Version()
 	}
@@ -978,33 +1171,35 @@ func (r *Renderer) draw(s *scene.Scene) error {
 			free(&r.instBuf)
 			capacity := max(n*3/2, 1024)
 			bd := bufferDesc{ByteWidth: uint32(capacity * gpu.InstanceSize), Usage: usageDynamic, BindFlags: bindVertexBuffer, CPUAccessFlags: cpuAccessWrite}
-			if hr := call(r.device, devCreateBuffer, uintptr(unsafe.Pointer(&bd)), 0, uintptr(unsafe.Pointer(&r.instBuf))); failed(hr) {
+			if hr := call3(r.device, devCreateBuffer, uintptr(unsafe.Pointer(&bd)), 0, uintptr(unsafe.Pointer(&r.instBuf))); failed(hr) {
 				r.instCap = 0
 				return fmt.Errorf("d3d11: cannot create the instance buffer: %#x", uint32(hr))
 			}
 			r.instCap = capacity
 		}
-		var m mapped
-		if hr := call(r.ctx, ctxMap, r.instBuf, 0, mapWriteDiscard, 0, uintptr(unsafe.Pointer(&m))); failed(hr) {
+		r.scratch.mapped = mapped{}
+		if hr := call5(r.ctx, ctxMap, r.instBuf, 0, mapWriteDiscard, 0, uintptr(unsafe.Pointer(&r.scratch.mapped))); failed(hr) {
 			return fmt.Errorf("d3d11: cannot map the instance buffer: %#x", uint32(hr))
 		}
-		dst := unsafe.Slice((*gpu.Instance)(ptr(m.Data)), n)
+		dst := unsafe.Slice((*gpu.Instance)(ptr(r.scratch.mapped.Data)), n)
 		copy(dst, r.b.Instances)
-		call(r.ctx, ctxUnmap, r.instBuf, 0)
+		call2(r.ctx, ctxUnmap, r.instBuf, 0)
 	}
-	globals := [4]float32{float32(s.Width), float32(s.Height), 0, 0}
-	call(r.ctx, ctxUpdateSubresource, r.cbuf, 0, 0, uintptr(unsafe.Pointer(&globals[0])), 0, 0)
+	r.scratch.globals = [4]float32{float32(s.Width), float32(s.Height), 0, 0}
+	call6(r.ctx, ctxUpdateSubresource, r.cbuf, 0, 0, uintptr(unsafe.Pointer(&r.scratch.globals[0])), 0, 0)
 	upload += time.Since(uploadRest)
 
 	ctx := r.ctx
-	call(ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&r.rtv)), 0)
-	clear := s.Clear.Premul(1)
-	call(ctx, ctxClearRenderTargetView, r.rtv, uintptr(unsafe.Pointer(&clear[0])))
-	call(ctx, ctxRSSetState, r.raster)
-	call(ctx, ctxIASetPrimitiveTopology, topologyTriangleStrip)
+	call3(ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&r.rtv)), 0)
+	r.scratch.clear = s.Clear.Premul(1)
+	call2(ctx, ctxClearRenderTargetView, r.rtv, uintptr(unsafe.Pointer(&r.scratch.clear[0])))
+	call1(ctx, ctxRSSetState, r.raster)
+	call1(ctx, ctxIASetPrimitiveTopology, topologyTriangleStrip)
 	r.bindState(s, 0)
-	bound, ps := uintptr(0), r.ps
-	for _, b := range r.b.Batches {
+	r.scratch.boundSRV = 0
+	ps := r.ps
+	for i := range r.b.Batches {
+		b := &r.b.Batches[i]
 		if b.Count == 0 {
 			continue
 		}
@@ -1017,28 +1212,27 @@ func (r *Renderer) draw(s *scene.Scene) error {
 		if b.Backdrop != 0 {
 			// The effect shows what is drawn so far.
 			r.bindState(s, r.backdropView(b.Backdrop-1, salt))
-			bound, ps = 0, r.ps
+			r.scratch.boundSRV, ps = 0, r.ps
 		}
 		if want != ps {
 			ps = want
-			call(ctx, ctxPSSetShader, ps, 0, 0)
+			call3(ctx, ctxPSSetShader, ps, 0, 0)
 		}
-		if b.Image != 0 && b.Image != bound {
-			bound = b.Image
-			call(ctx, ctxPSSetShaderResources, 2, 1, uintptr(unsafe.Pointer(&bound)))
+		if b.Image != 0 && b.Image != r.scratch.boundSRV {
+			r.scratch.boundSRV = b.Image
+			call3(ctx, ctxPSSetShaderResources, 2, 1, uintptr(unsafe.Pointer(&r.scratch.boundSRV)))
 		}
-		sc := b.Scissor // a D3D11_RECT
-		call(ctx, ctxRSSetScissorRects, 1, uintptr(unsafe.Pointer(&sc)))
-		call(ctx, ctxDrawInstanced, 4, uintptr(b.Count), 0, uintptr(b.Start))
+		call2(ctx, ctxRSSetScissorRects, 1, uintptr(unsafe.Pointer(&b.Scissor)))
+		call4(ctx, ctxDrawInstanced, 4, uintptr(b.Count), 0, uintptr(b.Start))
 	}
 	if maskIdx >= 0 && r.maskBlend != 0 {
 		if ps != r.ps {
-			call(ctx, ctxPSSetShader, r.ps, 0, 0)
+			call3(ctx, ctxPSSetShader, r.ps, 0, 0)
 		}
-		sc := gpu.Scissor{Left: 0, Top: 0, Right: int32(s.Width), Bottom: int32(s.Height)}
-		call(ctx, ctxRSSetScissorRects, 1, uintptr(unsafe.Pointer(&sc)))
-		call(ctx, ctxOMSetBlendState, r.maskBlend, 0, 0xffffffff)
-		call(ctx, ctxDrawInstanced, 4, 1, 0, uintptr(maskIdx))
+		r.scratch.scissor = gpu.Scissor{Left: 0, Top: 0, Right: int32(s.Width), Bottom: int32(s.Height)}
+		call2(ctx, ctxRSSetScissorRects, 1, uintptr(unsafe.Pointer(&r.scratch.scissor)))
+		call3(ctx, ctxOMSetBlendState, r.maskBlend, 0, 0xffffffff)
+		call4(ctx, ctxDrawInstanced, 4, 1, 0, uintptr(maskIdx))
 	}
 	r.lastUpload = upload
 	r.lastDraw = time.Since(drawStart) - upload
@@ -1069,7 +1263,7 @@ func (r *Renderer) effectShader(e *scene.Effect) uintptr {
 		code, p.err = CompileEffect(e.HLSL.Source)
 	}
 	if p.err == nil {
-		if hr := call(r.device, devCreatePixelShader, uintptr(unsafe.Pointer(&code[0])), uintptr(len(code)), 0, uintptr(unsafe.Pointer(&p.ps))); failed(hr) {
+		if hr := call4(r.device, devCreatePixelShader, uintptr(unsafe.Pointer(&code[0])), uintptr(len(code)), 0, uintptr(unsafe.Pointer(&p.ps))); failed(hr) {
 			p.err = fmt.Errorf("d3d11: cannot create the pixel shader of the effect %s: %#x", e.Name, uint32(hr))
 		}
 	} else {
@@ -1086,19 +1280,19 @@ func (r *Renderer) effectShader(e *scene.Effect) uintptr {
 // buffer, with the backdrop of an effect.
 func (r *Renderer) bindState(s *scene.Scene, backdrop uintptr) {
 	ctx := r.ctx
-	call(ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&r.rtv)), 0)
-	vp := viewport{W: float32(s.Width), H: float32(s.Height), MaxDepth: 1}
-	call(ctx, ctxRSSetViewports, 1, uintptr(unsafe.Pointer(&vp)))
-	call(ctx, ctxOMSetBlendState, r.blend, 0, 0xffffffff)
-	call(ctx, ctxIASetInputLayout, r.layout)
-	stride, offset := uint32(gpu.InstanceSize), uint32(0)
-	call(ctx, ctxIASetVertexBuffers, 0, 1, uintptr(unsafe.Pointer(&r.instBuf)), uintptr(unsafe.Pointer(&stride)), uintptr(unsafe.Pointer(&offset)))
-	call(ctx, ctxVSSetShader, r.vs, 0, 0)
-	call(ctx, ctxVSSetConstantBuffers, 0, 1, uintptr(unsafe.Pointer(&r.cbuf)))
-	call(ctx, ctxPSSetShader, r.ps, 0, 0)
-	call(ctx, ctxPSSetSamplers, 0, 1, uintptr(unsafe.Pointer(&r.samp)))
-	views := [4]uintptr{r.mask.srv, r.color.srv, 0, backdrop}
-	call(ctx, ctxPSSetShaderResources, 0, 4, uintptr(unsafe.Pointer(&views[0])))
+	call3(ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&r.rtv)), 0)
+	r.scratch.viewport = viewport{W: float32(s.Width), H: float32(s.Height), MaxDepth: 1}
+	call2(ctx, ctxRSSetViewports, 1, uintptr(unsafe.Pointer(&r.scratch.viewport)))
+	call3(ctx, ctxOMSetBlendState, r.blend, 0, 0xffffffff)
+	call1(ctx, ctxIASetInputLayout, r.layout)
+	r.scratch.stride, r.scratch.offset = uint32(gpu.InstanceSize), 0
+	call5(ctx, ctxIASetVertexBuffers, 0, 1, uintptr(unsafe.Pointer(&r.instBuf)), uintptr(unsafe.Pointer(&r.scratch.stride)), uintptr(unsafe.Pointer(&r.scratch.offset)))
+	call3(ctx, ctxVSSetShader, r.vs, 0, 0)
+	call3(ctx, ctxVSSetConstantBuffers, 0, 1, uintptr(unsafe.Pointer(&r.cbuf)))
+	call3(ctx, ctxPSSetShader, r.ps, 0, 0)
+	call3(ctx, ctxPSSetSamplers, 0, 1, uintptr(unsafe.Pointer(&r.samp)))
+	r.scratch.views = [4]uintptr{r.mask.srv, r.color.srv, 0, backdrop}
+	call3(ctx, ctxPSSetShaderResources, 0, 4, uintptr(unsafe.Pointer(&r.scratch.views[0])))
 }
 
 // readBackdrop computes the backdrop bk of what the back buffer holds,
@@ -1107,39 +1301,71 @@ func (r *Renderer) bindState(s *scene.Scene, backdrop uintptr) {
 func (r *Renderer) readBackdrop(bk scene.Backdrop) {
 	ctx := r.ctx
 	// No texture drawn into may be bound for reading.
-	var none [5]uintptr
-	call(ctx, ctxPSSetShaderResources, 0, 5, uintptr(unsafe.Pointer(&none[0])))
-	var back uintptr
-	call(r.rtv, viewGetResource, uintptr(unsafe.Pointer(&back)))
-	from := box{Left: uint32(bk.Area.Min.X), Top: uint32(bk.Area.Min.Y), Right: uint32(bk.Area.Max.X), Bottom: uint32(bk.Area.Max.Y), Back: 1}
-	call(ctx, ctxCopySubresourceRegion, r.grab.tex, 0, 0, 0, 0, back, 0, uintptr(unsafe.Pointer(&from)))
-	free(&back)
-	call(ctx, ctxOMSetBlendState, 0, 0, 0xffffffff)
-	call(ctx, ctxIASetInputLayout, 0)
-	call(ctx, ctxVSSetShader, r.passVS, 0, 0)
-	call(ctx, ctxPSSetConstantBuffers, 1, 1, uintptr(unsafe.Pointer(&r.passCB)))
+	call3(ctx, ctxPSSetShaderResources, 0, 5, uintptr(unsafe.Pointer(&r.scratch.noneViews[0])))
+	r.scratch.back = 0
+	call1(r.rtv, viewGetResource, uintptr(unsafe.Pointer(&r.scratch.back)))
+	r.scratch.copyBox = box{Left: uint32(bk.Area.Min.X), Top: uint32(bk.Area.Min.Y), Right: uint32(bk.Area.Max.X), Bottom: uint32(bk.Area.Max.Y), Back: 1}
+	call8(ctx, ctxCopySubresourceRegion, r.grab.tex, 0, 0, 0, 0, r.scratch.back, 0, uintptr(unsafe.Pointer(&r.scratch.copyBox)))
+	free(&r.scratch.back)
+	call3(ctx, ctxOMSetBlendState, 0, 0, 0xffffffff)
+	call1(ctx, ctxIASetInputLayout, 0)
+	call3(ctx, ctxVSSetShader, r.passVS, 0, 0)
+	call3(ctx, ctxPSSetConstantBuffers, 1, 1, uintptr(unsafe.Pointer(&r.passCB)))
+	call3(ctx, ctxPSSetSamplers, 0, 1, uintptr(unsafe.Pointer(&r.samp)))
 	w, h := bk.Size()
-	r.pass(r.downPS, r.grab.srv, &r.backdrop[0], w, h, gpu.DownPass(bk, [2]int32{int32(bk.Area.Min.X), int32(bk.Area.Min.Y)}))
+	r.prepareDownPass(bk, [2]int32{int32(bk.Area.Min.X), int32(bk.Area.Min.Y)}, r.grab.w, r.grab.h)
+	r.pass(r.downPS, r.grab.srv, &r.backdrop[0], w, h)
 	if bk.Radius > 0 {
-		r.pass(r.blurPS, r.backdrop[0].srv, &r.backdrop[1], w, h, gpu.BlurPass(bk, [2]int32{1, 0}))
-		r.pass(r.blurPS, r.backdrop[1].srv, &r.backdrop[0], w, h, gpu.BlurPass(bk, [2]int32{0, 1}))
+		r.prepareBlurPass(bk, [2]int32{1, 0}, r.backdrop[0].w, r.backdrop[0].h)
+		r.pass(r.blurPS, r.backdrop[0].srv, &r.backdrop[1], w, h)
+		r.prepareBlurPass(bk, [2]int32{0, 1}, r.backdrop[1].w, r.backdrop[1].h)
+		r.pass(r.blurPS, r.backdrop[1].srv, &r.backdrop[0], w, h)
 	}
 }
 
-// pass draws ps into the w×h texels at the start of dst, reading src.
-func (r *Renderer) pass(ps, src uintptr, dst *texture, w, h int, p gpu.Pass) {
+func (r *Renderer) prepareDownPass(bk scene.Backdrop, shift [2]int32, srcW, srcH int) {
+	p := gpu.DownPass(bk, shift)
+	c := &r.scratch.passConst
+	c.Origin, c.Limit, c.Shift, c.Dir = p.Origin, p.Limit, p.Shift, p.Dir
+	c.Down, c.Radius, c.Sigma, c.TapCount = p.Down, 0, 0, 0
+	c.InvSize = [2]float32{1 / float32(max(srcW, 1)), 1 / float32(max(srcH, 1))}
+	c.CenterW, c.Pad = 0, 0
+}
+
+func (r *Renderer) prepareBlurPass(bk scene.Backdrop, dir [2]int32, srcW, srcH int) {
+	p := gpu.BlurPass(bk, dir)
+	if r.blurCacheRadius != bk.Radius || r.blurCacheSigma != bk.Sigma {
+		r.blurCacheCenterW, r.blurCacheTapCount, r.blurCacheTaps = computeBlurTaps(bk.Radius, bk.Sigma)
+		r.blurCacheRadius = bk.Radius
+		r.blurCacheSigma = bk.Sigma
+	}
+	c := &r.scratch.passConst
+	c.Origin, c.Limit, c.Shift, c.Dir = p.Origin, p.Limit, p.Shift, p.Dir
+	c.Down, c.Radius, c.Sigma = 0, p.Radius, p.Sigma
+	c.TapCount = int32(r.blurCacheTapCount)
+	c.InvSize = [2]float32{1 / float32(max(srcW, 1)), 1 / float32(max(srcH, 1))}
+	c.CenterW, c.Pad = r.blurCacheCenterW, 0
+	if r.blurCacheTapCount > 0 {
+		copy(c.Taps[:r.blurCacheTapCount], r.blurCacheTaps[:r.blurCacheTapCount])
+	}
+}
+
+// pass draws ps into the w×h texels at the start of dst, reading src and
+// r.scratch.passConst.
+func (r *Renderer) pass(ps, src uintptr, dst *texture, w, h int) {
 	ctx := r.ctx
-	call(ctx, ctxUpdateSubresource, r.passCB, 0, 0, uintptr(unsafe.Pointer(&p)), 0, 0)
-	call(ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&dst.rtv)), 0)
-	vp := viewport{W: float32(dst.w), H: float32(dst.h), MaxDepth: 1}
-	call(ctx, ctxRSSetViewports, 1, uintptr(unsafe.Pointer(&vp)))
-	sc := gpu.Scissor{Right: int32(w), Bottom: int32(h)}
-	call(ctx, ctxRSSetScissorRects, 1, uintptr(unsafe.Pointer(&sc)))
-	call(ctx, ctxPSSetShader, ps, 0, 0)
-	call(ctx, ctxPSSetShaderResources, 4, 1, uintptr(unsafe.Pointer(&src)))
-	call(ctx, ctxDrawInstanced, 4, 1, 0, 0)
-	var none uintptr
-	call(ctx, ctxPSSetShaderResources, 4, 1, uintptr(unsafe.Pointer(&none)))
+	call6(ctx, ctxUpdateSubresource, r.passCB, 0, 0, uintptr(unsafe.Pointer(&r.scratch.passConst)), 0, 0)
+	call3(ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&dst.rtv)), 0)
+	r.scratch.viewport = viewport{W: float32(dst.w), H: float32(dst.h), MaxDepth: 1}
+	call2(ctx, ctxRSSetViewports, 1, uintptr(unsafe.Pointer(&r.scratch.viewport)))
+	r.scratch.scissor = gpu.Scissor{Right: int32(w), Bottom: int32(h)}
+	call2(ctx, ctxRSSetScissorRects, 1, uintptr(unsafe.Pointer(&r.scratch.scissor)))
+	call3(ctx, ctxPSSetShader, ps, 0, 0)
+	r.scratch.passSrc = src
+	call3(ctx, ctxPSSetShaderResources, 4, 1, uintptr(unsafe.Pointer(&r.scratch.passSrc)))
+	call4(ctx, ctxDrawInstanced, 4, 1, 0, 0)
+	r.scratch.passNone = 0
+	call3(ctx, ctxPSSetShaderResources, 4, 1, uintptr(unsafe.Pointer(&r.scratch.passNone)))
 }
 
 // shouldShrinkTarget reports whether an existing scratch target of curW×curH
@@ -1210,14 +1436,14 @@ func (r *Renderer) newTarget(t *texture, w, h int, drawn bool) error {
 	if drawn {
 		desc.BindFlags |= bindRenderTarget
 	}
-	if hr := call(r.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&t.tex))); failed(hr) {
+	if hr := call3(r.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&t.tex))); failed(hr) {
 		return fmt.Errorf("d3d11: cannot create a %dx%d backdrop texture: %#x", w, h, uint32(hr))
 	}
-	if hr := call(r.device, devCreateShaderResourceView, t.tex, 0, uintptr(unsafe.Pointer(&t.srv))); failed(hr) {
+	if hr := call3(r.device, devCreateShaderResourceView, t.tex, 0, uintptr(unsafe.Pointer(&t.srv))); failed(hr) {
 		return fmt.Errorf("d3d11: cannot create a backdrop texture view: %#x", uint32(hr))
 	}
 	if drawn {
-		if hr := call(r.device, devCreateRenderTargetView, t.tex, 0, uintptr(unsafe.Pointer(&t.rtv))); failed(hr) {
+		if hr := call3(r.device, devCreateRenderTargetView, t.tex, 0, uintptr(unsafe.Pointer(&t.rtv))); failed(hr) {
 			return fmt.Errorf("d3d11: cannot create a backdrop render target: %#x", uint32(hr))
 		}
 	}
@@ -1227,10 +1453,48 @@ func (r *Renderer) newTarget(t *texture, w, h int, drawn bool) error {
 
 // present shows the back buffer, after sync vertical blanks.
 func (r *Renderer) present(sync uintptr) error {
+	acquired := r.slotAcquired
 	r.slotAcquired = false
-	hr := call(r.swapChain, scPresent, sync, 0)
+	if r.waitable != 0 {
+		if !acquired {
+			// Consume an available slot before presenting (covers first frame,
+			// immediatePaint, inSizeMove, inMenu, deferredForce and direct
+			// Render calls) so the initial/idle semaphore count never drifts.
+			for r.unpacedPresents > 0 && r.waitFrameNonBlocking() {
+				r.unpacedPresents--
+			}
+			if r.unpacedPresents == 0 && r.waitFrameNonBlocking() {
+				acquired = true
+			}
+		}
+		if acquired {
+			// We hold this frame's slot and are about to Present; drain any
+			// excess drifted count safely back to zero.
+			r.drainExtraWaitable()
+		}
+	}
+	hr := call2(r.swapChain, scPresent, sync, 0)
 	if failed(hr) {
+		if acquired && r.waitable != 0 {
+			// Present did not enqueue a frame, so preserve the acquired slot.
+			r.slotAcquired = true
+		}
 		return fmt.Errorf("d3d11: present failed: %#x", uint32(hr))
+	}
+	now := time.Now()
+	backToBack := !r.lastPresentAt.IsZero() && now.Sub(r.lastPresentAt) < 30*time.Millisecond
+	r.lastPresentAt = now
+	if r.waitable != 0 && !acquired {
+		// Present ran without holding a semaphore token first (an earlier frame
+		// was still in flight). Reconcile the earlier frame's completion signal
+		// immediately if Present waited for it; otherwise, when this was a
+		// back-to-back forced/resize present (not a 32ms timeout fallback after
+		// an empty/coalesced queue), record 1 unit of pending debt (capped at 1
+		// to match MaxFrameLatency=1) so the next TryAcquireFrame/MarkFrameReady
+		// absorbs the delayed signal instead of letting S+I drift to >= 2.
+		if !r.waitFrameNonBlocking() && backToBack {
+			r.unpacedPresents = 1
+		}
 	}
 	// Forget the textures of images no frame drew for a while, and keep total
 	// cached image VRAM within budget.

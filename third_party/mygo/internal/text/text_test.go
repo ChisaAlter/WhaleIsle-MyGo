@@ -724,3 +724,46 @@ func TestDecorate(t *testing.T) {
 		}
 	}
 }
+
+func TestColorAtlasInitialWarmup(t *testing.T) {
+	// Isolated/private systems (used by WithRasterSystem) must stay minimal
+	// (1×1 ColorAtlas) so synchronous raster paints never allocate 8 MiB per call.
+	priv := newSystem()
+	if priv.ColorAtlas.W != 1 || priv.ColorAtlas.H != 1 {
+		t.Fatalf("newSystem() ColorAtlas = %dx%d, want 1x1 (must not preallocate 8 MiB for transient raster systems)", priv.ColorAtlas.W, priv.ColorAtlas.H)
+	}
+	Shared().WithRasterSystem(func(rasterSys *System) {
+		if rasterSys.ColorAtlas.W != 1 || rasterSys.ColorAtlas.H != 1 {
+			t.Fatalf("WithRasterSystem ColorAtlas = %dx%d, want 1x1", rasterSys.ColorAtlas.W, rasterSys.ColorAtlas.H)
+		}
+	})
+
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows ClearType ColorAtlas warmup test")
+	}
+	if Shared().ColorAtlas.W < 2048 || Shared().ColorAtlas.H < 1024 {
+		t.Fatalf("Shared() Windows ColorAtlas = %dx%d, want at least 2048x1024", Shared().ColorAtlas.W, Shared().ColorAtlas.H)
+	}
+	s := newSystem()
+	s.ColorAtlas = initialColorAtlas()
+	if s.ColorAtlas.W < 2048 || s.ColorAtlas.H < 1024 {
+		t.Fatalf("initial Windows ColorAtlas = %dx%d, want at least 2048x1024", s.ColorAtlas.W, s.ColorAtlas.H)
+	}
+	initGen := s.ColorAtlas.Generation()
+	s.BeginFrame()
+	s.TextParams()
+	sample := "设置常规外观内置插件权限模型选择器毛玻璃通透流畅滚动测试 ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789"
+	l := s.Layout(Params{Text: sample, Style: Style{Size: 16}})
+	for _, line := range l.Lines {
+		for _, g := range line.Glyphs {
+			s.Glyph(g.Font, g.ID, 1.5, g.X*1.5, 0, true)
+		}
+	}
+	if s.Full() {
+		t.Fatal("initial Windows ColorAtlas filled up during warmup text rasterization")
+	}
+	if s.ColorAtlas.Generation() != initGen {
+		t.Fatalf("ColorAtlas grew/repacked during initial text rasterization: gen %d -> %d", initGen, s.ColorAtlas.Generation())
+	}
+	s.EndFrame()
+}

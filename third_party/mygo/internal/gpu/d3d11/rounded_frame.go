@@ -62,7 +62,7 @@ func (f *roundedFrame) apply(r *Renderer, s *scene.Scene) error {
 	if !changed {
 		return nil
 	}
-	if hr := call(r.dcomp, dcompCommit); failed(hr) {
+	if hr := call0(r.dcomp, dcompCommit); failed(hr) {
 		return fmt.Errorf("d3d11: committing rounded frame clip: HRESULT 0x%08X", uint32(hr))
 	}
 	return nil

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 
@@ -52,10 +53,31 @@ func inventoryPhase(value string) string {
 	}
 }
 
+func pluginInventoryMemoKey(c *ui.Context, a *PluginInventoryAccess, width float32) uint64 {
+	t := tk(c)
+	k := newMemoKey(design.Revision()).u(fonttheme.Revision()).s(i18n.Locale()).
+		b(t.Glass, t.IsDark(), chrome.BackdropActive(), c.Theme().Dark).
+		u(uint64(pluginInventoryColumns(width)))
+	if a == nil {
+		return k.b(false).sum()
+	}
+	s := a.Snapshot
+	k.b(true, s.Connected, s.Ready, s.Busy, s.GlobalOpen,
+		a.OnRefresh != nil, a.OnToggleGlobal != nil, a.OnQuery != nil, a.OnSelectPreset != nil, a.OnToggleRow != nil).
+		u(s.Host).u(s.Revision).u(uint64(len(s.Global))).u(uint64(len(s.Presets))).
+		s(s.Query, s.SelectedID, s.Expanded)
+	if s.Err != nil {
+		k.s(s.Err.SentenceText())
+	}
+	return k.sum()
+}
+
 func pluginInventoryPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.Color) {
 	// The source's .section column keeps a 12 DIP rhythm; the search field adds
 	// its own 2 DIP seat under the page intro.
-	ui.Column(c).FillWidth().MaxWidth(760).MinWidth(0).Gap(12).Children(func() {
+	pane := ui.Column(c.Key("plugin-inventory-pane")).FillWidth().MaxWidth(760).MinWidth(0).Gap(design.Sp(3))
+	width := settingsContentWidth(c, pane, 760)
+	pane.Memo(pluginInventoryMemoKey(c, a, width)).Children(func() {
 		pluginInventoryContent(c, a, fg, muted)
 	})
 }
@@ -83,8 +105,14 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 	// 0.3.13: one full-width search field, then the session plugins of the chosen
 	// Agent preset under a collapsible header that carries the preset select.
 	query := s.Query
+	t := tk(c)
+	searchBorderW, searchBorderC, searchBG := float32(.667), modelInputBorder(c), modelWell(c).Alpha(.8)
+	if settingsGlassActive(t) {
+		searchBorderW = design.BorderWidth / 2
+		searchBG, searchBorderC = settingsGlassInnerCard(t.IsDark())
+	}
 	ui.Row(c.Key("plugin-search")).FillWidth().MinWidth(0).Height(36).Shrink(0).Padding(0, design.Sp(3)).Gap(design.Sp(2)).Radius(design.RadiusXL).AlignItems(ui.Center).Margin(design.Sp(0.5), 0, 0, 0).
-		Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).Label(pluginsText("搜索插件", "Search plugins")).Children(func() {
+		Border(searchBorderW, searchBorderC).Background(searchBG).Label(pluginsText("搜索插件", "Search plugins")).Children(func() {
 		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
 		if kInputRow(c, &query, coss.InputOptions{
 			Size:        coss.InputLG,
@@ -165,9 +193,46 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 	}
 }
 
-// Each inventory scope measures its own content width. Collapsed two-column
-// cards share uniform row height; expanded cards keep their peers aligned to
-// the top so opening one detail panel never stretches its neighbor.
+func pluginInventoryColumns(width float32) int {
+	if width > 520 {
+		return 2
+	}
+	return 1
+}
+
+// pluginInventoryUniformCardHeight computes the exact uniform outer height of
+// collapsed two-column cards from typography metrics so paired Flex rows achieve
+// identical card heights in one O(N) layout pass without nested ui.Grid(Fr(1)).
+func pluginInventoryUniformCardHeight(rows []plugininventory.DisplayRow) float32 {
+	hasDesc, hasSub := false, false
+	for _, r := range rows {
+		title, desc := pluginInventoryCopy(r)
+		if desc != "" {
+			hasDesc = true
+		}
+		if sub := strings.TrimPrefix(r.EntryID, "include:"); sub != "" && sub != title {
+			hasSub = true
+		}
+		if hasDesc && hasSub {
+			break
+		}
+	}
+	titleH := max(fonttheme.InterfaceSize(20), fonttheme.InterfaceSize(17)+2)
+	h := 2*design.Sp(3) + 2 + titleH
+	if hasDesc {
+		h += 2 + 2*fonttheme.InterfaceSize(18)
+	}
+	if hasSub {
+		h += 2 + 6 + 2 + fonttheme.InterfaceSize(18)
+	}
+	return float32(math.Ceil(float64(h)))
+}
+
+// Each inventory scope sizes from the known content width on frame 1 (avoiding
+// width=0 double reflow) and lays out pairs in flat Flex rows rather than
+// nested Fr(1) grids. Collapsed two-column cards share uniform outer height;
+// expanded cards align peers to the top so opening one detail panel never
+// stretches its neighbor.
 func pluginInventoryCards(c *ui.Context, a *PluginInventoryAccess, rows []plugininventory.DisplayRow, fg, muted ui.Color) {
 	if len(rows) == 0 {
 		return
@@ -179,30 +244,40 @@ func pluginInventoryCards(c *ui.Context, a *PluginInventoryAccess, rows []plugin
 			break
 		}
 	}
-	grid := ui.Grid(c).FillWidth().MinWidth(0).Gap(10)
-	width := grid.Bounds().W
-	grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
-		if bounds.W != width {
+	list := ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2.5))
+	width := settingsContentWidth(c, list, 760)
+	columns := pluginInventoryColumns(width)
+	list.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+		if pluginInventoryColumns(bounds.W) != columns {
 			c.Invalidate()
 		}
 	})
-	columns := 1
-	if width > 520 {
-		columns = 2
-	}
-	grid.Columns(columns)
 	uniformHeight := columns > 1 && !hasExpanded
+	var minCardH float32
 	if uniformHeight {
-		rowCount := (len(rows) + columns - 1) / columns
-		rowTracks := make([]ui.Track, rowCount)
-		for i := range rowTracks {
-			rowTracks[i] = ui.Fr(1)
-		}
-		grid.RowTracks(rowTracks...)
+		minCardH = pluginInventoryUniformCardHeight(rows)
 	}
-	grid.Children(func() {
-		for _, row := range rows {
-			pluginInventoryCard(c, a, row, uniformHeight, hasExpanded, fg, muted)
+	list.Children(func() {
+		if columns == 1 {
+			for _, row := range rows {
+				pluginInventoryCard(c, a, row, false, false, hasExpanded, 0, fg, muted)
+			}
+			return
+		}
+		rowAlign := ui.Start
+		if uniformHeight {
+			rowAlign = ui.Stretch
+		}
+		for i := 0; i < len(rows); i += 2 {
+			end := min(i+2, len(rows))
+			ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2.5)).AlignItems(rowAlign).Children(func() {
+				for j := i; j < end; j++ {
+					pluginInventoryCard(c, a, rows[j], true, uniformHeight, hasExpanded, minCardH, fg, muted)
+				}
+				if end-i == 1 {
+					ui.Box(c).Basis(0).Grow(1).MinWidth(0)
+				}
+			})
 		}
 	})
 }
@@ -267,32 +342,54 @@ func inventoryRowState(r plugininventory.DisplayRow) string {
 	return inventoryEnablement(r.Enabled)
 }
 
-func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, uniformHeight, hasExpanded bool, fg, muted ui.Color) {
+func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, twoCol, uniformHeight, hasExpanded bool, minCardH float32, fg, muted ui.Color) {
 	open := a.Snapshot.Expanded == r.Key
 	title, desc := pluginInventoryCopy(r)
-	stroke := modelInputBorder(c)
+	t := tk(c)
+	glassActive := settingsGlassActive(t)
+	borderW, stroke, cardBG := float32(.667), modelInputBorder(c), modelWell(c).Alpha(.8)
+	if glassActive {
+		borderW = design.BorderWidth / 2
+		cardBG, stroke = settingsGlassInnerCard(t.IsDark())
+	}
 	if r.Phase == "failed" || r.MetadataError != "" {
 		stroke = c.Theme().Danger
 	}
-	var card ui.Element
-	if uniformHeight {
-		// 1-column Grid with Fr(1) body row measures full natural height during
-		// outer-grid row sizing and stretches the clickable toggle button to the
-		// full equalized card height.
-		card = ui.Grid(c.Key("inventory-card-"+r.Key)).Columns(1).RowTracks(ui.Fr(1), ui.FitContent()).MinWidth(0).Border(.667, stroke).Radius(20).Background(modelWell(c).Alpha(.8)).Clip().Label(title)
+	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(borderW, stroke).Radius(20).Background(cardBG).Clip().Label(title)
+	if twoCol {
+		card.Basis(0).Grow(1)
 	} else {
-		card = ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.667, stroke).Radius(20).Background(modelWell(c).Alpha(.8)).Clip().Label(title)
+		card.FillWidth()
+	}
+	if uniformHeight && minCardH > 0 {
+		card.MinHeight(minCardH)
 	}
 	if !open && hasExpanded {
 		card.AlignSelf(ui.Start)
 	}
 	card.Children(func() {
 		button := ui.ButtonBase(c.Key("inventory-toggle-"+r.Key)).Label(title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).AlignItems(ui.Stretch).Padding(design.Sp(3), design.Sp(3.5)).Cursor(ui.CursorPointer)
+		if uniformHeight {
+			button.Grow(1)
+		}
 		if button.Hovered() || open {
-			button.Background(tk(c).Accent.Alpha(0.5))
+			if glassActive {
+				hoverWash, _, selWash := settingsGlassListWash(t.IsDark())
+				if open {
+					button.Background(selWash)
+				} else {
+					button.Background(hoverWash)
+				}
+			} else {
+				button.Background(t.Accent.Alpha(0.5))
+			}
 		}
 		button.Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(2).PassThrough().Children(func() {
+			inner := ui.Column(c).FillWidth().MinWidth(0).Gap(2).PassThrough()
+			if uniformHeight {
+				inner.Grow(1)
+			}
+			inner.Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
 					// 0.3.13 marks only the exceptions: a pill for a disabled, failed or

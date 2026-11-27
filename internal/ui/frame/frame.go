@@ -380,12 +380,16 @@ type Model struct {
 	OnOpenDesktopSettings            func()
 	OnContactAccount                 func()
 	OnOpenSettings                   func()
+	OnOpenModelSettings              func()
 	OnVoiceSettings                  func()
-	OnToggleTools                    func()
-	OnToggleTerminal                 func()
-	OnOpenHostTerminal               func()
-	OnRestartTerminal                func()
-	OnCloseTerminal                  func()
+	// ModalOverlayActive reports that a foreground modal covers the main shell,
+	// letting underlying glass surfaces (such as the composer) pause live blur.
+	ModalOverlayActive bool
+	OnToggleTools      func()
+	OnToggleTerminal   func()
+	OnOpenHostTerminal func()
+	OnRestartTerminal  func()
+	OnCloseTerminal    func()
 
 	Terminal              *termui.Panel
 	HostTerminalStore     *hostterminal.Store
@@ -980,6 +984,14 @@ func mainRowPtr(c *ui.Context, m *Model, snap session.ViewState, colors theme.Co
 					presetPick = &label
 				}
 				paintComposer := func(hero bool) {
+					openModelSettings := m.OnOpenModelSettings
+					if openModelSettings == nil {
+						openModelSettings = m.OnOpenSettings
+					}
+					suppressComposerBlur := m.ModalOverlayActive ||
+						(m.ImageLightboxPath != nil && strings.TrimSpace(*m.ImageLightboxPath) != "") ||
+						snap.ArchiveConfirmation != nil ||
+						(m.FeedbackCommentMsgID != nil && strings.TrimSpace(*m.FeedbackCommentMsgID) != "")
 					nextPrompt := m.Store.SyncNextPrompt(context.Background(), !hasPendingStopInteraction(m.Interactions, snap.SelectedID) && composer.NextPromptEligible(snap, m.ComposerState, m.ConversationPreferences.NextPrompt, hero))
 					if !hero {
 						// Electron TodoPanel: todos-only dock above composer (not PlanBoard).
@@ -1030,9 +1042,10 @@ func mainRowPtr(c *ui.Context, m *Model, snap session.ViewState, colors theme.Co
 								m.ComposerState.EndEdit()
 							}
 						},
-						Hero:              hero,
-						Collapsed:         !hero && composerCollapsed,
-						OnExpandCollapsed: func() { collapseTracker.state = composer.PinComposerExpanded(enterScroll.scroll.Y) },
+						Hero:                 hero,
+						Collapsed:            !hero && composerCollapsed,
+						SuppressBackdropBlur: suppressComposerBlur,
+						OnExpandCollapsed:    func() { collapseTracker.state = composer.PinComposerExpanded(enterScroll.scroll.Y) },
 						OnCardLayout: func(r ui.Rect) {
 							enterCard = r
 							if r.W > 0 && r.H > 0 {
@@ -1095,6 +1108,7 @@ func mainRowPtr(c *ui.Context, m *Model, snap session.ViewState, colors theme.Co
 							m.Store.RefreshModelCatalog(context.Background())
 							m.Store.RefreshProjections(context.Background())
 						},
+						OnOpenModelSettings: openModelSettings,
 						OnModelEffortChange: func(label string) {
 							if choice, ok := snap.ModelEffortChoices[label]; ok {
 								m.Store.SelectModelEffortSelectionForSessionID(context.Background(), snap.SelectedID, choice)

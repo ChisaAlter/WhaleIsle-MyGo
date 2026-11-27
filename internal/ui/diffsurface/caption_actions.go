@@ -235,7 +235,13 @@ func CaptionActivity(c *ui.Context, m Model) {
 	if w.Progress != nil {
 		topOffset := max(float32(52), c.TitleBar().Height+design.Sp(3))
 		ui.Overlay(c.Key("caption-branch-progress"), func() {
-			panel := ui.Column(c).Absolute().Top(topOffset).Right(design.Sp(4)).Width(max(0, min(float32(440), width-design.Sp(8)))).MaxHeight(max(0, height-topOffset-design.Sp(6))).Padding(design.Sp(3)).Gap(design.Sp(1.5)).Background(chrome.FrostInset(fonttheme.ResolveWithSystem(fonttheme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background)).Border(design.BorderWidth/2, c.Theme().Border).Radius(design.RadiusMD)
+			panel := chrome.ApplyFloatingCardSurface(
+				ui.Column(c).Absolute().Top(topOffset).Right(design.Sp(4)).
+					Width(max(0, min(float32(440), width-design.Sp(8)))).
+					MaxHeight(max(0, height-topOffset-design.Sp(6))).
+					Padding(design.Sp(3)).Gap(design.Sp(1.5)),
+				design.For(c), design.RadiusMD,
+			)
 			progressDone := false
 			panel.Children(func() {
 				progressDone = drawGitProgress(c, w.Progress, c.Theme().Text, c.Theme().TextMuted, func() { w.Progress = nil })

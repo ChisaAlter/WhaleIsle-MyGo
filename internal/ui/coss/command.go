@@ -76,14 +76,15 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 	ww, _ := c.Size()
 	dlgRadius := theme.ContextRadii(c).Dialog
 	bw := glassBorderWidth(t)
-	panel.Width(min(576, ww-2*design.Sp(4))).MaxHeight(420).Radius(dlgRadius).Background(t.Popover).Border(bw, t.Border).TextColor(t.PopoverForeground)
+	panel.Width(min(576, ww-2*design.Sp(4))).MaxHeight(420).Radius(dlgRadius).Background(t.Popover).Border(bw, glassOuterBorder(t)).TextColor(t.PopoverForeground)
 	var sh shadowList
 	sh.scale(design.ShadowLg, black, 0.05)
 	d := deco{border: bw, radius: dlgRadius}
 	d.highlight(t, 0.04, 0.06)
-	applyGlassMaterial(panel, t, t.Popover, 40, 0.50)
+	applyGlassMaterial(panel, t, modalGlassTint(t), modalGlassBlur(t))
 	applyGlassElevation(t, &sh, &d, glassTierModal)
 	finish(panel, &sh, &d)
+	applyGlassRim(panel, t, dlgRadius, glassTierModal)
 	motion(panel, "command/command-dialog-popup", 0, 0)
 	st := ui.Local(panel, "coss.command", func() commandState { return commandState{} })
 	q := strings.ToLower(strings.TrimSpace(*query))
@@ -133,12 +134,13 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 			})
 		})
 		// The inner card (-mx-px, rounded top, border without bottom).
+		// In light glass mode avoid stacking a second white veil over the modal glass.
 		innerBg := t.Popover
 		if t.Glass {
 			if t.IsDark() {
 				innerBg = white.Alpha(0.03)
 			} else {
-				innerBg = white.Alpha(0.24)
+				innerBg = ui.Transparent
 			}
 		}
 		inner := ui.Column(c).FillWidth().Grow(1).MinHeight(0).Margin(0, -1, 0, -1).Background(innerBg).

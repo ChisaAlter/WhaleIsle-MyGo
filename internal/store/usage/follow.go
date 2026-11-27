@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"whaleisle/internal/accountdetails"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/state"
@@ -105,6 +106,27 @@ func (s *Store) WatchAccount(ctx context.Context) {
 	go s.runAccountWatch(fctx, mux)
 }
 
+// decodeAccountWatchFrame unwraps Host 0.2.2 api.AccountUpdate{Type, State}
+// frames and falls back to legacy flat api.AccountView payloads for test fixtures.
+func decodeAccountWatchFrame(raw json.RawMessage) (string, api.AccountView, bool) {
+	var update api.AccountUpdate
+	if err := json.Unmarshal(raw, &update); err != nil {
+		return "", api.AccountView{}, false
+	}
+	hasAccountViewData := func(v api.AccountView) bool {
+		return v.Status != "" || v.Attempt.Phase != "" || v.Attempt.Id != "" ||
+			v.Links.UsageUrl != "" || v.Links.TopUpUrl != ""
+	}
+	if update.Type != "" || hasAccountViewData(update.State) {
+		return update.Type, update.State, true
+	}
+	var flat api.AccountView
+	if err := json.Unmarshal(raw, &flat); err != nil || !hasAccountViewData(flat) {
+		return "", api.AccountView{}, false
+	}
+	return "", flat, true
+}
+
 func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 	if err := mux.Dial(ctx); err != nil {
 		s.failAccountWatch(ctx, mux, err)
@@ -127,8 +149,8 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 			s.failAccountWatch(ctx, mux, err)
 			return
 		}
-		var view api.AccountView
-		if json.Unmarshal(raw, &view) != nil {
+		updateType, view, ok := decodeAccountWatchFrame(raw)
+		if !ok {
 			continue
 		}
 		s.mu.Lock()
@@ -136,14 +158,24 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 			s.unlockPublish()
 			return
 		}
-		if view.Status != "credential-stored" || s.accountStatus != view.Status || view.Attempt.Phase == "succeeded" && view.Attempt.Id != s.attemptID {
+		prevStatus := s.accountStatus
+		prevAttemptID := s.attemptID
+		effectiveStatus := view.Status
+		if effectiveStatus == "" {
+			effectiveStatus = prevStatus
 		}
-		s.resetAccountDetailsLocked()
+		needDetailsRefresh := effectiveStatus != "credential-stored" ||
+			prevStatus != effectiveStatus ||
+			updateType == "credentials-changed" ||
+			(view.Attempt.Phase == "succeeded" && view.Attempt.Id != prevAttemptID) ||
+			(effectiveStatus == "credential-stored" && s.details.Profile.Status == accountdetails.Unknown && s.details.Balance.Status == accountdetails.Unknown)
+		if needDetailsRefresh {
+			s.resetAccountDetailsLocked()
+		}
 		client, epoch := s.client, s.accountEpoch
 		s.loading = false
 		s.err = nil
 		s.accountStreamErr = nil
-		s.email, s.name, s.plan = "", "", ""
 		if view.Status != "" {
 			s.accountStatus = view.Status
 		}
@@ -152,12 +184,6 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 		}
 		if view.Links.TopUpUrl != "" {
 			s.topUpURL = view.Links.TopUpUrl
-		}
-		if view.Attempt.Phase != "" {
-			s.attemptPhase = view.Attempt.Phase
-		}
-		if view.Attempt.Id != "" {
-			s.attemptID = view.Attempt.Id
 		}
 		s.attemptPhase = view.Attempt.Phase
 		s.attemptID = view.Attempt.Id
@@ -169,10 +195,16 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 		if view.Attempt.AuthorizeUrl != nil {
 			s.authorizeURL = *view.Attempt.AuthorizeUrl
 		}
+		credentialsChanged := updateType == "credentials-changed" ||
+			(effectiveStatus == "credential-stored" && prevStatus != "credential-stored")
+		onCredentialsChanged := s.onCredentialsChanged
 		s.unlockPublish()
 		s.fire()
-		if client != nil {
-			s.refreshAccountDetails(ctx, client, epoch, view.Status)
+		if needDetailsRefresh && client != nil {
+			s.refreshAccountDetails(ctx, client, epoch, effectiveStatus)
+		}
+		if credentialsChanged && onCredentialsChanged != nil {
+			onCredentialsChanged(effectiveStatus)
 		}
 	}
 }

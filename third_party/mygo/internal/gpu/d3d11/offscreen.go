@@ -46,23 +46,23 @@ func destroyWindow(hwnd uintptr) { user32.NewProc("DestroyWindow").Call(hwnd) }
 // read copies the back buffer to memory: BGRA rows and their stride.
 func (r *Renderer) read() ([]byte, int, error) {
 	var back, staging uintptr
-	if hr := call(r.swapChain, scGetBuffer, 0, uintptr(unsafe.Pointer(&iidID3D11Texture2D)), uintptr(unsafe.Pointer(&back))); failed(hr) {
+	if hr := call3(r.swapChain, scGetBuffer, 0, uintptr(unsafe.Pointer(&iidID3D11Texture2D)), uintptr(unsafe.Pointer(&back))); failed(hr) {
 		return nil, 0, fmt.Errorf("d3d11: no back buffer: %#x", uint32(hr))
 	}
 	defer free(&back)
 	const usageStaging, cpuAccessRead, mapRead, ctxCopyResource = 3, 0x20000, 1, 47
 	desc := texture2DDesc{Width: uint32(r.bw), Height: uint32(r.bh), MipLevels: 1, ArraySize: 1, Format: formatB8G8R8A8Unorm,
 		SampleCount: 1, Usage: usageStaging, CPUAccessFlags: cpuAccessRead}
-	if hr := call(r.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&staging))); failed(hr) {
+	if hr := call3(r.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&staging))); failed(hr) {
 		return nil, 0, fmt.Errorf("d3d11: no staging texture: %#x", uint32(hr))
 	}
 	defer free(&staging)
-	call(r.ctx, ctxCopyResource, staging, back)
+	call2(r.ctx, ctxCopyResource, staging, back)
 	var m mapped
-	if hr := call(r.ctx, ctxMap, staging, 0, mapRead, 0, uintptr(unsafe.Pointer(&m))); failed(hr) {
+	if hr := call5(r.ctx, ctxMap, staging, 0, mapRead, 0, uintptr(unsafe.Pointer(&m))); failed(hr) {
 		return nil, 0, fmt.Errorf("d3d11: cannot map: %#x", uint32(hr))
 	}
-	defer call(r.ctx, ctxUnmap, staging, 0)
+	defer call2(r.ctx, ctxUnmap, staging, 0)
 	pix := make([]byte, r.w*r.h*4)
 	for y := range r.h {
 		copy(pix[y*r.w*4:], unsafe.Slice((*byte)(ptr(m.Data+uintptr(y)*uintptr(m.RowPitch))), r.w*4))

@@ -50,18 +50,21 @@ func motion(e ui.Element, part string, w, h float32) {
 
 // panelLook is the surface of coss's popups (menu, select, popover,
 // combobox, tooltip): border, popover fill, shadow-*/5 and the ::before
-// highlight. In glass mode it adds frosted backdrop blur, adaptive shadows,
-// and a single restrained 0.5 DIP border with no inner rim.
+// highlight. In glass mode it adds translucent backdrop blur (20/22 DIP,
+// high vibrancy saturation), adaptive shadows, outer 0.5 DIP border, and
+// an inner specular rim + top highlight via DrawOver.
 func panelLook(e ui.Element, t *design.Tokens, radius float32, sc design.Shadows) {
 	bw := glassBorderWidth(t)
-	e.Background(t.Popover).Border(bw, t.Border).Radius(radius).TextColor(t.PopoverForeground)
+	borderCol := glassOuterBorder(t)
+	e.Background(t.Popover).Border(bw, borderCol).Radius(radius).TextColor(t.PopoverForeground)
 	var sh shadowList
 	sh.scale(sc, black, 0.05)
 	d := deco{border: bw, radius: radius}
 	d.highlight(t, 0.04, 0.06)
-	applyGlassMaterial(e, t, t.Popover, 40, 0.50)
+	applyGlassMaterial(e, t, popupGlassTint(t), popupGlassBlur(t))
 	applyGlassElevation(t, &sh, &d, glassTierPopup)
 	finish(e, &sh, &d)
+	applyGlassRim(e, t, radius, glassTierPopup)
 }
 
 // Side places a popup against its anchor.

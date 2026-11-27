@@ -3,45 +3,20 @@ package chrome
 import (
 	"image"
 	"image/color"
-	"image/draw"
 	"sync"
 
 	"github.com/egoist/mygo/ui"
 )
 
 // The installed official hero uses the very same head as BrandAvatar, with
-// mask-mode:alpha and background-color:currentColor. Keep the original alpha
-// at source resolution; its blue/white RGB never contributes to the silhouette.
-var officialHeroAlpha = sync.OnceValue(func() *image.Alpha {
-	src := whaleHeadDecoded()
-	if src == nil {
-		return nil
-	}
-	b := src.Bounds()
-	alpha := image.NewAlpha(b)
-	w, h := b.Dx(), b.Dy()
-	switch img := src.(type) {
-	case *image.NRGBA:
-		for y := 0; y < h; y++ {
-			srcRow := img.Pix[y*img.Stride:]
-			dstRow := alpha.Pix[y*alpha.Stride : y*alpha.Stride+w]
-			for x := 0; x < w; x++ {
-				dstRow[x] = srcRow[x*4+3]
-			}
-		}
-	case *image.RGBA:
-		for y := 0; y < h; y++ {
-			srcRow := img.Pix[y*img.Stride:]
-			dstRow := alpha.Pix[y*alpha.Stride : y*alpha.Stride+w]
-			for x := 0; x < w; x++ {
-				dstRow[x] = srcRow[x*4+3]
-			}
-		}
-	default:
-		draw.Draw(alpha, alpha.Bounds(), src, b.Min, draw.Src)
-	}
-	return alpha
-})
+// mask-mode:alpha and background-color:currentColor. Keep the 1-byte source
+// alpha silhouette (1.5 MiB) so HeroBrandMark can stream-tint directly into
+// compact 157×157 mip-level bitmaps (98 KiB each) with bit-exact filtering and
+// zero full-resolution RGBA allocations.
+func officialHeroAlpha() *image.Alpha {
+	loadWhaleBrandAssets()
+	return whaleHeroAlpha
+}
 
 var heroBrandCache struct {
 	sync.Mutex
@@ -52,9 +27,20 @@ var heroBrandCache struct {
 	}
 }
 
-// HeroBrandMark returns the official PNG's exact alpha filled with current ink.
-// Eight entries cover active primary/muted/light/dark ink without an unbounded theme cache.
-// A malformed/missing compiled asset returns nil for the generic hero fallback.
+func resetHeroBrandCacheForTest() {
+	heroBrandCache.Lock()
+	heroBrandCache.entries = [16]struct {
+		ink    ui.Color
+		bitmap *ui.Bitmap
+	}{}
+	heroBrandCache.next = 0
+	heroBrandCache.Unlock()
+}
+
+// HeroBrandMark returns the official PNG's alpha silhouette filled with current
+// ink, stream-downsampled lazily to its compact 157×157 display mip level (98
+// KiB) and cached per ink. A malformed/missing compiled asset returns nil for
+// the generic hero fallback.
 func HeroBrandMark(ink ui.Color) *ui.Bitmap {
 	mask := officialHeroAlpha()
 	if mask == nil {
@@ -70,8 +56,8 @@ func HeroBrandMark(ink ui.Color) *ui.Bitmap {
 	}
 	heroBrandCache.Unlock()
 
-	bitmap := ui.NewBitmap(heroBrandImage(mask, ink))
-	bitmap.WarmLevels(64)
+	bitmap := ui.NewBitmap(heroBrandMipImage(mask, ink))
+	bitmap.WarmLevels(8)
 
 	heroBrandCache.Lock()
 	defer heroBrandCache.Unlock()
@@ -86,9 +72,7 @@ func HeroBrandMark(ink ui.Color) *ui.Bitmap {
 	return bitmap
 }
 
-func heroBrandImage(mask *image.Alpha, ink ui.Color) *image.RGBA {
-	b := mask.Bounds()
-	out := image.NewRGBA(b)
+func heroBrandLUT(ink ui.Color) [256][4]uint8 {
 	sr, sg, sb, sa := color.NRGBA{R: ink.R, G: ink.G, B: ink.B, A: ink.A}.RGBA()
 	var lut [256][4]uint8
 	for m := 1; m < 256; m++ {
@@ -100,6 +84,26 @@ func heroBrandImage(mask *image.Alpha, ink ui.Color) *image.RGBA {
 			uint8((sa * ma / 0xffff) >> 8),
 		}
 	}
+	return lut
+}
+
+// heroBrandMipImage stream-tints mask directly into its 3× halved mip level
+// (157×157 for the 1254×1254 mascot) in stack tiles, producing pixels bit-exact
+// to premultiplying at full resolution then halving while allocating only 98 KiB.
+func heroBrandMipImage(mask *image.Alpha, ink ui.Color) *image.RGBA {
+	b := mask.Bounds()
+	w, h := b.Dx(), b.Dy()
+	lut := heroBrandLUT(ink)
+	pix, stride := mask.Pix, mask.Stride
+	return halve3Tiled(w, h, func(x, y int) [4]uint8 {
+		return lut[pix[y*stride+x]]
+	})
+}
+
+func heroBrandImage(mask *image.Alpha, ink ui.Color) *image.RGBA {
+	b := mask.Bounds()
+	out := image.NewRGBA(b)
+	lut := heroBrandLUT(ink)
 	w, h := b.Dx(), b.Dy()
 	for y := 0; y < h; y++ {
 		maskRow := mask.Pix[y*mask.Stride : y*mask.Stride+w]

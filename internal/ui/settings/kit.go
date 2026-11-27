@@ -186,16 +186,111 @@ func kInput(c *ui.Context, value *string, o coss.InputOptions) ui.Element {
 // kRule is a 1 DIP border-colored separator.
 func kRule(c *ui.Context) ui.Element { return coss.Separator(c, coss.Horizontal) }
 
+// settingsGlassActive reports whether the settings surface should render with
+// the translucent frosted glass treatment.
+func settingsGlassActive(t *design.Tokens) bool {
+	return t.Glass || chrome.BackdropActive()
+}
+
+// settingsRailGlassFill returns the left navigation rail's translucent glass
+// tint (macOS System Settings style: more translucent than the right options
+// pane). Light: white @ 0.36; Dark: rgb(24, 25, 30) @ 0.46.
+func settingsRailGlassFill(dark bool) ui.Color {
+	if dark {
+		return design.TW.Zinc900.Mix(design.TW.Slate800, 0.08).Alpha(0.46)
+	}
+	return design.TW.White.Alpha(0.36)
+}
+
+// settingsPaneGlassFill returns the right options pane's translucent glass
+// tint (slightly more solid than the rail so long forms remain comfortable to
+// read). Light: white @ 0.54; Dark: rgb(30, 32, 38) @ 0.60.
+func settingsPaneGlassFill(dark bool) ui.Color {
+	if dark {
+		return design.TW.Zinc800.Mix(design.TW.Zinc900, 0.60).Mix(design.TW.Slate800, 0.18).Alpha(0.60)
+	}
+	return design.TW.White.Alpha(0.54)
+}
+
+// settingsDialogGlassFill returns the translucent glass fill for secondary
+// confirmation and editor dialogs inside settings.
+// Light: white @ 0.48; Dark: rgb(30, 32, 38) @ 0.54.
+func settingsDialogGlassFill(dark bool) ui.Color {
+	if dark {
+		return design.TW.Zinc800.Mix(design.TW.Zinc900, 0.60).Mix(design.TW.Slate800, 0.18).Alpha(0.54)
+	}
+	return design.TW.White.Alpha(0.48)
+}
+
+// settingsGlassDivider returns the soft semi-transparent divider between
+// layered glass regions (rail / options pane / header).
+func settingsGlassDivider(t *design.Tokens) ui.Color {
+	if settingsGlassActive(t) {
+		if t.IsDark() {
+			return design.TW.White.Alpha(0.08)
+		}
+		return design.TW.Black.Alpha(0.08)
+	}
+	return t.SidebarBorder
+}
+
+// settingsGlassInnerCard returns the light glass surface fill and fine hairline
+// border for cards nested inside the settings modal so they preserve backdrop
+// translucency instead of stacking opaque t.Card fills.
+func settingsGlassInnerCard(dark bool) (fill, border ui.Color) {
+	if dark {
+		return design.TW.White.Alpha(0.045), design.TW.White.Alpha(0.07)
+	}
+	return design.TW.White.Alpha(0.26), design.TW.Black.Alpha(0.06)
+}
+
+// settingsGlassListWash returns the light translucent hover, pressed, and
+// selected pill fills for list/rail items in glass mode.
+func settingsGlassListWash(dark bool) (hover, pressed, selected ui.Color) {
+	if dark {
+		return design.TW.White.Alpha(0.07), design.TW.White.Alpha(0.095), design.TW.White.Alpha(0.12)
+	}
+	return design.TW.Black.Alpha(0.065), design.TW.Black.Alpha(0.08), design.TW.Black.Alpha(0.095)
+}
+
+// settingsPaneWidthHintState keeps the known inner width of the right options
+// pane for the active settings.View pass so responsive grids and rows choose
+// their final column count on frame 1 without a width=0 double reflow.
+func settingsPaneWidthHintState(c *ui.Context) *float32 {
+	return ui.Local(c.Root(), "settings-pane-width-hint", func() float32 { return 0 })
+}
+
+func settingsModalWidthHintState(c *ui.Context) *float32 {
+	return ui.Local(c.Root(), "settings-modal-width-hint", func() float32 { return 0 })
+}
+
+func settingsContentWidth(c *ui.Context, e ui.Element, maxW float32) float32 {
+	if w := e.Bounds().W; w > 0 {
+		return w
+	}
+	if w := *settingsPaneWidthHintState(c); w > 0 {
+		if maxW > 0 && w > maxW {
+			return maxW
+		}
+		return w
+	}
+	vw, _ := c.Size()
+	if maxW > 0 && vw > maxW {
+		return maxW
+	}
+	return vw
+}
+
 // kSurface paints e as a coss card surface: card background, border, the
-// xl radius. The glass appearance, when on, has already made the card
-// token translucent.
+// xl radius. In glass mode, it uses a light translucent inner glass card so
+// cards inside settings stay airy over the blurred backdrop.
 func kSurface(c *ui.Context, e ui.Element) ui.Element {
 	t := tk(c)
-	borderWidth := design.BorderWidth
-	if t.Glass || chrome.BackdropActive() {
-		borderWidth = design.BorderWidth / 2
+	if settingsGlassActive(t) {
+		fill, stroke := settingsGlassInnerCard(t.IsDark())
+		return e.Background(fill).Border(design.BorderWidth/2, stroke).Radius(design.RadiusXL).TextColor(t.CardForeground)
 	}
-	return e.Background(t.Card).Border(borderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.CardForeground)
+	return e.Background(t.Card).Border(design.BorderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.CardForeground)
 }
 
 // memoKey folds the parts a memo region shows into one version. Use it for

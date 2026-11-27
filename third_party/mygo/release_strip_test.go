@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -30,7 +31,11 @@ func TestReleaseBuildStripsTestHooks(t *testing.T) {
 		t.Fatal(err)
 	}
 	bin := filepath.Join(t.TempDir(), "whaleisle-release-symbols.exe")
-	build := exec.Command("pwsh", "-NoProfile", "-File", filepath.Join(root, "scripts", "build-release.ps1"), "-Package", "cmd/whaleisle", "-Output", bin, "-KeepSymbols")
+	shell := "pwsh"
+	if _, err := exec.LookPath(shell); err != nil && runtime.GOOS == "windows" {
+		shell = "powershell"
+	}
+	build := exec.Command(shell, "-NoProfile", "-File", filepath.Join(root, "scripts", "build-release.ps1"), "-Package", "cmd/whaleisle", "-Output", bin, "-KeepSymbols")
 	build.Dir = root
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("real release build: %v\n%s", err, out)

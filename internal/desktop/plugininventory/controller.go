@@ -19,6 +19,7 @@ type Caller interface {
 type Row struct {
 	Key, EntryID, Module, Enabled, Phase, Condition, MetadataError string
 	Title, Description                                             json.RawMessage
+	parsedTitle, parsedDesc                                        *parsedText
 }
 type Preset struct {
 	ID, Name, Broken string
@@ -33,6 +34,7 @@ type Snapshot struct {
 	Err                                *state.Fault
 	Global                             []Row
 	Presets                            []Preset
+	views                              *viewCache
 }
 
 // Controller keeps the working Snapshot under mu and publishes an immutable
@@ -49,9 +51,16 @@ type Controller struct {
 	state            Snapshot
 	pub              state.Published[Snapshot]
 	acceptedRevision uint64
+	views            *viewCache
 }
 
-func (c *Controller) publishLocked() { c.pub.Publish(c.state) }
+func (c *Controller) publishLocked() {
+	if c.views == nil {
+		c.views = &viewCache{}
+	}
+	c.state.views = c.views
+	c.pub.Publish(c.state)
+}
 
 // Attach invalidates both in-flight reads and UI callbacks from the prior Host.
 func (c *Controller) Attach(call Caller) {
@@ -59,7 +68,8 @@ func (c *Controller) Attach(call Caller) {
 	defer c.mu.Unlock()
 	c.hostL = c.host.Renew(context.Background())
 	c.call = call
-	c.state = Snapshot{Host: c.hostL.Generation(), Connected: call != nil}
+	c.views = &viewCache{}
+	c.state = Snapshot{Host: c.hostL.Generation(), Connected: call != nil, views: c.views}
 	c.acceptedRevision = 0
 	c.publishLocked()
 }
@@ -200,6 +210,8 @@ func withMeta(row Row, meta *api.ListBundlesResultItemMeta) Row {
 			row.MetadataError = *meta.Error
 		}
 	}
+	row.parsedTitle = parseLocalized(row.Title)
+	row.parsedDesc = parseLocalized(row.Description)
 	return row
 }
 func normalize(wire api.PluginInventorySnapshot) ([]Row, []Preset) {

@@ -44,10 +44,10 @@ func TestApplyMenuSurfaceBlursAndFallsBackCleanly(t *testing.T) {
 		t.Fatalf("expected opaque fallback with glass off, got stripe span=%d", span)
 	}
 
-	// On: blurs backdrop sharply (40px) with a single crisp outer border and no
-	// inner specular rim.
+	// On: blurs backdrop (20/22 DIP, high saturation) with a crisp 0.5 DIP outer
+	// border and a bright inner 1px specular rim + top highlight at y+1.
 	design.SetGlass(true, func(_ design.Scheme, p *design.Palette) {
-		p.Popover = p.Popover.Alpha(0.58)
+		p.Popover = p.Popover.Alpha(0.44)
 	})
 	var bOn ui.Rect
 	ttOn := ui.NewTester(func(c *ui.Context) {
@@ -67,10 +67,10 @@ func TestApplyMenuSurfaceBlursAndFallsBackCleanly(t *testing.T) {
 	innerEdgeLum := RelativeLuminance(pixel(img.RGBAAt(int(bOn.X+bOn.W/2), int(bOn.Y+1))))
 	inLum := RelativeLuminance(pixel(img.RGBAAt(int(bOn.X+bOn.W/2), int(bOn.Y+10))))
 	if outerLum >= inLum {
-		t.Fatalf("ApplyMenuSurface missing single outer hairline border: outer=%.3f inside=%.3f", outerLum, inLum)
+		t.Fatalf("ApplyMenuSurface missing crisp 0.5 DIP outer border: outer=%.3f inside=%.3f", outerLum, inLum)
 	}
-	if innerEdgeLum > inLum+0.02 {
-		t.Fatalf("ApplyMenuSurface unexpectedly painted a bright inner specular rim: innerEdge=%.3f inside=%.3f", innerEdgeLum, inLum)
+	if innerEdgeLum <= inLum+0.02 {
+		t.Fatalf("ApplyMenuSurface missing bright inner specular rim + top highlight: innerEdge=%.3f inside=%.3f", innerEdgeLum, inLum)
 	}
 }
 
@@ -273,12 +273,68 @@ func TestLightWallpaperClarityAndDynamicRange(t *testing.T) {
 		t.Fatalf("light single-layer sidebar over black washed out to %d (want <= 150)", sidebarBlack.R)
 	}
 
-	// Verify light-mode MaterialAlphaFor never boosts to 85-95% opaque white fog.
+	// Verify light-mode MaterialAlphaFor caps popup/sidebar boost at +0.10
+	// (hard ceiling <= 0.56) and never washes out to 0.74+ opaque white fog.
 	secondary := Color(theme.SecondaryInk(false))
-	for _, mat := range []Material{MaterialSidebar, MaterialPanel, MaterialMenu} {
+	for _, mat := range []Material{MaterialSidebar, MaterialMenu} {
 		a := MaterialAlphaFor(ui.RGB(0, 0, 0), ui.RGB(255, 255, 255), mat, prefs, false, secondary)
-		if a > 0.75 {
-			t.Fatalf("light MaterialAlphaFor(mat=%d) over pure black = %.2f > 0.75 (excessive white fog)", mat, a)
+		if a > 0.56+1e-4 {
+			t.Fatalf("light MaterialAlphaFor(mat=%d) over pure black = %.2f > 0.56 (excessive white fog)", mat, a)
 		}
+	}
+	panelA := MaterialAlphaFor(ui.RGB(0, 0, 0), ui.RGB(255, 255, 255), MaterialPanel, prefs, false, secondary)
+	if panelA > MaterialAlpha(MaterialPanel, prefs, false)+1e-4 {
+		t.Fatalf("light MaterialAlphaFor(MaterialPanel) boosted past token %.2f to %.2f", MaterialAlpha(MaterialPanel, prefs, false), panelA)
+	}
+}
+
+func TestSettingsPanelGlassUsesGPUInGradientModeWithoutCPUCache(t *testing.T) {
+	t.Cleanup(func() {
+		ConfigureBackdrop("", wallpapers.Defaults())
+		gradientPanelFrames.reset()
+		clearGradientBackdrop()
+	})
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Preset = "aurora"
+	prefs.Glass = 80
+	// Even if a legacy gradientFrame were published, SettingsPanelGlass must
+	// stay on the GPU OpEffect blur path and never populate gradientPanelFrames.
+	gradientPanelFrames.reset()
+	cfg := gradientConfiguration(prefs, 200, 140, false, true)
+	fakeFrame := &gradientFrame{pixels: renderGradient(t.Context(), cfg, 0), config: cfg}
+	publishGradientBackdrop(fakeFrame, ui.Rect{W: 200, H: 140})
+	backgroundState.active = true
+	backgroundState.prefs = prefs
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) {
+			for i, x := 0, float32(0); x < r.W; i, x = i+1, x+4 {
+				col := ui.RGB(20, 120, 240)
+				if i%2 == 1 {
+					col = ui.RGB(240, 120, 20)
+				}
+				p.Fill(ui.Rect{X: r.X + x, Y: r.Y, W: 4, H: r.H}, col, 0)
+			}
+		}).Children(func() {
+			ui.Box(c).Absolute().Left(30).Top(20).Width(120).Height(80).
+				Draw(SettingsPanelGlass(design.TW.White, design.TW.White, ui.RGBA(18, 22, 30, 0.12), 16))
+		})
+	}, 200, 140)
+	tt.Frame()
+	if span := testChannelSpan(tt, 60, 50, 130); span > 35 {
+		t.Fatalf("SettingsPanelGlass did not run GPU backdrop blur: span=%d", span)
+	}
+	gradientPanelFrames.mu.Lock()
+	usedCPU := gradientPanelFrames.satBlur != nil || gradientPanelFrames.rgba != nil
+	for _, e := range gradientPanelFrames.entries {
+		if e.bitmap != nil {
+			usedCPU = true
+		}
+	}
+	gradientPanelFrames.mu.Unlock()
+	if usedCPU {
+		t.Fatal("SettingsPanelGlass unexpectedly populated CPU gradientPanelFrames cache")
 	}
 }

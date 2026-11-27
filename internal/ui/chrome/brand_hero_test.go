@@ -73,13 +73,31 @@ func TestOfficialHeroMaskUsesExactEmbeddedAssetAlpha(t *testing.T) {
 }
 
 func TestOfficialHeroMaskCacheReusesActiveInks(t *testing.T) {
+	resetHeroBrandCacheForTest()
+	WarmHeroBrandInks()
+	heroBrandCache.Lock()
+	warmCount := 0
+	for _, e := range heroBrandCache.entries {
+		if e.bitmap != nil {
+			warmCount++
+		}
+	}
+	heroBrandCache.Unlock()
+	if warmCount != 0 {
+		t.Fatalf("WarmHeroBrandInks eagerly allocated %d bitmaps; want 0 (lazy on-demand)", warmCount)
+	}
+	if av := BrandAvatar(); av == nil {
+		t.Fatal("BrandAvatar returned nil")
+	} else if w, h := av.Size(); w != 157 || h != 157 {
+		t.Fatalf("BrandAvatar size=%dx%d, want compact 157x157", w, h)
+	}
 	black, white := ui.RGB(0, 0, 0), ui.RGB(255, 255, 255)
 	a, b := HeroBrandMark(black), HeroBrandMark(white)
 	if a == nil || b == nil || a == b || HeroBrandMark(black) != a || HeroBrandMark(white) != b {
 		t.Fatal("hero tint was not reused per ink")
 	}
-	if w, h := a.Size(); w != 1254 || h != 1254 {
-		t.Fatalf("tinted asset size=%dx%d", w, h)
+	if w, h := a.Size(); w != 157 || h != 157 {
+		t.Fatalf("tinted asset size=%dx%d, want compact 157x157", w, h)
 	}
 	// No opaque background: a hand-sized synthetic transparent alpha must
 	// retain its zero border even with a semi-transparent colored ink.

@@ -79,6 +79,7 @@ func (s *Store) snapshotModelsLocked(st *ViewState) {
 	selection, known := s.currentModelSelectionLocked()
 	st.ModelSelectionKnown = known
 	st.ModelSelectionBusy = s.modelState.Pending
+	st.ModelCatalogLoading = s.modelState.CatalogLoading || s.modelState.BootstrapPending
 	if s.modelsFault != nil {
 		st.ModelsErr = s.modelsFault
 	} else {
