@@ -92,8 +92,9 @@ func pixelL1(a, b color.RGBA) int {
 
 // TestSidebarHoverActionsZeroBackdropPatchAndZeroShift pins that hovering
 // workspace and session rows over a vivid multi-color glass backdrop paints
-// zero solid/cyan overlay patches behind the action cluster and causes zero
-// layout shift.
+// zero solid/cyan overlay patches behind the action cluster, keeps short
+// titles un-faded, smoothly fades 40+ char titles with zero ink leak under
+// action buttons, and causes zero layout shift.
 func TestSidebarHoverActionsZeroBackdropPatchAndZeroShift(t *testing.T) {
 	prevLocale := i18n.Locale()
 	t.Cleanup(func() {
@@ -103,6 +104,8 @@ func TestSidebarHoverActionsZeroBackdropPatchAndZeroShift(t *testing.T) {
 	})
 	i18n.SetLocale(i18n.LocaleEN)
 	chrome.ConfigureBackdrop("wall.png", wallpapers.Defaults())
+
+	const longTitle = "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM" // 44 chars (>40)
 
 	for _, dark := range []bool{false, true} {
 		t.Run(fmt.Sprintf("dark=%v", dark), func(t *testing.T) {
@@ -117,18 +120,20 @@ func TestSidebarHoverActionsZeroBackdropPatchAndZeroShift(t *testing.T) {
 			if dark {
 				themeID = theme.IDDeepseekDark
 			}
-			items := []session.Item{
-				{SessionID: "s1", Title: "Short chat", Cwd: "/ws/docs", UpdatedAt: 1700000000000},
-			}
-			snap := session.ViewState{
-				WorkspaceReady: true,
-				Workspaces: []session.WorkspaceRow{
-					{WorkspaceID: "ws-docs", Title: "Documents", Path: "/ws/docs", SessionIDs: []string{"s1"}},
-				},
-				Items: items,
-			}
 
-			renderRow := func(withActions bool) (*image.RGBA, ui.Rect, *ui.Tester) {
+			// 1. Workspace row ("Documents"): zero backdrop patch in action area,
+			//    short title stays crisp (un-faded), and zero layout shift.
+			renderWorkspace := func(wsTitle string, withActions bool) (*image.RGBA, ui.Rect, *ui.Tester) {
+				items := []session.Item{
+					{SessionID: "s1", Title: "Short chat", Cwd: "/ws/docs", UpdatedAt: 1700000000000},
+				}
+				snap := session.ViewState{
+					WorkspaceReady: true,
+					Workspaces: []session.WorkspaceRow{
+						{WorkspaceID: "ws-docs", Title: wsTitle, Path: "/ws/docs", SessionIDs: []string{"s1"}},
+					},
+					Items: items,
+				}
 				m := Model{
 					ThemeID:    themeID,
 					SystemDark: dark,
@@ -152,9 +157,9 @@ func TestSidebarHoverActionsZeroBackdropPatchAndZeroShift(t *testing.T) {
 				}
 				tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 				tt.Frame()
-				header, ok := tt.Find("Documents")
+				header, ok := tt.Find(wsTitle)
 				if !ok {
-					t.Fatalf("missing workspace row Documents: %v", tt.Texts())
+					t.Fatalf("missing workspace row %q: %v", wsTitle, tt.Texts())
 				}
 				// Hover on the left of the workspace row so action buttons appear without being individually hovered.
 				tt.Move(header.X+12, header.Y+header.H/2)
@@ -164,24 +169,229 @@ func TestSidebarHoverActionsZeroBackdropPatchAndZeroShift(t *testing.T) {
 				return cp, header, tt
 			}
 
-			refImg, header, _ := renderRow(false)
-			actImg, _, ttAct := renderRow(true)
+			refShortImg, header, _ := renderWorkspace("Documents", false)
+			actShortImg, _, ttShortAct := renderWorkspace("Documents", true)
 
-			// In the 15-DIP gap between the two 16px workspace action buttons
-			// (Right(8), gap 15 -> button 2 at [W-24, W-8], gap at [W-39, W-24]),
-			// pixels must match the bare hovered row without any cyan/opaque patch.
-			gapX := int(header.X + header.W - 31)
+			// 1a. Workspace action cluster gap & margin must match bare hovered row (L1 <= 2).
+			// (Right(8), gap 15 -> button 2 at [W-24, W-8], gap at [W-39, W-24], button 1 at [W-55, W-39]).
 			midY := int(header.Y + header.H/2)
-			gotPx := actImg.RGBAAt(gapX, midY)
-			refPx := refImg.RGBAAt(gapX, midY)
-			if diff := pixelL1(gotPx, refPx); diff > 2 {
-				t.Fatalf("dark=%v workspace action gap painted backdrop patch: got=%v ref=%v L1=%d", dark, gotPx, refPx, diff)
+			for x := int(header.X + header.W - 37); x <= int(header.X+header.W-26); x++ {
+				gotPx := actShortImg.RGBAAt(x, midY)
+				refPx := refShortImg.RGBAAt(x, midY)
+				if diff := pixelL1(gotPx, refPx); diff > 2 {
+					t.Fatalf("dark=%v workspace action gap painted backdrop patch at x=%d: got=%v ref=%v L1=%d", dark, x, gotPx, refPx, diff)
+				}
 			}
 
-			// Move pointer away and verify zero layout shift across all interactive elements.
-			ttAct.Move(2, 130)
-			ttAct.Frame()
-			ui.AssertHoverFocusZeroShift(t, ttAct)
+			// 1b. Short title "Documents" must NOT trigger fade on hover: every pixel
+			//     left of the action cluster stays byte-for-byte identical to the
+			//     no-actions render (full opacity preserved).
+			blankShortImg, _, _ := renderWorkspace(" ", true)
+			shortTitleInkPixels := 0
+			for y := int(header.Y) + 4; y < int(header.Y+header.H)-4; y++ {
+				for x := int(header.X) + 26; x < int(header.X+header.W-60); x++ {
+					gotPx := actShortImg.RGBAAt(x, y)
+					refPx := refShortImg.RGBAAt(x, y)
+					if gotPx != refPx {
+						t.Fatalf("dark=%v short title Documents unexpectedly faded/changed at (%d,%d): got=%v ref=%v", dark, x, y, gotPx, refPx)
+					}
+					if pixelL1(gotPx, blankShortImg.RGBAAt(x, y)) >= 40 {
+						shortTitleInkPixels++
+					}
+				}
+			}
+			if shortTitleInkPixels < 20 {
+				t.Fatalf("dark=%v expected visible short title Documents ink pixels, got %d", dark, shortTitleInkPixels)
+			}
+
+			// 2. 40+ char long workspace title over cyan/magenta gradient glass backdrop:
+			//    smooth right alpha fade in fade band AND zero foreground ink leak into action area.
+			plainLongImg, longHeader, _ := renderWorkspace(longTitle, false)
+			fadedLongImg, _, ttLongAct := renderWorkspace(longTitle, true)
+			moreLabel := fmt.Sprintf("Actions for workspace “%s”", longTitle)
+			wsMoreRect, ok := ttLongAct.Find(moreLabel)
+			if !ok {
+				t.Fatalf("dark=%v missing workspace more button %q: %v", dark, moreLabel, ttLongAct.Texts())
+			}
+			// Zero foreground title pixel leakage inside the action button cluster:
+			// compare fadedLongImg against blankShortImg (identical hovered row + identical action buttons, no long title).
+			for y := int(longHeader.Y) + 2; y < int(longHeader.Y+longHeader.H)-2; y++ {
+				for x := int(wsMoreRect.X) - 1; x < int(longHeader.X+longHeader.W)-2; x++ {
+					if diff := pixelL1(fadedLongImg.RGBAAt(x, y), blankShortImg.RGBAAt(x, y)); diff > 0 {
+						t.Fatalf("dark=%v long workspace title leaked ink into action area at (%d,%d) (actionsX=%.1f): got=%v ref=%v L1=%d",
+							dark, x, y, wsMoreRect.X, fadedLongImg.RGBAAt(x, y), blankShortImg.RGBAAt(x, y), diff)
+					}
+				}
+			}
+			// Smooth right-edge alpha fade inside the 14 DIP band left of clipRight:
+			// find pixels with strong glyph contrast in plainLongImg vs blankShortImg,
+			// verify intermediate attenuated ink exists and fades down toward clipRight.
+			clipRight := int(wsMoreRect.X) - 4 // text right edge (header.W-14) - (47-2) = header.W-59 = wsMoreRect.X-4
+			fadeStart := clipRight - int(sidebarTitleFadeWidth)
+			attenuated := 0
+			leftHalfSum, leftHalfCnt := 0.0, 0
+			rightHalfSum, rightHalfCnt := 0.0, 0
+			fadeMid := (fadeStart + clipRight) / 2
+			for y := int(longHeader.Y) + 4; y < int(longHeader.Y+longHeader.H)-4; y++ {
+				for x := fadeStart; x < clipRight; x++ {
+					bgPx := blankShortImg.RGBAAt(x, y)
+					fullDelta := pixelL1(plainLongImg.RGBAAt(x, y), bgPx)
+					if fullDelta < 60 {
+						continue
+					}
+					curDelta := pixelL1(fadedLongImg.RGBAAt(x, y), bgPx)
+					ratio := float64(curDelta) / float64(fullDelta)
+					if curDelta > 0 && curDelta < fullDelta-6 {
+						attenuated++
+					}
+					if x < fadeMid {
+						leftHalfSum += ratio
+						leftHalfCnt++
+					} else {
+						rightHalfSum += ratio
+						rightHalfCnt++
+					}
+				}
+			}
+			if attenuated < 8 || leftHalfCnt == 0 || rightHalfCnt == 0 {
+				t.Fatalf("dark=%v long workspace title missing smooth right alpha fade in [%d,%d): attenuated=%d leftCnt=%d rightCnt=%d",
+					dark, fadeStart, clipRight, attenuated, leftHalfCnt, rightHalfCnt)
+			}
+			if rightHalfSum/float64(rightHalfCnt) >= leftHalfSum/float64(leftHalfCnt) {
+				t.Fatalf("dark=%v long workspace title fade did not decrease toward right edge: leftAvg=%.3f rightAvg=%.3f",
+					dark, leftHalfSum/float64(leftHalfCnt), rightHalfSum/float64(rightHalfCnt))
+			}
+
+			// 3. Hovered session row over cyan/magenta gradient glass backdrop:
+			//    zero backdrop patch in trailing action area (L1 <= 2 vs bare hovered row)
+			//    AND 40+ char crawling title smooth right fade with zero ink leak into actions.
+			renderSession := func(item session.Item, withActions bool, reduceMotion bool) (*image.RGBA, ui.Rect, *ui.Tester) {
+				m := Model{
+					ThemeID:    themeID,
+					SystemDark: dark,
+					OnSelect:   func(string) {},
+					Snapshot:   session.ViewState{Items: []session.Item{item}},
+				}
+				if withActions {
+					m.OnArchive = func(string) {}
+					m.OnPin = func(string) {}
+				}
+				tt := ui.NewTester(func(c *ui.Context) {
+					defer withSidebarTheme(c, m)()
+					tk := tok(c)
+					ui.Column(c).Fill().Draw(paintDualGradientBackdrop).Padding(8).Children(func() {
+						rowSession(c, item, 0, m, tk.Foreground, tk.MutedForeground, tk.SidebarBorder)
+					})
+				}, 280, 64)
+				if dark {
+					tt.SetDark(true)
+				}
+				tt.SetPreferences(ui.Preferences{ReduceMotion: reduceMotion})
+				t0 := time.Unix(20000, 0)
+				tt.SetTime(t0)
+				tt.Frame()
+				label := item.Title
+				if item.Blank {
+					label = i18n.T(i18n.KeySidebarNewSessionFallback)
+				}
+				rowRect, ok := tt.Find(label)
+				if !ok {
+					t.Fatalf("dark=%v missing session row %q: %v", dark, label, tt.Texts())
+				}
+				tt.Move(rowRect.X+16, rowRect.Y+rowRect.H/2)
+				tt.SetTime(t0)
+				tt.Frame()
+				cp := image.NewRGBA(tt.Image().Bounds())
+				copy(cp.Pix, tt.Image().Pix)
+				return cp, rowRect, tt
+			}
+
+			bareSessImg, sessRect, _ := renderSession(session.Item{SessionID: "blank", Blank: true}, false, true)
+			actSessImg, _, ttSessAct := renderSession(session.Item{SessionID: "s1", Title: "Short chat", UpdatedAt: 1700000000000}, true, true)
+			sessMoreRect, ok := ttSessAct.Find(sessionActionsLabel("s1", "Short chat"))
+			if !ok {
+				t.Fatalf("dark=%v missing session action button: %v", dark, ttSessAct.Texts())
+			}
+			// Sample non-glyph background pixels inside the session action cluster:
+			// top/bottom band (y = row.Y+2, buttons are 24px centered in 32px row)
+			// and the 2px inter-button gaps at midY.
+			sessTopY := int(sessRect.Y) + 2
+			for x := int(sessMoreRect.X); x < int(sessRect.X+sessRect.W)-8; x++ {
+				gotPx := actSessImg.RGBAAt(x, sessTopY)
+				refPx := bareSessImg.RGBAAt(x, sessTopY)
+				if diff := pixelL1(gotPx, refPx); diff > 2 {
+					t.Fatalf("dark=%v session action band painted backdrop patch at (%d,%d): got=%v ref=%v L1=%d",
+						dark, x, sessTopY, gotPx, refPx, diff)
+				}
+			}
+			sessMidY := int(sessRect.Y + sessRect.H/2)
+			for _, gapX := range []int{int(sessMoreRect.X) + 25, int(sessMoreRect.X) + 51} {
+				gotPx := actSessImg.RGBAAt(gapX, sessMidY)
+				refPx := bareSessImg.RGBAAt(gapX, sessMidY)
+				if diff := pixelL1(gotPx, refPx); diff > 2 {
+					t.Fatalf("dark=%v session action gap painted backdrop patch at (%d,%d): got=%v ref=%v L1=%d",
+						dark, gapX, sessMidY, gotPx, refPx, diff)
+				}
+			}
+
+			// Long session title (44 chars) at hover start (ReduceMotion=false, offset=0 -> right ClipFade=14):
+			// smooth alpha attenuation on right edge AND zero ink leak into action cluster.
+			longSessImg, longSessRect, ttLongSess := renderSession(session.Item{SessionID: "s-long", Title: longTitle, UpdatedAt: 1700000000000}, true, false)
+			longSessMore, ok := ttLongSess.Find(sessionActionsLabel("s-long", longTitle))
+			if !ok {
+				t.Fatalf("dark=%v missing long session action button: %v", dark, ttLongSess.Texts())
+			}
+			for y := int(longSessRect.Y) + 2; y < int(longSessRect.Y+longSessRect.H)-2; y++ {
+				for x := int(longSessMore.X) - 1; x < int(longSessRect.X+longSessRect.W)-8; x++ {
+					if diff := pixelL1(longSessImg.RGBAAt(x, y), actSessImg.RGBAAt(x, y)); diff > 0 {
+						t.Fatalf("dark=%v long session title leaked ink into action area at (%d,%d) (actionsX=%.1f): got=%v ref=%v L1=%d",
+							dark, x, y, longSessMore.X, longSessImg.RGBAAt(x, y), actSessImg.RGBAAt(x, y), diff)
+					}
+				}
+			}
+			// Verify smooth right-edge alpha fade in [sessClipRight-14, sessClipRight)
+			// by comparing faded glyph contrast against full-opacity left glyph peak.
+			sessClipRight := int(longSessMore.X) - 4
+			sessFadeStart := sessClipRight - int(sidebarTitleFadeWidth)
+			sessFadeMid := (sessFadeStart + sessClipRight) / 2
+			fullInkMax := 0
+			for y := int(longSessRect.Y) + 4; y < int(longSessRect.Y+longSessRect.H)-4; y++ {
+				for x := int(longSessRect.X) + 32; x < sessFadeStart-4; x++ {
+					if d := pixelL1(longSessImg.RGBAAt(x, y), bareSessImg.RGBAAt(x, y)); d > fullInkMax {
+						fullInkMax = d
+					}
+				}
+			}
+			if fullInkMax < 80 {
+				t.Fatalf("dark=%v expected strong session title ink contrast left of fade, got max L1=%d", dark, fullInkMax)
+			}
+			sessLeftMax, sessRightMax := 0, 0
+			sessMidTone := 0
+			for y := int(longSessRect.Y) + 4; y < int(longSessRect.Y+longSessRect.H)-4; y++ {
+				for x := sessFadeStart; x < sessClipRight; x++ {
+					d := pixelL1(longSessImg.RGBAAt(x, y), bareSessImg.RGBAAt(x, y))
+					if d > 12 && d < fullInkMax*3/4 {
+						sessMidTone++
+					}
+					if x < sessFadeMid && d > sessLeftMax {
+						sessLeftMax = d
+					}
+					if x >= sessFadeMid && d > sessRightMax {
+						sessRightMax = d
+					}
+				}
+			}
+			if sessMidTone < 8 || sessRightMax >= sessLeftMax {
+				t.Fatalf("dark=%v long session title missing smooth right ClipFade in [%d,%d): midTone=%d leftMax=%d rightMax=%d fullMax=%d",
+					dark, sessFadeStart, sessClipRight, sessMidTone, sessLeftMax, sessRightMax, fullInkMax)
+			}
+
+			// 4. Verify zero layout shift across all interactive elements (both short and long titles).
+			for _, tt := range []*ui.Tester{ttShortAct, ttLongAct} {
+				tt.Move(2, 130)
+				tt.Frame()
+				ui.AssertHoverFocusZeroShift(t, tt)
+			}
 		})
 	}
 }

@@ -93,25 +93,20 @@ const sidebarTitleFadeWidth = float32(14)
 // applySidebarTitleFadeOverflow reserves a paint-only right inset and horizontal
 // fade on a stationary single-line title so trailing hover actions never collide
 // with long labels and never shift layout.
-// After mygo/ui's paint-only FadeOverflowRight lands in the merged workspace,
-// delegate directly to el.FadeOverflowRight(insetRight, fadeRight).
 func applySidebarTitleFadeOverflow(el ui.Element, insetRight, fadeRight float32) {
 	if !el.Valid() || insetRight <= 0 {
 		return
 	}
-	_, _ = el, fadeRight
+	el.FadeOverflowRight(insetRight, fadeRight)
 }
 
-// drawSidebarCrawlClip restricts crawling title painting to clipR and prepares
+// drawSidebarCrawlClip restricts crawling title painting to clipR and applies
 // soft horizontal edge fades over fadeL and fadeR DIPs.
-// After mygo/ui's Painter.ClipFade lands in the merged workspace, switch
-// p.Clip(clipR, 0, fn) to p.ClipFade(clipR, fadeL, fadeR, fn).
 func drawSidebarCrawlClip(p *ui.Painter, clipR ui.Rect, fadeL, fadeR float32, fn func()) {
-	_, _ = fadeL, fadeR
 	if clipR.W <= 0 || clipR.H <= 0 {
 		return
 	}
-	p.Clip(clipR, 0, fn)
+	p.ClipFade(clipR, fadeL, fadeR, fn)
 }
 
 func buildActiveScheduleMap(view schedstore.ViewState) map[string][]schedstore.Entry {

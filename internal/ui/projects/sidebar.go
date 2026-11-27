@@ -119,13 +119,11 @@ const (
 
 // applyProjectTitleFadeOverflow prepares paint-only right-edge clipping and
 // fading for project sidebar titles behind the hover menu button.
-// After mygo/ui's paint-only FadeOverflowRight lands in the merged workspace,
-// delegate directly to el.FadeOverflowRight(insetRight, fadeRight).
 func applyProjectTitleFadeOverflow(el ui.Element, insetRight, fadeRight float32) {
 	if !el.Valid() || insetRight <= 0 {
 		return
 	}
-	_, _ = el, fadeRight
+	el.FadeOverflowRight(insetRight, fadeRight)
 }
 
 func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory string, colors theme.Colors) {
