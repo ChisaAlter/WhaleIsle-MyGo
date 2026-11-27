@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"strings"
@@ -26,6 +27,7 @@ func (s *mainState) openResume(dir string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err != nil {
+		log.Printf("resume: open %s: %v", dir, err)
 		s.resumeError = errcopy.Sentence(err)
 		return
 	}
@@ -40,13 +42,15 @@ func (s *mainState) openResume(dir string) {
 	for key, raw := range saved.Drafts {
 		draft, err := composer.RestoreDraftChecked(raw)
 		if err != nil {
-			s.resumeError = fmt.Sprintf("%s: %v", store.Path(), err)
+			log.Printf("resume: restore draft %q from %s: %v", key, store.Path(), err)
+			s.resumeError = errcopy.Sentence(err)
 			return
 		}
 		s.composerDrafts[key] = draft
 	}
 	if err := s.fileTabs.Restore(saved.Files); err != nil {
-		s.resumeError = fmt.Sprintf("%s: %v", store.Path(), err)
+		log.Printf("resume: restore files from %s: %v", store.Path(), err)
+		s.resumeError = errcopy.Sentence(err)
 		return
 	}
 	s.markFileTabsMutatedLocked()
@@ -88,7 +92,8 @@ func (s *mainState) openResume(dir string) {
 	s.planBoardOpen = l.PlanOpen
 	s.todoPanelCollapsed = l.TodoCollapsed
 	if err := s.restoreWorkspaceSessions(saved); err != nil {
-		s.resumeError = fmt.Sprintf("%s: %v", store.Path(), err)
+		log.Printf("resume: restore workspace sessions from %s: %v", store.Path(), err)
+		s.resumeError = errcopy.Sentence(err)
 		return
 	}
 	// Terminal height is remembered, but a previous shell command is never replayed.

@@ -180,6 +180,7 @@ type mainState struct {
 	dataLocationErr       string
 	dataLocationAction    string
 	dataLocationImporting bool
+	confirmDataLocation   func(confirmAskRequest) bool
 	// pendingDataLocation is a recorded data directory that was not there at
 	// startup. It is named to the user before anything is written into the
 	// default directory the process fell back to.
@@ -343,6 +344,7 @@ type mainState struct {
 	desktopDraft                            desktopConfigDraft
 	desktopSaveErr                          string
 	desktopLastAction                       string
+	desktopSaveGen                          uint64
 	credsDraft                              credentialsDraft
 	credsSeedLoading                        bool
 	credsSeedGen                            uint64
@@ -724,9 +726,10 @@ func (s *mainState) saveDesktopConfig() {
 		s.notifyUser(s.win, hostNotReadyToast())
 		return
 	}
-	port, err := strconv.Atoi(strings.TrimSpace(s.desktopDraft.port))
-	if err != nil || port < 1024 || port > 65535 {
-		s.desktopSaveErr = i18n.T(i18n.KeyCmdDesktopInvalidPort)
+	s.desktopSaveGen++
+	port, errText := validateDesktopPort(s.desktopDraft.port)
+	if errText != "" {
+		s.desktopSaveErr = errText
 		s.desktopLastAction = ""
 		return
 	}
@@ -740,26 +743,9 @@ func (s *mainState) saveDesktopConfig() {
 		s.desktopSaveErr = errcopy.Sentence(err)
 		return
 	}
-	workspaceChanged := strings.TrimSpace(s.desktopDraft.workspace) != strings.TrimSpace(s.desktopDraft.workspaceSeed)
+	prepared := newValidatedDesktopDraft(s.desktopDraft, port, restartPolicy, s.hostAppearanceAccepted)
 	err = s.cfgStore.Update(func(c *config.Config) {
-		restartPolicy.Apply(c)
-		if workspaceChanged {
-			c.Workspace = strings.TrimSpace(s.desktopDraft.workspace)
-		}
-		c.GoPort = port
-		if !s.hostAppearanceAccepted {
-			c.Theme = s.desktopDraft.theme
-		}
-		c.Locale = s.desktopDraft.locale
-		c.CloseToTray = s.desktopDraft.closeToTray
-		c.OpenAtLogin = s.desktopDraft.openAtLogin
-		c.AutoStartDesktop = s.desktopDraft.autoStartDesktop
-		if !s.hostAppearanceAccepted {
-			c.WallpaperPath = strings.TrimSpace(s.desktopDraft.wallpaperPath)
-		}
-		c.HideArchivedList = !s.desktopDraft.showArchivedList
-		c.HideChatViewTabs = !s.desktopDraft.showViewTabs
-		c.AutoAllowTools = s.desktopDraft.autoAllowTools
+		prepared.apply(c)
 	})
 	if err != nil {
 		s.desktopSaveErr = errcopy.Sentence(err)
@@ -775,25 +761,100 @@ func (s *mainState) saveDesktopConfig() {
 	}
 	s.desktopSaveErr = ""
 	s.desktopLastAction = i18n.T(i18n.KeySettingsDesktopSaved)
-	s.closeToTray = cfg.CloseToTray
-	if !s.hostAppearanceAccepted {
-		s.themeID = cfg.Theme
-	}
+	s.applyCommittedDesktopUIStateLocked(cfg)
 	i18n.SetLocale(cfg.Locale)
 	if !s.hostAppearanceAccepted {
 		applyAppearance(cfg.Theme)
 	}
 	if err := desktopSystemIntegration(func() error { return mygo.App.SetOpenAtLogin(cfg.OpenAtLogin) }); err != nil {
-		s.desktopLastAction = ""
-		s.desktopSaveErr = fmt.Sprintf("%s: %v", i18n.T(i18n.KeyCmdSettingsSavedButStartupRegistrationFai), err)
 		log.Println("openAtLogin:", err)
+		s.desktopLastAction = ""
+		s.desktopSaveErr = desktopStartupRegistrationError(err)
 	}
-	if workspaceChanged && s.sessions != nil {
+	if prepared.workspaceChanged && s.sessions != nil {
 		s.sessions.SetWorkspaceCwd(cfg.Workspace)
 	}
 	if s.interactions != nil {
 		s.interactions.SetAutoAllow(cfg.AutoAllowTools)
 	}
+}
+
+type validatedDesktopDraft struct {
+	draft                  desktopConfigDraft
+	port                   int
+	restartPolicy          config.RestartPreferences
+	workspaceChanged       bool
+	hostAppearanceAccepted bool
+}
+
+func validateDesktopPort(raw string) (int, string) {
+	port, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || port < 1024 || port > 65535 {
+		return 0, i18n.T(i18n.KeyCmdDesktopInvalidPort)
+	}
+	return port, ""
+}
+
+func newValidatedDesktopDraft(draft desktopConfigDraft, port int, restartPolicy config.RestartPreferences, hostAppearanceAccepted bool) validatedDesktopDraft {
+	return validatedDesktopDraft{
+		draft:                  draft,
+		port:                   port,
+		restartPolicy:          restartPolicy,
+		workspaceChanged:       strings.TrimSpace(draft.workspace) != strings.TrimSpace(draft.workspaceSeed),
+		hostAppearanceAccepted: hostAppearanceAccepted,
+	}
+}
+
+func (p validatedDesktopDraft) apply(c *config.Config) {
+	p.restartPolicy.Apply(c)
+	if p.workspaceChanged {
+		c.Workspace = strings.TrimSpace(p.draft.workspace)
+	}
+	c.GoPort = p.port
+	if !p.hostAppearanceAccepted {
+		c.Theme = p.draft.theme
+	}
+	c.Locale = p.draft.locale
+	c.CloseToTray = p.draft.closeToTray
+	c.OpenAtLogin = p.draft.openAtLogin
+	c.AutoStartDesktop = p.draft.autoStartDesktop
+	if !p.hostAppearanceAccepted {
+		c.WallpaperPath = strings.TrimSpace(p.draft.wallpaperPath)
+	}
+	c.HideArchivedList = !p.draft.showArchivedList
+	c.HideChatViewTabs = !p.draft.showViewTabs
+	c.AutoAllowTools = p.draft.autoAllowTools
+}
+
+func (s *mainState) applyCommittedDesktopUIStateLocked(cfg config.Config) {
+	s.closeToTray = cfg.CloseToTray
+	if !s.hostAppearanceAccepted {
+		s.themeID = cfg.Theme
+	}
+}
+
+func desktopStartupRegistrationError(err error) string {
+	return errcopy.Under(i18n.T(i18n.KeyCmdSettingsSavedButStartupRegistrationFai), err)
+}
+
+func (s *mainState) validateDesktopDraftLocked() (validatedDesktopDraft, bool) {
+	port, errText := validateDesktopPort(s.desktopDraft.port)
+	if errText != "" {
+		s.desktopSaveErr = errText
+		s.desktopLastAction = ""
+		return validatedDesktopDraft{}, false
+	}
+	restartPolicy, err := config.ParseRestartPreferences(s.desktopDraft.harnessAutoRestart, s.desktopDraft.harnessRestartMaxAttempts, s.desktopDraft.harnessRestartBaseDelayMs)
+	if err != nil {
+		s.desktopSaveErr = errcopy.Sentence(err)
+		s.desktopLastAction = ""
+		return validatedDesktopDraft{}, false
+	}
+	if err := s.materializeWallpaperDraft(); err != nil {
+		s.desktopSaveErr = errcopy.Sentence(err)
+		return validatedDesktopDraft{}, false
+	}
+	return newValidatedDesktopDraft(s.desktopDraft, port, restartPolicy, s.hostAppearanceAccepted), true
 }
 
 // saveDesktopConfigAsync validates the form on the UI thread, applies the
@@ -806,46 +867,30 @@ func (s *mainState) saveDesktopConfigAsync(win *mygo.Window) {
 		s.notifyUser(win, hostNotReadyToast())
 		return
 	}
-	draft := s.desktopDraft
-	hostAppearanceAccepted := s.hostAppearanceAccepted
+	s.desktopSaveGen++
+	gen := s.desktopSaveGen
+	prepared, ok := s.validateDesktopDraftLocked()
+	if !ok {
+		s.mu.Unlock()
+		return
+	}
 	cfgStore := s.cfgStore
 	sessions := s.sessions
 	interactions := s.interactions
-	port, err := strconv.Atoi(strings.TrimSpace(draft.port))
-	if err != nil || port < 1024 || port > 65535 {
-		s.desktopSaveErr = i18n.T(i18n.KeyCmdDesktopInvalidPort)
-		s.desktopLastAction = ""
-		s.mu.Unlock()
-		return
-	}
-	restartPolicy, err := config.ParseRestartPreferences(draft.harnessAutoRestart, draft.harnessRestartMaxAttempts, draft.harnessRestartBaseDelayMs)
-	if err != nil {
-		s.desktopSaveErr = errcopy.Sentence(err)
-		s.desktopLastAction = ""
-		s.mu.Unlock()
-		return
-	}
-	if err := s.materializeWallpaperDraft(); err != nil {
-		s.desktopSaveErr = errcopy.Sentence(err)
-		s.mu.Unlock()
-		return
-	}
-	draft = s.desktopDraft
-	workspaceChanged := strings.TrimSpace(draft.workspace) != strings.TrimSpace(draft.workspaceSeed)
 	s.desktopSaveErr = ""
 	s.desktopLastAction = i18n.T(i18n.KeySettingsDesktopSaved)
-	s.closeToTray = draft.closeToTray
-	if !hostAppearanceAccepted {
-		s.themeID = draft.theme
+	s.closeToTray = prepared.draft.closeToTray
+	if !prepared.hostAppearanceAccepted {
+		s.themeID = prepared.draft.theme
 	}
 	s.mu.Unlock()
 
-	i18n.SetLocale(draft.locale)
-	if !hostAppearanceAccepted {
-		applyAppearance(draft.theme)
+	i18n.SetLocale(prepared.draft.locale)
+	if !prepared.hostAppearanceAccepted {
+		applyAppearance(prepared.draft.theme)
 	}
 	if interactions != nil {
-		interactions.SetAutoAllow(draft.autoAllowTools)
+		interactions.SetAutoAllow(prepared.draft.autoAllowTools)
 	}
 
 	writer := s.configWriterFor(cfgStore)
@@ -853,45 +898,46 @@ func (s *mainState) saveDesktopConfigAsync(win *mygo.Window) {
 		// Flush any prior queued toggles first so this explicit form save sees
 		// a coherent store baseline and preserves CAS conflict detection.
 		_ = writer.Flush()
+		s.mu.Lock()
+		stale := s.desktopSaveGen != gen
+		s.mu.Unlock()
+		if stale {
+			return
+		}
 		err := cfgStore.Update(func(c *config.Config) {
-			restartPolicy.Apply(c)
-			if workspaceChanged {
-				c.Workspace = strings.TrimSpace(draft.workspace)
-			}
-			c.GoPort = port
-			if !hostAppearanceAccepted {
-				c.Theme = draft.theme
-			}
-			c.Locale = draft.locale
-			c.CloseToTray = draft.closeToTray
-			c.OpenAtLogin = draft.openAtLogin
-			c.AutoStartDesktop = draft.autoStartDesktop
-			if !hostAppearanceAccepted {
-				c.WallpaperPath = strings.TrimSpace(draft.wallpaperPath)
-			}
-			c.HideArchivedList = !draft.showArchivedList
-			c.HideChatViewTabs = !draft.showViewTabs
-			c.AutoAllowTools = draft.autoAllowTools
+			prepared.apply(c)
 		})
 		if err != nil {
 			s.mu.Lock()
-			s.desktopSaveErr = errcopy.Sentence(err)
-			s.desktopLastAction = ""
+			current := s.desktopSaveGen == gen
+			if current {
+				s.desktopSaveErr = errcopy.Sentence(err)
+				s.desktopLastAction = ""
+			}
 			s.mu.Unlock()
-			if win != nil {
+			if current && win != nil {
 				win.Invalidate()
 			}
 			return
 		}
 		cfg := cfgStore.Get()
-		if config.RestartPreferencesFrom(cfg) != restartPolicy {
+		if config.RestartPreferencesFrom(cfg) != prepared.restartPolicy {
 			s.mu.Lock()
-			s.desktopSaveErr = i18n.T(i18n.KeyCmdRestartPolicyNotSaved)
-			s.desktopLastAction = ""
+			current := s.desktopSaveGen == gen
+			if current {
+				s.desktopSaveErr = i18n.T(i18n.KeyCmdRestartPolicyNotSaved)
+				s.desktopLastAction = ""
+			}
 			s.mu.Unlock()
-			if win != nil {
+			if current && win != nil {
 				win.Invalidate()
 			}
+			return
+		}
+		s.mu.Lock()
+		stale = s.desktopSaveGen != gen
+		s.mu.Unlock()
+		if stale {
 			return
 		}
 		var loginErr error
@@ -900,20 +946,21 @@ func (s *mainState) saveDesktopConfigAsync(win *mygo.Window) {
 			log.Println("openAtLogin:", err)
 		}
 		s.mu.Lock()
-		s.desktopDraft.workspace, s.desktopDraft.workspaceSeed = cfg.Workspace, cfg.Workspace
-		s.closeToTray = cfg.CloseToTray
-		if !s.hostAppearanceAccepted {
-			s.themeID = cfg.Theme
+		if s.desktopSaveGen != gen {
+			s.mu.Unlock()
+			return
 		}
+		s.desktopDraft.workspace, s.desktopDraft.workspaceSeed = cfg.Workspace, cfg.Workspace
+		s.applyCommittedDesktopUIStateLocked(cfg)
 		if loginErr != nil {
 			s.desktopLastAction = ""
-			s.desktopSaveErr = fmt.Sprintf("%s: %v", i18n.T(i18n.KeyCmdSettingsSavedButStartupRegistrationFai), loginErr)
+			s.desktopSaveErr = desktopStartupRegistrationError(loginErr)
 		} else {
 			s.desktopSaveErr = ""
 			s.desktopLastAction = i18n.T(i18n.KeySettingsDesktopSaved)
 		}
 		s.mu.Unlock()
-		if workspaceChanged && sessions != nil {
+		if prepared.workspaceChanged && sessions != nil {
 			sessions.SetWorkspaceCwd(cfg.Workspace)
 		}
 		if win != nil {
@@ -1861,8 +1908,8 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.hostTerminals.Bind(client, mux, false, refresh)
 	sessions.AttachMux(mux)
 	s.bindSubmissionRecovery(ctx, sessions)
-	if s.usage != nil {
-		s.usage.AttachMux(mux)
+	if usageStore != nil {
+		usageStore.AttachMux(mux)
 	}
 	if inter != nil {
 		inter.AttachClient(client, mux)

@@ -58,22 +58,27 @@ func (w *asyncConfigWriter) EnqueueMerge(fn func(*config.Config)) {
 }
 
 func (w *asyncConfigWriter) enqueue(op asyncConfigOp) {
+	_ = w.tryEnqueue(op)
+}
+
+func (w *asyncConfigWriter) tryEnqueue(op asyncConfigOp) bool {
 	if w == nil || op.fn == nil {
-		return
+		return false
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.closed || w.store == nil {
-		return
+		return false
 	}
 	w.pending = append(w.pending, op)
 	if w.timer != nil {
 		w.timer.Reset(w.debounce)
-		return
+		return true
 	}
 	w.timer = time.AfterFunc(w.debounce, func() {
 		go w.drain()
 	})
+	return true
 }
 
 // Effective returns store.Get() overlaid with any in-flight and queued
@@ -181,6 +186,11 @@ func (w *asyncConfigWriter) Flush() error {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	return w.flushLocked()
+}
+
+// flushLocked drains all pending mutations while w.mu is held.
+func (w *asyncConfigWriter) flushLocked() error {
 	if w.timer != nil {
 		w.timer.Stop()
 		w.timer = nil
@@ -197,20 +207,16 @@ func (w *asyncConfigWriter) Flush() error {
 	return w.lastErr
 }
 
-// Close flushes all pending writes and prevents further background timers.
+// Close rejects further enqueues, flushes all accepted pending writes, and
+// prevents further background timers.
 func (w *asyncConfigWriter) Close() error {
 	if w == nil {
 		return nil
 	}
-	err := w.Flush()
 	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.closed = true
-	if w.timer != nil {
-		w.timer.Stop()
-		w.timer = nil
-	}
-	w.mu.Unlock()
-	return err
+	return w.flushLocked()
 }
 
 func (s *mainState) configWriterFor(store *config.Store) *asyncConfigWriter {
@@ -218,13 +224,21 @@ func (s *mainState) configWriterFor(store *config.Store) *asyncConfigWriter {
 		return nil
 	}
 	s.configWriterMu.Lock()
-	defer s.configWriterMu.Unlock()
+	var replaced *asyncConfigWriter
 	if s.configWriter == nil || s.configWriter.store != store {
+		replaced = s.configWriter
 		s.configWriter = newAsyncConfigWriter(store, asyncConfigDebounce, func(err error) {
 			log.Printf("config: async save failed: %v", err)
 		})
 	}
-	return s.configWriter
+	w := s.configWriter
+	s.configWriterMu.Unlock()
+	if replaced != nil {
+		if err := replaced.Close(); err != nil {
+			log.Printf("config: flush replaced writer failed: %v", err)
+		}
+	}
+	return w
 }
 
 func (s *mainState) effectiveConfig() config.Config {

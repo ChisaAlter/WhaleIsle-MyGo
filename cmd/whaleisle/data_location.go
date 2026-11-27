@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -372,27 +371,17 @@ func (s *mainState) openDataLocation(dir string) {
 // deleted, and an existing file is kept.
 func (s *mainState) importLegacyData(win *mygo.Window, plan importer.FirstRunPlan) {
 	s.mu.Lock()
-	busy := s.dataLocationImporting || s.launcherImportBusy
-	s.mu.Unlock()
+	busy := s.dataLocationImporting || s.launcherImportBusy || s.quitting
 	if busy {
+		s.mu.Unlock()
 		s.setDataLocationOutcome(i18n.T(i18n.KeyDataLocationBusy), "")
 		return
 	}
-	if !s.askConfirmBlocking(confirmAskRequest{
-		Owner:        win,
-		Title:        i18n.T(i18n.KeyFirstRunImportTitle),
-		Body:         fmt.Sprintf(i18n.T(i18n.KeyFirstRunImportBody), plan.Source, plan.Dest),
-		ConfirmLabel: i18n.T(i18n.KeyFirstRunImportAccept),
-		CancelLabel:  i18n.T(i18n.KeyFirstRunImportSkip),
-	}) {
-		return
-	}
-	s.mu.Lock()
 	s.dataLocationImporting = true
+	confirmFn := s.confirmDataLocation
 	s.mu.Unlock()
-	s.setDataLocationOutcome("", i18n.T(i18n.KeyDataLocationImportRunning))
-	if win != nil {
-		win.Update(func() {})
+	if confirmFn == nil {
+		confirmFn = s.askConfirmBlocking
 	}
 	go func() {
 		defer func() {
@@ -403,7 +392,28 @@ func (s *mainState) importLegacyData(win *mygo.Window, plan importer.FirstRunPla
 				win.Update(func() {})
 			}
 		}()
-		result, err := importer.RunFirstRun(context.Background(), plan)
+		ctx := s.lifecycleContext()
+		if !confirmFn(confirmAskRequest{
+			Context:      ctx,
+			Owner:        win,
+			Title:        i18n.T(i18n.KeyFirstRunImportTitle),
+			Body:         fmt.Sprintf(i18n.T(i18n.KeyFirstRunImportBody), plan.Source, plan.Dest),
+			ConfirmLabel: i18n.T(i18n.KeyFirstRunImportAccept),
+			CancelLabel:  i18n.T(i18n.KeyFirstRunImportSkip),
+		}) {
+			return
+		}
+		s.mu.Lock()
+		quitting := s.quitting
+		s.mu.Unlock()
+		if quitting {
+			return
+		}
+		s.setDataLocationOutcome("", i18n.T(i18n.KeyDataLocationImportRunning))
+		if win != nil {
+			win.Update(func() {})
+		}
+		result, err := importer.RunFirstRun(ctx, plan)
 		for _, line := range result.Journal {
 			log.Println("legacy import:", line)
 		}
