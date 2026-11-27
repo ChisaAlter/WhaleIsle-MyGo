@@ -55,7 +55,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 					if selected {
 						// ColorSchemeTiles.themeCube.selected: module-platform fill
 						// and the same .5 DIP border in neutral-bluish-400.
-						button.Background(theme.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).SelectorFill)).Border(.5, ui.RGB(173, 178, 184))
+						button.Background(theme.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).SelectorFill)).Border(.5, tk(c).Ring)
 					} else if button.Hovered() {
 						button.Background(c.Theme().SurfaceHover)
 					}

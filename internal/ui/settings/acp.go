@@ -129,7 +129,7 @@ func acpSettings(c *ui.Context, a *ACPAccess, fg, muted ui.Color) {
 				Label:       "ACP registry search",
 				Placeholder: providerCopy("搜索 ACP Agent", "Search ACP agents"),
 			})
-			if regIn.Submitted() && !a.Busy {
+			if regIn.Submitted() && !regIn.Composing() && !a.Busy {
 				call("agent/registry-search", map[string]any{"query": *query})
 			}
 			if kButtonDisabled(c, providerCopy("搜索 Agent 目录", "Search agent registry"), a.Busy).AlignSelf(ui.Start).Clicked() {

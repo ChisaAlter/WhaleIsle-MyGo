@@ -6,6 +6,7 @@ import (
 	"strings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
@@ -130,7 +131,7 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 	ui.PopoverBase(c.Key("caption-branch-picker"), anchor, open, func(panel ui.Element) {
 		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(max(0, min(float32(320), width-24))).MaxHeight(max(0, height-64)).Padding(4).Gap(2).Role(ui.RoleMenu), c.Theme().Surface, c.Theme().Border, fonttheme.ContextRadii(c).MD))
 		panel.Children(func() {
-			coss.Input(c, &w.BranchQuery, coss.InputOptions{Size: coss.InputSM, Label: word("筛选分支", "Filter branches"), Placeholder: word("搜索分支…", "Search branches…")})
+			coss.Input(c, &w.BranchQuery, coss.InputOptions{Size: coss.InputSM, Label: word("筛选分支", "Filter branches"), Placeholder: word("搜索分支…", "Search branches…")}).AutoFocus()
 			if w.branchesRequest != nil {
 				ui.Text(c, word("正在读取分支…", "Loading branches…")).Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).Role(ui.RoleStatus).TextColor(c.Theme().TextMuted)
 			}
@@ -196,7 +197,8 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 				Label(word("创建分支", "Create branch")).Children(func() {
 				ui.Text(c, word("创建分支", "Create branch")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500)
 				ui.Text(c, word("首版只支持基于当前 HEAD 创建并切换。", "This version only creates and switches from the current HEAD.")).FillWidth().TextColor(c.Theme().TextMuted)
-				submitted := coss.Input(c, &state.name, coss.InputOptions{Label: word("分支名称", "Branch name"), Placeholder: "feature/my-change"}).Submitted()
+				branchIn := coss.Input(c, &state.name, coss.InputOptions{Label: word("分支名称", "Branch name"), Placeholder: "feature/my-change"}).AutoFocus()
+				submitted := branchIn.Submitted() && !branchIn.Composing()
 				ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
 					if widgets.Button(c, colors, word("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 						state.createOpen = false
@@ -231,10 +233,16 @@ func CaptionActivity(c *ui.Context, m Model) {
 	finishGitOperation(m)
 	width, height := c.Size()
 	if w.Progress != nil {
+		topOffset := max(float32(52), c.TitleBar().Height+design.Sp(3))
 		ui.Overlay(c.Key("caption-branch-progress"), func() {
-			ui.Column(c).Absolute().Bottom(24).Right(24).Width(max(0, min(float32(440), width-48))).MaxHeight(max(0, height-80)).Padding(12).Gap(6).Background(chrome.FrostInset(fonttheme.ResolveWithSystem(fonttheme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background)).Border(.5, c.Theme().Border).Radius(8).Children(func() {
-				DrawGitProgress(c, w.Progress, c.Theme().Text, c.Theme().TextMuted, func() { w.Progress = nil })
+			panel := ui.Column(c).Absolute().Top(topOffset).Right(design.Sp(4)).Width(max(0, min(float32(440), width-design.Sp(8)))).MaxHeight(max(0, height-topOffset-design.Sp(6))).Padding(design.Sp(3)).Gap(design.Sp(1.5)).Background(chrome.FrostInset(fonttheme.ResolveWithSystem(fonttheme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background)).Border(design.BorderWidth/2, c.Theme().Border).Radius(design.RadiusMD)
+			progressDone := false
+			panel.Children(func() {
+				progressDone = drawGitProgress(c, w.Progress, c.Theme().Text, c.Theme().TextMuted, func() { w.Progress = nil })
 			})
+			if progressDone && (panel.OverlayShortcut(0, ui.KeyEscape) || c.Shortcut(0, ui.KeyEscape)) {
+				w.Progress = nil
+			}
 		})
 	}
 }

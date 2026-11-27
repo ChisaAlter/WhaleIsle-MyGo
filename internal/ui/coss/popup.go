@@ -161,10 +161,17 @@ func PopoverPanel(c *ui.Context, o PopoverOptions, fn func()) ui.Element {
 }
 
 func popoverReveal(c *ui.Context, panel ui.Element) ui.Element {
+	if rise := popoverRevealRise(c, panel); rise != 0 {
+		panel.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: rise} })
+	}
+	return panel
+}
+
+func popoverRevealRise(c *ui.Context, panel ui.Element) float32 {
 	const popoverDuration = 160 * time.Millisecond
 	if forced != 0 || c.Preferences().ReduceMotion {
 		panel.Opacity(1)
-		return panel
+		return 0
 	}
 	started := ui.Local(panel, "coss.popover.reveal", func() time.Time { return c.Now() })
 	elapsed := c.Now().Sub(*started)
@@ -179,10 +186,9 @@ func popoverReveal(c *ui.Context, panel ui.Element) ui.Element {
 		panel.Opacity(progress)
 	}
 	if progress < 1 {
-		rise := 4 * (1 - progress)
-		panel.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: rise} })
+		return 4 * (1 - progress)
 	}
-	return panel
+	return 0
 }
 
 func popoverPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o PopoverOptions, fn func()) {

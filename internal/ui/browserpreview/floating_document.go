@@ -18,6 +18,7 @@ const floatingDocumentChromeHeight = 40
 
 type floatingDocumentWindow struct {
 	tab    *Tab
+	source *DocumentSource
 	pdf    *pdfpreview.Document
 	html   *htmldocument.Document
 	media  *mediapreview.Document
@@ -91,7 +92,7 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 		return
 	}
 	b.stopFloatingDocument()
-	f := &floatingDocumentWindow{tab: t, pdf: t.Document, html: t.HTML, media: t.Media, done: make(chan struct{})}
+	f := &floatingDocumentWindow{tab: t, source: t.source, pdf: t.Document, html: t.HTML, media: t.Media, done: make(chan struct{})}
 	b.floatingDocument = f
 	w := mygo.NewWindow(mygo.WindowOptions{
 		Title: browserChromeLabel("浮动预览 · ", "Floating preview · ") + opts.Title, Width: 720, Height: 520, MinWidth: 320, MinHeight: 220,
@@ -226,19 +227,45 @@ func (f *floatingDocumentWindow) close() {
 	}
 }
 
+func (f *floatingDocumentWindow) capabilityValid() bool {
+	if f == nil {
+		return false
+	}
+	if f.source != nil && f.source.DeclaredDelivery {
+		return f.source.DeclaredDeliveryValid()
+	}
+	switch {
+	case f.pdf != nil:
+		return f.pdf.Valid()
+	case f.media != nil:
+		return f.media.Valid()
+	case f.html != nil:
+		return f.html.Valid()
+	default:
+		return false
+	}
+}
+
+func (f *floatingDocumentWindow) capabilityDone() <-chan struct{} {
+	if f == nil {
+		return nil
+	}
+	if f.html != nil {
+		return f.html.Done()
+	}
+	if f.media != nil {
+		return f.media.Done()
+	}
+	return nil
+}
+
 // The existing frame sweeps handle Host/session changes immediately. This
-// bounded watcher also clears expired capabilities while the owner is idle.
-// All document validity and UI access stays on the UI thread, one queued check
-// at a time; no document bytes, filesystem reads, or Host requests are involved.
+// bounded watcher also clears expired capabilities while the owner is idle,
+// without scheduling main-window rebuilds while the capability remains valid.
 func (b *Controller) watchFloatingDocument(f *floatingDocumentWindow, w *mygo.Window) {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
-	for {
-		select {
-		case <-f.done:
-			return
-		case <-ticker.C:
-		}
+	watchFloatingDocumentLoop(f.done, f.capabilityDone(), ticker.C, f.capabilityValid, func() {
 		applied := make(chan struct{})
 		w.Update(func() {
 			defer close(applied)
@@ -248,8 +275,25 @@ func (b *Controller) watchFloatingDocument(f *floatingDocumentWindow, w *mygo.Wi
 		})
 		select {
 		case <-f.done:
-			return
 		case <-applied:
+		}
+	})
+}
+
+func watchFloatingDocumentLoop(done <-chan struct{}, docDone <-chan struct{}, tick <-chan time.Time, valid func() bool, onExpired func()) {
+	for {
+		select {
+		case <-done:
+			return
+		case <-docDone:
+			onExpired()
+			return
+		case <-tick:
+			if valid != nil && valid() {
+				continue
+			}
+			onExpired()
+			return
 		}
 	}
 }

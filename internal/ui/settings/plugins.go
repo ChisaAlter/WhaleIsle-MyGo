@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -72,7 +73,9 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 	if !a.ClientReady {
 		ui.Text(c, pluginsText("运行时未连接，请连接后管理插件。", "Runtime disconnected. Connect to manage plugins.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
-	settingsNotice(c, "plugins:79", a.OperationMessage != "", func() string { return a.OperationMessage })
+	opFailed := a.OperationMessage != "" && isPluginOperationFailure(a.OperationMessage)
+	settingsAlert(c, "plugins:79-error", opFailed, errcopy.SentenceText(a.OperationMessage), a.OperationMessage)
+	settingsNotice(c, "plugins:79", a.OperationMessage != "" && !opFailed, func() string { return a.OperationMessage })
 	if a.Activation.Pending {
 		message := pluginsText("插件变更已保存，等待重启生效。", "Plugin changes are saved and await a runtime restart.")
 		if a.Activation.Failed {
@@ -146,6 +149,25 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 
 func pluginsText(zh, en string) string {
 	return i18n.Pick(zh, en)
+}
+
+func isPluginOperationFailure(msg string) bool {
+	lower := strings.ToLower(strings.TrimSpace(msg))
+	if lower == "" {
+		return false
+	}
+	for _, token := range []string{
+		"失败", "无法", "不可用", "错误", "异常", "过期", "覆盖", "未确认", "未连接", "中断",
+		"fail", "error", "cannot", "could not", "unable", "unavailable",
+		"expired", "overridden", "unconfirmed", "unknown", "denied", "refused",
+		"timeout", "timed out", "exit status", "too late", "not found", "not connected",
+		"invalid", "enoent", "eacces", "eperm", "econn", "broken pipe", "eof",
+	} {
+		if strings.Contains(lower, token) {
+			return true
+		}
+	}
+	return false
 }
 
 // builtinPluginGrid is the built-in plugin list as the installed build shows it: a

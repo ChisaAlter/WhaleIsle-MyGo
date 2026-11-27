@@ -2,6 +2,7 @@ package projects
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -42,7 +43,7 @@ func detailView(c *ui.Context, m Model) {
 	}
 	if d.Workstream.SummaryFailure != nil {
 		ui.Text(c, tr("成果已保存，Lead 汇总未完成。点击后复核原记录并向原 Lead 发送重新汇总请求。", "Results are saved. This action verifies the records and sends a summary request to the original Lead.")).FontSize(fonttheme.InterfaceSize(12))
-		ui.Text(c, d.Workstream.SummaryFailure.Error.Message).FontSize(fonttheme.InterfaceSize(12))
+		ui.Text(c, errcopy.SentenceFor(d.Workstream.SummaryFailure.Error.Code, d.Workstream.SummaryFailure.Error.Message)).FontSize(fonttheme.InterfaceSize(12))
 		if d.Workstream.SummaryFailure.Error.Code == "MISSING_CREDENTIAL" && m.OnOpenModelSettings != nil {
 			if pButton(c, tr("模型设置", "Model settings"), false).Clicked() {
 				m.OnOpenModelSettings()

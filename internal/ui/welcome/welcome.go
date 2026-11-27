@@ -222,11 +222,48 @@ func keyForm(c *ui.Context, m Model, fg, muted, border ui.Color, failure ui.Colo
 				MaxLines(3)
 		})
 		if m.APIKey != nil {
-			coss.Input(c, m.APIKey, coss.InputOptions{
-				Size:        coss.InputLG,
-				Placeholder: i18n.T(i18n.KeyWelcomeKeyPlaceholder),
-				Label:       i18n.T(i18n.KeyWelcomeAPIKey),
-			}).Height(inputHeight - 2)
+			field := ui.Row(c.Key("welcome-api-key-row")).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center)
+			revealed := ui.Local(field, "revealed", func() bool { return false })
+			if *m.APIKey == "" {
+				*revealed = false
+			}
+			var in ui.Element
+			field.Children(func() {
+				ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+					in = coss.Input(c, m.APIKey, coss.InputOptions{
+						Size:        coss.InputLG,
+						Placeholder: i18n.T(i18n.KeyWelcomeKeyPlaceholder),
+						Label:       i18n.T(i18n.KeyWelcomeAPIKey),
+						Password:    !*revealed,
+						Disabled:    m.Busy,
+					}).Height(inputHeight - 2).AutoFocus()
+				})
+				if *m.APIKey != "" {
+					toggleLabel := i18n.Pick("显示密钥", "Show key")
+					if *revealed {
+						toggleLabel = i18n.Pick("隐藏密钥", "Hide key")
+					}
+					if coss.Button(c, toggleLabel, coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonSM,
+						Disabled: m.Busy,
+						Key:      "welcome-api-key-reveal",
+					}).Shrink(0).Clicked() {
+						*revealed = !*revealed
+					}
+				}
+			})
+			if in.Changed() && *m.APIKey == "" {
+				*revealed = false
+			}
+			if in.Submitted() && !in.Composing() && !m.Busy && m.OnSaveAPIKey != nil && !keyBlank(m.APIKey) {
+				m.OnSaveAPIKey()
+			}
+			if !m.Busy && m.OnBack != nil && !in.Composing() && (in.Shortcut(0, ui.KeyEscape) || c.Shortcut(0, ui.KeyEscape)) {
+				m.OnBack()
+			}
+		} else if !m.Busy && m.OnBack != nil && c.Shortcut(0, ui.KeyEscape) {
+			m.OnBack()
 		}
 		if note := noteLine(m); note != "" {
 			ui.Text(c, note).FillWidth().FontSize(theme.InterfaceSize(14)).

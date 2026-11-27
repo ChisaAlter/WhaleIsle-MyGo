@@ -375,7 +375,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 								*a.CreateName = ""
 							}
 						}
-						if createIn.Submitted() {
+						if createIn.Submitted() && !createIn.Composing() {
 							submitCreate()
 						}
 						if kPrimary(c, i18n.T(i18n.KeyComposerSkillsCreate), false).Clicked() {
@@ -394,7 +394,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						Placeholder: i18n.T(i18n.KeySettingsSkillsHubPlaceholder),
 						Label:       i18n.T(i18n.KeySettingsSkillsHubSearch),
 					})
-					if hubIn.Submitted() && strings.TrimSpace(*a.HubQuery) != "" {
+					if hubIn.Submitted() && !hubIn.Composing() && strings.TrimSpace(*a.HubQuery) != "" {
 						a.OnSearchHub(*a.HubQuery)
 					}
 					if kPrimary(c, i18n.T(i18n.KeySettingsSkillsHubSearch), false).Clicked() {

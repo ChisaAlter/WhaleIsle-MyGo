@@ -104,3 +104,60 @@ func TestViewWelcomeNoteAndSignInControls(t *testing.T) {
 		t.Fatalf("copied=%d cancelled=%d", copied, cancelled)
 	}
 }
+
+func TestViewWelcomeKeyFormPasswordAutoFocusSubmitAndEscape(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+
+	apiKey := ""
+	saved, back := 0, 0
+	busy := false
+	tt := ui.NewTester(func(c *ui.Context) {
+		View(c, Model{
+			ThemeID:      "system",
+			Page:         PageKey,
+			APIKey:       &apiKey,
+			Busy:         busy,
+			OnSaveAPIKey: func() { saved++ },
+			OnBack:       func() { back++ },
+		})
+	}, 600, 700)
+
+	// Input is auto-focused on entering PageKey: typing works immediately without clicking.
+	tt.Type("sk-secret-12345")
+	tt.Frame()
+	if apiKey != "sk-secret-12345" {
+		t.Fatalf("auto-focused input got %q, want %q", apiKey, "sk-secret-12345")
+	}
+
+	// API key is masked by default (plain key not painted in text tree) and reveal toggle is offered.
+	if tt.HasText("sk-secret-12345") {
+		t.Fatalf("API key leaked in plaintext while Password=true; texts=%q", tt.Texts())
+	}
+	if !tt.HasText("Show key") {
+		t.Fatalf("missing reveal toggle button; texts=%q", tt.Texts())
+	}
+
+	// Enter submits the form when not composing.
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if saved != 1 {
+		t.Fatalf("Enter submit calls = %d, want 1", saved)
+	}
+
+	// Escape returns to sign-in view when not busy.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if back != 1 {
+		t.Fatalf("Escape back calls = %d, want 1", back)
+	}
+
+	// Escape is ignored while busy.
+	busy = true
+	tt.Frame()
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if back != 1 {
+		t.Fatalf("Escape fired while busy: back=%d, want 1", back)
+	}
+}

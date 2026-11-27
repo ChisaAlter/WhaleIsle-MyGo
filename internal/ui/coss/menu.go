@@ -53,7 +53,8 @@ type MenuOptions struct {
 
 // menuState is what a menu panel keeps between frames: the open submenu.
 type menuState struct {
-	sub int
+	sub           int
+	suppressHover int
 }
 
 // Menu is coss's Menu, opened from trigger while *open: rows of actions,
@@ -108,7 +109,43 @@ func ContextMenu(c *ui.Context, target ui.Element, items []MenuItem, o MenuOptio
 	ui.Overlay(c, func() {
 		panel := ui.Column(c).Absolute().Left(st.x).Top(st.y).Role(ui.RoleMenu)
 		chosen = menuPanel(c, t, panel, items, o, &st.open, 0)
-		popoverReveal(c, panel)
+		winW, winH := c.Size()
+		rise := popoverRevealRise(c, panel)
+		panel.OffsetAfterLayout(func(r ui.Rect) ui.Point {
+			pad := design.Sp(1)
+			targetX, targetY := r.X, r.Y
+			if winW > 0 {
+				maxX := winW - r.W - pad
+				if maxX < pad {
+					maxX = max(float32(0), winW-r.W)
+				}
+				minX := min(pad, maxX)
+				if targetX > maxX {
+					targetX = maxX
+				}
+				if targetX < minX {
+					targetX = minX
+				}
+			}
+			if winH > 0 {
+				maxY := winH - r.H - pad
+				if maxY < pad {
+					maxY = max(float32(0), winH-r.H)
+				}
+				minY := min(pad, maxY)
+				if targetY > maxY {
+					targetY = maxY
+				}
+				if targetY < minY {
+					targetY = minY
+				}
+			}
+			dy := targetY - r.Y + rise
+			if winH > 0 && r.Y+dy+r.H > winH {
+				dy = max(float32(0), winH-r.H) - r.Y
+			}
+			return ui.Point{X: targetX - r.X, Y: dy}
+		})
 		if panel.OverlayShortcut(0, ui.KeyEscape) || panel.PressedOutside() {
 			st.open = false
 		}
@@ -131,12 +168,13 @@ func menuPanel(c *ui.Context, t *design.Tokens, panel ui.Element, items []MenuIt
 	if o.Label != "" {
 		panel.Label(o.Label)
 	}
-	st := ui.Local(panel, "coss.menu", func() menuState { return menuState{sub: -1} })
+	st := ui.Local(panel, "coss.menu", func() menuState { return menuState{sub: -1, suppressHover: -1} })
 	chosen := ""
 	panel.Children(func() {
 		list := ui.Column(c).FillWidth().Padding(design.Sp(1)).FocusGroup(ui.Vertical)
 		list.Children(func() {
-			first := true
+			shouldAutoFocus := open != nil || depth > 0
+			focusedFirst := false
 			for i := range items {
 				it := &items[i]
 				switch it.Kind {
@@ -153,10 +191,13 @@ func menuPanel(c *ui.Context, t *design.Tokens, panel ui.Element, items []MenuIt
 					})
 					continue
 				}
-				if id := menuRow(c, t, it, i, first && depth > 0, st, open, o, depth); id != "" {
+				af := shouldAutoFocus && !focusedFirst && !it.Disabled
+				if id := menuRow(c, t, it, i, af, st, open, o, depth); id != "" {
 					chosen = id
 				}
-				first = false
+				if !it.Disabled {
+					focusedFirst = true
+				}
 			}
 		})
 	})
@@ -269,24 +310,38 @@ func menuRow(c *ui.Context, t *design.Tokens, it *MenuItem, i int, autofocus boo
 	activate := row.Clicked()
 	switch it.Kind {
 	case MenuSub:
-		if activate || row.Shortcut(0, ui.KeyRight) || s.Has(StateHover) {
+		hovered := s.Has(StateHover)
+		if !hovered && st.suppressHover == i {
+			st.suppressHover = -1
+		}
+		if activate || row.Shortcut(0, ui.KeyRight) || (hovered && st.suppressHover != i) {
 			st.sub = i
+			st.suppressHover = -1
 		}
 		if st.sub == i {
-			ui.PopoverBase(c, row, &subOpenFlag, func(panel ui.Element) {
+			subOpen := true
+			ui.PopoverBase(c, row, &subOpen, func(panel ui.Element) {
 				// side inline-end, sideOffset 0, align start, offset by the
 				// popup's padding and border.
 				panel.AttachTo(row, ui.AnchorTopRight, ui.AnchorTopLeft).Margin(-design.Sp(1)-1, 0, 0, design.Sp(1))
-				sub := subOpenFlag
 				id := menuPanel(c, t, panel, it.Items, MenuOptions{}, open, depth+1)
 				if id != "" {
 					chosen = id
 				}
-				if panel.Shortcut(0, ui.KeyLeft) || panel.OverlayShortcut(0, ui.KeyEscape) || !sub {
+				if panel.Shortcut(0, ui.KeyLeft) || panel.OverlayShortcut(0, ui.KeyEscape) {
 					st.sub = -1
+					subOpen = false
+					if hovered {
+						st.suppressHover = i
+					}
 				}
 			})
-			subOpenFlag = true
+			if !subOpen {
+				st.sub = -1
+				if hovered {
+					st.suppressHover = i
+				}
+			}
 		}
 		return chosen
 	case MenuCheckbox:
@@ -312,10 +367,6 @@ func menuRow(c *ui.Context, t *design.Tokens, it *MenuItem, i int, autofocus boo
 	}
 	return chosen
 }
-
-// subOpenFlag is the open flag a submenu's PopoverBase takes; the parent
-// panel's state decides which submenu shows.
-var subOpenFlag = true
 
 // menuSwitch is the switch of a switch-variant checkbox row: 14×22 track,
 // 12 DIP thumb, inset black/4 shadow.
