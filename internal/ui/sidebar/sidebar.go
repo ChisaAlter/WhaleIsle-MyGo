@@ -668,16 +668,14 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 					}).Tooltip(workspaceText("会话操作", "Session actions")).Size(design.Sp(6), design.Sp(6)).Padding(0).
 						BorderWidth(0).TextColor(muted).Center().Menu(menu)
 					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.Sp(3.5), design.Sp(3.5)).TextColor(muted) })
-					if showActions {
-						sessionRowAction(c, "archive-"+it.SessionID, menuArchiveArtwork, i18n.T(i18n.KeySidebarArchive),
-							i18n.T(i18n.KeySidebarArchive), muted, archiveActionPtr(&m, it))
-						pinArt := menuPinArtwork
-						if it.Pinned {
-							pinArt = sessionPinArtwork
-						}
-						sessionRowAction(c, "pin-"+it.SessionID, pinArt, sessionPinLabel(it.Pinned),
-							sessionPinTip(it.Pinned), muted, pinActionPtr(&m, it))
+					sessionRowAction(c, "archive-"+it.SessionID, menuArchiveArtwork, i18n.T(i18n.KeySidebarArchive),
+						i18n.T(i18n.KeySidebarArchive), muted, !showActions, archiveActionPtr(&m, it))
+					pinArt := menuPinArtwork
+					if it.Pinned {
+						pinArt = sessionPinArtwork
 					}
+					sessionRowAction(c, "pin-"+it.SessionID, pinArt, sessionPinLabel(it.Pinned),
+						sessionPinTip(it.Pinned), muted, !showActions, pinActionPtr(&m, it))
 				})
 			}
 		})

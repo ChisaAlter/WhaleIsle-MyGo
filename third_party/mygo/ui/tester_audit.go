@@ -162,25 +162,35 @@ func (t *Tester) FlowSnapshot() []NodeRect {
 	return out
 }
 
+type flowText struct {
+	id   uint64
+	text string
+}
+
 type flowAuditState struct {
 	nodes       []NodeRect
-	texts       []string
+	texts       []flowText
 	scrolls     map[uint64][2]float64
 	nodeScrolls map[uint64][]uint64
+	invisible   map[uint64]bool
+	ancestors   map[uint64][]uint64
 }
 
 func (t *Tester) flowAuditState() flowAuditState {
 	st := flowAuditState{
 		scrolls:     map[uint64][2]float64{},
 		nodeScrolls: map[uint64][]uint64{},
+		invisible:   map[uint64]bool{},
+		ancestors:   map[uint64][]uint64{},
 	}
 	if t == nil || t.rt == nil || t.rt.c.root == nil {
 		return st
 	}
 	var stack []uint64
+	var ancStack []uint64
 	var walk func(e *node)
 	walk = func(e *node) {
-		if e == nil || e.flags&flagInvisible != 0 || e.leaving != 0 || e.ghost {
+		if e == nil || e.leaving != 0 || e.ghost {
 			return
 		}
 		if e.id == overlayID {
@@ -200,13 +210,25 @@ func (t *Tester) flowAuditState() flowAuditState {
 				Rect:  Rect{X: e.x, Y: e.y, W: e.w, H: e.h},
 			}
 			st.nodes = append(st.nodes, nr)
+			if len(ancStack) > 0 {
+				anc := make([]uint64, len(ancStack))
+				copy(anc, ancStack)
+				st.ancestors[e.id] = anc
+			}
 			if e.kind == kindText && e.text != "" {
-				st.texts = append(st.texts, e.text)
+				st.texts = append(st.texts, flowText{id: e.id, text: e.text})
 			}
 			if len(stack) > 0 {
 				anc := make([]uint64, len(stack))
 				copy(anc, stack)
 				st.nodeScrolls[e.id] = anc
+			}
+			// Invisible elements (CSS visibility: hidden) keep their laid-out box
+			// while layout.go skips laying out their descendants. Record the node
+			// itself (so box shifts are still caught) and stop descending.
+			if e.flags&flagInvisible != 0 {
+				st.invisible[e.id] = true
+				return
 			}
 		}
 		pushed := false
@@ -214,6 +236,11 @@ func (t *Tester) flowAuditState() flowAuditState {
 			st.scrolls[e.id] = [2]float64{e.st.scrollX, e.st.scrollY}
 			stack = append(stack, e.id)
 			pushed = true
+		}
+		pushedAnc := false
+		if e.parent != nil {
+			ancStack = append(ancStack, e.id)
+			pushedAnc = true
 		}
 		for ch := e.first; ch != nil; ch = ch.next {
 			if ch.flags&flagAbsolute != 0 && pushed {
@@ -225,6 +252,9 @@ func (t *Tester) flowAuditState() flowAuditState {
 				continue
 			}
 			walk(ch)
+		}
+		if pushedAnc {
+			ancStack = ancStack[:len(ancStack)-1]
 		}
 		if pushed {
 			stack = stack[:len(stack)-1]
@@ -278,16 +308,37 @@ func (t *Tester) interactiveTargets() []InteractiveBox {
 
 const zeroShiftTolerance float32 = 0.01
 
+func hasInvisibleAncestor(id uint64, ancestors map[uint64][]uint64, inv map[uint64]bool) bool {
+	for _, anc := range ancestors[id] {
+		if inv[anc] {
+			return true
+		}
+	}
+	return false
+}
+
 func assertFlowUnchanged(t TestingT, phase string, base, got flowAuditState, compensateScroll bool) bool {
 	t.Helper()
 	ok := true
-	if !slices.Equal(base.texts, got.texts) {
-		t.Errorf("zero-shift[%s]: in-flow texts changed: base=%q got=%q", phase, base.texts, got.texts)
+	baseTexts := make([]string, 0, len(base.texts))
+	for _, ft := range base.texts {
+		if !hasInvisibleAncestor(ft.id, base.ancestors, got.invisible) {
+			baseTexts = append(baseTexts, ft.text)
+		}
+	}
+	gotTexts := make([]string, 0, len(got.texts))
+	for _, ft := range got.texts {
+		if !hasInvisibleAncestor(ft.id, got.ancestors, base.invisible) {
+			gotTexts = append(gotTexts, ft.text)
+		}
+	}
+	if !slices.Equal(baseTexts, gotTexts) {
+		t.Errorf("zero-shift[%s]: in-flow texts changed: base=%q got=%q", phase, baseTexts, gotTexts)
 		ok = false
 	}
-	if len(base.nodes) != len(got.nodes) {
-		t.Errorf("zero-shift[%s]: in-flow node count changed: base=%d got=%d", phase, len(base.nodes), len(got.nodes))
-		ok = false
+	baseByID := make(map[uint64]NodeRect, len(base.nodes))
+	for _, n := range base.nodes {
+		baseByID[n.ID] = n
 	}
 	gotByID := make(map[uint64]NodeRect, len(got.nodes))
 	for _, n := range got.nodes {
@@ -296,6 +347,9 @@ func assertFlowUnchanged(t TestingT, phase string, base, got flowAuditState, com
 	for _, b := range base.nodes {
 		g, exists := gotByID[b.ID]
 		if !exists {
+			if hasInvisibleAncestor(b.ID, base.ancestors, got.invisible) {
+				continue
+			}
 			t.Errorf("zero-shift[%s]: in-flow node disappeared: %s", phase, b)
 			ok = false
 			continue
@@ -315,6 +369,15 @@ func assertFlowUnchanged(t TestingT, phase string, base, got flowAuditState, com
 		if abs32(dx) > zeroShiftTolerance || abs32(dy) > zeroShiftTolerance || abs32(dw) > zeroShiftTolerance || abs32(dh) > zeroShiftTolerance {
 			t.Errorf("zero-shift[%s]: node %s shifted by d=(%.3f, %.3f, %.3f, %.3f) (base=%v got=%v)",
 				phase, b, dx, dy, dw, dh, b.Rect, g.Rect)
+			ok = false
+		}
+	}
+	for _, g := range got.nodes {
+		if _, exists := baseByID[g.ID]; !exists {
+			if hasInvisibleAncestor(g.ID, got.ancestors, base.invisible) {
+				continue
+			}
+			t.Errorf("zero-shift[%s]: in-flow node appeared: %s", phase, g)
 			ok = false
 		}
 	}

@@ -63,9 +63,9 @@ func sbSelectedBg(t *design.Tokens) ui.Color {
 		return chrome.Color(theme.ResolveWithSystem(theme.IDSystem, t.IsDark()).Active(t.IsDark()).Pressed)
 	}
 	if t.IsDark() {
-		return ui.RGBA(255, 255, 255, 0.11)
+		return design.TW.White.Alpha(0.11)
 	}
-	return ui.RGBA(0, 0, 0, 0.085)
+	return design.TW.Black.Alpha(0.085)
 }
 
 func sbHoverBg(t *design.Tokens) ui.Color {
@@ -76,9 +76,9 @@ func sbHoverBg(t *design.Tokens) ui.Color {
 		return t.SidebarAccent
 	}
 	if t.IsDark() {
-		return ui.RGBA(255, 255, 255, 0.04)
+		return design.TW.White.Alpha(0.04)
 	}
-	return ui.RGBA(0, 0, 0, 0.04)
+	return design.TW.Black.Alpha(0.04)
 }
 
 func sbRowInk(t *design.Tokens, selected bool, fallback ui.Color) ui.Color {

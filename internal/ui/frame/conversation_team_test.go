@@ -81,10 +81,16 @@ func TestOrdinaryConversationTeamPopoverAlignsWithReference(t *testing.T) {
 	}
 	tt.Move(memberRect.X+10, memberRect.Y+10)
 	tt.Frame()
+	if afterRect, ok := tt.Find("lead"); !ok || afterRect != memberRect {
+		t.Fatalf("hovering member card shifted layout: %+v -> %+v", memberRect, afterRect)
+	}
+	tt.SetTime(start.Add(3 * time.Second))
+	tt.Frame()
 	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "模型: claude-sonnet-4-6") {
-		t.Fatalf("hovering member card did not reveal model label: %q", tt.Texts())
+		t.Fatalf("hovering member card did not reveal model label tooltip: %q", tt.Texts())
 	}
 	tt.Move(5, 5)
+	tt.SetTime(start.Add(4 * time.Second))
 	tt.Frame()
 
 	if out := os.Getenv("TEAM_POPOVER_SNAPSHOT"); out != "" {

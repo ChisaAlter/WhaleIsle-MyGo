@@ -86,11 +86,11 @@ func batchCheckboxSlot(c *ui.Context, checked *bool, disabled bool, label, key s
 			return
 		}
 		box := ui.Rect{X: r.X + (r.W-16)/2, Y: r.Y + (r.H-16)/2, W: 16, H: 16}
-		bg := ui.RGBA(0, 0, 0, 0.04)
-		border := ui.RGBA(0, 0, 0, 0.30)
+		bg := design.TW.Black.Alpha(0.04)
+		border := design.TW.Black.Alpha(0.30)
 		if t.IsDark() {
-			bg = ui.RGBA(255, 255, 255, 0.08)
-			border = ui.RGBA(255, 255, 255, 0.38)
+			bg = design.TW.White.Alpha(0.08)
+			border = design.TW.White.Alpha(0.38)
 		}
 		p.Fill(box, bg, 4)
 		p.Stroke(box, border, 4, 1)
@@ -243,11 +243,11 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 				Key:      "batch-archive",
 			}).Label(archiveLabel).Grow(1).MinWidth(0)
 			if t.IsDark() {
-				bg := ui.RGBA(255, 255, 255, 0.10)
+				bg := design.TW.White.Alpha(0.10)
 				if !archiveDisabled && archiveBtn.Hovered() {
-					bg = ui.RGBA(255, 255, 255, 0.16)
+					bg = design.TW.White.Alpha(0.16)
 				}
-				archiveBtn.Background(bg).Border(design.BorderWidth, ui.RGBA(255, 255, 255, 0.22))
+				archiveBtn.Background(bg).Border(design.BorderWidth, design.TW.White.Alpha(0.22))
 			}
 			if archiveBtn.Clicked() && m.OnBatchRequest != nil {
 				m.OnBatchRequest("archive")

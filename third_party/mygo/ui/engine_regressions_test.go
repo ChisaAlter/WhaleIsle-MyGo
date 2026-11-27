@@ -432,4 +432,21 @@ func TestAssertHoverFocusZeroShiftGuardsRegressions(t *testing.T) {
 		}
 		AssertHoverFocusZeroShift(t, tt)
 	})
+
+	t.Run("allows-fixed-box-invisible-toggle", func(t *testing.T) {
+		tt := coreNewTester(func(c *context) {
+			coreRow(c).Width(240).Padding(8).Children(func() {
+				b := coreButtonBase(c).FillWidth().Height(32).AlignItems(Center)
+				b.Children(func() {
+					coreText(c, "Session title").Grow(1)
+					stamp := coreRow(c).Shrink(0)
+					if b.Hovered() {
+						stamp.Invisible()
+					}
+					stamp.Children(func() { coreText(c, "2m") })
+				})
+			})
+		}, 280, 80)
+		AssertHoverFocusZeroShift(t, tt)
+	})
 }

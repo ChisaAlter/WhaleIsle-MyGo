@@ -413,6 +413,12 @@ func TestSelectInsideDialogKeepsFocusAcrossAllDismissPaths(t *testing.T) {
 			})
 		})
 	}, 720, 480)
+	// Settle the dialog's opening position/reveal transition deterministically so
+	// pointer clicks are not racing the 200ms entrance animation on fast hosts.
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(time.Second))
+	tt.Frame()
 
 	// Open then click trigger again.
 	if err := tt.Click("On close"); err != nil {

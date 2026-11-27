@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -97,9 +98,9 @@ func WithGlobalPageTrailing(active bool, fn func()) {
 
 func captionGitHoverBg(c *ui.Context) ui.Color {
 	if c.Theme().Dark {
-		return ui.RGBA(255, 255, 255, 0.08)
+		return design.TW.White.Alpha(0.08)
 	}
-	return ui.RGBA(0, 0, 0, 0.06)
+	return design.TW.Black.Alpha(0.06)
 }
 
 func captionGit(c *ui.Context, m WorkspaceTrailingModel) {

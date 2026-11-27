@@ -115,12 +115,18 @@ func addPluginMenu(c *ui.Context, p *page) {
 	disabled := !s.ManagementReady()
 	var trigger ui.Element
 	coss.Group(c.Key("plugin-add-group"), 2, coss.Horizontal, func() {
-		if coss.Button(c, copyText("添加插件", "Add plugin"), coss.ButtonOptions{
+		add := coss.Button(c, copyText("添加插件", "Add plugin"), coss.ButtonOptions{
 			Variant:  coss.ButtonDefault,
 			Size:     coss.ButtonMD,
 			Icon:     coss.IconPlus,
 			Disabled: disabled,
-		}).Clicked() {
+		})
+		add.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			if r.H > 8 {
+				p.Fill(ui.Rect{X: r.X + r.W - 0.5, Y: r.Y + 4, W: 0.5, H: r.H - 8}, t.PrimaryForeground.Alpha(0.24), 0)
+			}
+		})
+		if add.Clicked() {
 			a.OpenInstall()
 		}
 		trigger = coss.Button(c, "", coss.ButtonOptions{
@@ -129,11 +135,6 @@ func addPluginMenu(c *ui.Context, p *page) {
 			Icon:     coss.IconChevronDown,
 			Label:    copyText("选择添加方式", "Choose add method"),
 			Disabled: disabled,
-		})
-		trigger.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			if r.H > 8 {
-				p.Fill(ui.Rect{X: r.X, Y: r.Y + 4, W: 0.5, H: r.H - 8}, t.PrimaryForeground.Alpha(0.24), 0)
-			}
 		})
 	})
 	opened := ui.Local(trigger, "add-menu", func() bool { return false })

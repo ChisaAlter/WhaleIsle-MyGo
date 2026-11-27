@@ -21,7 +21,7 @@ func sessionActionsLabel(id, title string) string {
 // rowActionGlyph is one hover action: a bare 16px glyph button
 // (Rows.module.css .iconButton) that reaches the same callbacks as the row menu.
 // Nothing renders without an owner for the action.
-func sessionRowAction(c *ui.Context, key string, art *ui.SVG, label, tip string, ink ui.Color, run func()) {
+func sessionRowAction(c *ui.Context, key string, art *ui.SVG, label, tip string, ink ui.Color, hidden bool, run func()) {
 	if run == nil || art == nil {
 		return
 	}
@@ -32,6 +32,9 @@ func sessionRowAction(c *ui.Context, key string, art *ui.SVG, label, tip string,
 		Key:     "session-action-" + key,
 		Content: func() {},
 	}).Tooltip(tip).Size(design.Sp(6), design.Sp(6)).Padding(0).BorderWidth(0).Center()
+	if hidden {
+		button.Invisible()
+	}
 	button.Children(func() { ui.Icon(c, art).Size(design.IconXS, design.IconXS).TextColor(ink) })
 	if button.Clicked() {
 		run()

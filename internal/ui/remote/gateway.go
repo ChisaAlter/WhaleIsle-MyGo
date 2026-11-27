@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 // GatewayEditor owns an explicit draft, so runtime polling cannot overwrite edits.
@@ -49,7 +50,7 @@ func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
 	if e.Error != "" {
 		ui.Text(c, e.Error).TextColor(fg)
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).Gap(design.Sp(2)).Children(func() {
 		if coss.Button(c, label("保存并重新连接", "Save and reconnect"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonMD, Disabled: m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy}).Clicked() {
 			if err := m.OnSaveGateway(e.Expected, e.Draft); err != nil {
 				e.Error = errcopy.Sentence(err)

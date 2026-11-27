@@ -396,17 +396,21 @@ func workspaceRowsViewPtr(c *ui.Context, m *Model, items []session.Item, fg, mut
 						Content: func() {},
 					}).Size(16, 20).Shrink(0).Padding(0).BorderWidth(0).Background(ui.Transparent).Center()
 					lead.Children(func() {
-						if hovered || g.Kind == "scratch" || g.Kind == "pinned" {
-							size, ink := float32(12), muted
-							if g.Kind == "scratch" || g.Kind == "pinned" {
-								size, ink = design.IconXS, t.MutedForeground
-								if holdsSelection {
-									ink = t.Primary
-								}
+						if g.Kind == "scratch" || g.Kind == "pinned" {
+							size, ink := design.IconXS, t.MutedForeground
+							if holdsSelection {
+								ink = t.Primary
 							}
 							groupChevronIcon(rc, lead, collapsed, size, ink, workspaceText("展开箭头 ", "Workspace chevron ")+g.Key)
 							return
 						}
+						chevronSlot := ui.Box(rc.Key("ws-chevron-slot:" + g.Key)).Absolute().Fill().Center()
+						if !hovered {
+							chevronSlot.Invisible()
+						}
+						chevronSlot.Children(func() {
+							groupChevronIcon(rc, lead, collapsed, 12, muted, workspaceText("展开箭头 ", "Workspace chevron ")+g.Key)
+						})
 						ink := muted
 						if holdsSelection {
 							ink = t.Primary
@@ -415,8 +419,14 @@ func workspaceRowsViewPtr(c *ui.Context, m *Model, items []session.Item, fg, mut
 						if !collapsed {
 							folder = workspaceFolderOpenArtwork
 						}
-						ui.Icon(rc, folder).Size(design.IconSM, design.IconSM).TextColor(ink).
-							Label(workspaceText("工作区文件夹 ", "Workspace folder ") + g.Key)
+						folderSlot := ui.Box(rc.Key("ws-folder-slot:" + g.Key)).Absolute().Fill().Center()
+						if hovered {
+							folderSlot.Invisible()
+						}
+						folderSlot.Children(func() {
+							ui.Icon(rc, folder).Size(design.IconSM, design.IconSM).TextColor(ink).
+								Label(workspaceText("工作区文件夹 ", "Workspace folder ") + g.Key)
+						})
 					})
 					if lead.Clicked() && m.OnToggleWorkspaceGroup != nil {
 						resetWorkspaceWatermark(*m, g.Key, groups)
