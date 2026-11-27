@@ -139,8 +139,8 @@ func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
 		if skin != theme.SkinCodex {
 			conversationHeroFish(c, t.Foreground)
 		}
-		ui.Row(c).Wrap().Gap(design.Sp(1.75)).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
-			headline := ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).Font(font.Family).FontSize(size).FixedLineHeight(lineHeight).FontWeight(weight).TextColor(t.Foreground)
+		ui.Row(c).Wrap().Gap(design.Sp(1.75)).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).MaxWidthPercent(100).Children(func() {
+			headline := ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).Font(font.Family).FontSize(size).FixedLineHeight(lineHeight).FontWeight(weight).TextColor(t.Foreground).MaxWidthPercent(100)
 			if skin == theme.SkinCodex {
 				headline.LetterSpacing(-.02 * size).MaxWidth(640)
 			} else if skin == theme.SkinClaude {

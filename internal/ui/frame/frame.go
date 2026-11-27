@@ -8,6 +8,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -566,9 +567,9 @@ func View(c *ui.Context, m Model) {
 	// Grow below titlebar without percent-height double counting. Theme BG is
 	// the center's surface; the sidebar and right track own their own surfaces.
 	shell := ui.Column(c).Grow(1).MinHeight(0)
-	// ExternalNavigation's outer NavigationShell already owns the common canvas.
-	// Standalone and detached frames retain one canvas layer of their own.
-	if !m.ExternalNavigation {
+	// ExternalNavigation's outer NavigationShell already owns the common canvas
+	// when flat; under a live backdrop each column owns its own single layer.
+	if !m.ExternalNavigation && !frameSplitBackdropColumns(m) {
 		shell.Background(frameCanvasFill(t))
 	}
 	workspaceFloatDropSurfacePtr(c, mp, shell)
@@ -893,7 +894,10 @@ func mainRowPtr(c *ui.Context, m *Model, snap session.ViewState, colors theme.Co
 			// overlay). Add top inset on the chat column only 鈥?not the rail.
 			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
 			if skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); skinLayout.Active() {
-				conversationArea.Background(theme.Color(skinLayout.ChatBackground)).Radius(0).Padding(0)
+				if !chrome.BackdropActive() || skinLayout.Skin == theme.SkinCodex {
+					conversationArea.Background(theme.Color(skinLayout.ChatBackground))
+				}
+				conversationArea.Radius(0).Padding(0)
 			}
 			enter := conversationEnterLazy(c, conversationArea, conversationEnterOwner(snap), emptyHero, snap.PromptAttempted, func() string {
 				return conversationEnterStructure(*m, snap, phase, takeover)
@@ -1226,6 +1230,26 @@ func mainRowPtr(c *ui.Context, m *Model, snap session.ViewState, colors theme.Co
 				conversationHistoryStatus(c, *m, snap, muted)
 				// ConversationRoot: same chatContent column for transcript + docked composer.
 				chatRegion := ui.Column(c).Key("conversation-body").Label("Conversation body").Grow(1).MinHeight(0)
+				heroTrack := ui.Local(chatRegion, "hero-track-state", func() heroTrackState { return heroTrackState{} })
+				bottomOpen := m.Sizes != nil && m.Sizes.Bottom > 40
+				now := c.Now()
+				if !heroTrack.initialized {
+					heroTrack.initialized = true
+					heroTrack.lastColW = colW
+					heroTrack.lastOuterW = composerOuterW
+					heroTrack.lastBottom = bottomOpen
+				} else if math.Abs(float64(heroTrack.lastColW-colW)) > 0.5 ||
+					math.Abs(float64(heroTrack.lastOuterW-composerOuterW)) > 0.5 ||
+					heroTrack.lastBottom != bottomOpen {
+					heroTrack.lastColW = colW
+					heroTrack.lastOuterW = composerOuterW
+					heroTrack.lastBottom = bottomOpen
+					if !c.Preferences().ReduceMotion {
+						heroTrack.animUntil = now.Add(shellTrackTransition.Duration + 60*time.Millisecond)
+					}
+				}
+				heroTrackMoving := !c.Preferences().ReduceMotion &&
+					(now.Before(heroTrack.animUntil) || (colW > 0 && chatRegion.Bounds().W > 0 && math.Abs(float64(chatRegion.Bounds().W-colW)) > 1))
 				chatRegion.ObserveLayout(func(r ui.Rect) {
 					enterViewport = r
 					if r.H > 0 && r.H != collapseTracker.lastViewportH {
@@ -1498,13 +1522,21 @@ func mainRowPtr(c *ui.Context, m *Model, snap session.ViewState, colors theme.Co
 								// The unknown page settles on the Hero shell: same fish,
 								// title slot and input-card geometry, no blank box and no
 								// jump when the composer mounts.
-								ui.Column(c.Key("frame-settling-memo")).FillWidth().Memo(settlingSkeletonMemoVersion(*m)).Children(func() {
+								settlingCol := ui.Column(c.Key("frame-settling-memo")).FillWidth()
+								if !heroTrackMoving {
+									settlingCol.Memo(settlingSkeletonMemoVersion(*m, composerOuterW))
+								}
+								settlingCol.Children(func() {
 									conversationSettlingSkeleton(c, colors)
 								})
 								return
 							}
 							if emptyHero {
-								ui.Column(c.Key("frame-hero-headline-memo")).FillWidth().Memo(heroHeadlineMemoVersion(*m)).Children(func() {
+								heroCol := ui.Column(c.Key("frame-hero-headline-memo")).FillWidth()
+								if !heroTrackMoving {
+									heroCol.Memo(heroHeadlineMemoVersion(*m, composerOuterW))
+								}
+								heroCol.Children(func() {
 									conversationHeroHeadline(c, *m, colors)
 								})
 							}

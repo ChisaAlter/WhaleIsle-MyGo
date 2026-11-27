@@ -28,9 +28,10 @@ func captionGitLabelFixture(t *testing.T, density string) (*ui.Tester, *Workspac
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Padding(20).Children(func() { WorkspaceTrailing(c, *m); ui.Button(c, "After Git") })
 	}, 800, 400)
-	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.SetPreferences(ui.Preferences{ReduceMotion: false})
 	return tt, m, &actions, &opens
 }
+
 func captionGitFind(t *testing.T, tt *ui.Tester, label string) ui.Rect {
 	t.Helper()
 	r, ok := tt.Find(label)
@@ -39,10 +40,7 @@ func captionGitFind(t *testing.T, tt *ui.Tester, label string) ui.Rect {
 	}
 	return r
 }
-func captionGitLabelShown(tt *ui.Tester, part string) bool {
-	r, ok := tt.Find("Git " + part + " label")
-	return ok && r.W > 0
-}
+
 func captionGitNear(t *testing.T, what string, got, want float32) {
 	t.Helper()
 	if d := got - want; d < -.1 || d > .1 {
@@ -50,46 +48,86 @@ func captionGitNear(t *testing.T, what string, got, want float32) {
 	}
 }
 
-func TestCaptionGitLabelsStartHiddenInEveryDensityAndRevealIndependently(t *testing.T) {
+func TestCaptionGitToolbarConstantWidthZeroShiftAcrossDensities(t *testing.T) {
 	for _, density := range []string{"full", "cozy", "compact"} {
 		t.Run(density, func(t *testing.T) {
 			tt, _, _, _ := captionGitLabelFixture(t, density)
-			if captionGitLabelShown(tt, "branch") || captionGitLabelShown(tt, "action") {
-				t.Fatal("labels start revealed")
-			}
-			branch := captionGitFind(t, tt, "Switch branch")
-			quick := captionGitFind(t, tt, "Commit")
-			menu := captionGitFind(t, tt, "Git action options")
-			wantBranch, wantQuick := float32(52), float32(34)
+			now := time.Unix(2000, 0)
+			tt.SetTime(now)
+
+			toolbar0 := captionGitFind(t, tt, "Git toolbar")
+			branch0 := captionGitFind(t, tt, "Switch branch")
+			quick0 := captionGitFind(t, tt, "Commit")
+			menu0 := captionGitFind(t, tt, "Git action options")
+			after0 := captionGitFind(t, tt, "After Git")
+
 			if density == "compact" {
-				wantBranch, wantQuick = 48, 30
+				if tt.HasText("feature/label") {
+					t.Fatalf("compact density must remain icon-only, got %q", tt.Texts())
+				}
+				captionGitNear(t, "compact branch", branch0.W, 48)
+				captionGitNear(t, "compact quick", quick0.W, 30)
+			} else {
+				if !tt.HasText("feature/label") {
+					t.Fatalf("%s density must render static truncated branch label, got %q", density, tt.Texts())
+				}
+				if branch0.W <= 52 {
+					t.Fatalf("%s branch button unexpectedly collapsed: %+v", density, branch0)
+				}
 			}
-			captionGitNear(t, "collapsed branch", branch.W, wantBranch)
-			captionGitNear(t, "collapsed quick", quick.W, wantQuick)
-			captionGitNear(t, "menu", menu.W, 24)
-			tt.Move(branch.X+3, branch.Y+branch.H/2)
-			if !captionGitLabelShown(tt, "branch") || captionGitLabelShown(tt, "action") {
-				t.Fatal("branch hover did not reveal only branch", tt.Texts())
+			captionGitNear(t, "menu", menu0.W, 24)
+
+			assertNoShift := func(step string) {
+				t.Helper()
+				if got := captionGitFind(t, tt, "Git toolbar"); got != toolbar0 {
+					t.Fatalf("%s shifted toolbar: %+v -> %+v", step, toolbar0, got)
+				}
+				if got := captionGitFind(t, tt, "Switch branch"); got != branch0 {
+					t.Fatalf("%s shifted branch: %+v -> %+v", step, branch0, got)
+				}
+				if got := captionGitFind(t, tt, "Commit"); got != quick0 {
+					t.Fatalf("%s shifted quick action: %+v -> %+v", step, quick0, got)
+				}
+				if got := captionGitFind(t, tt, "Git action options"); got != menu0 {
+					t.Fatalf("%s shifted action menu trigger: %+v -> %+v", step, menu0, got)
+				}
+				if got := captionGitFind(t, tt, "After Git"); got != after0 {
+					t.Fatalf("%s shifted sibling control: %+v -> %+v", step, after0, got)
+				}
 			}
-			quick = captionGitFind(t, tt, "Commit")
-			tt.Move(quick.X+3, quick.Y+quick.H/2)
-			if !captionGitLabelShown(tt, "branch") || !captionGitLabelShown(tt, "action") {
-				t.Fatal("moving inside toolbar lost the latched branch", tt.Texts())
-			}
+
+			// Hover each control and advance clock across old 200ms reveal window:
+			// geometry must stay 100% invariant while hover paints a background tint.
 			tt.Move(750, 300)
-			if captionGitLabelShown(tt, "branch") || captionGitLabelShown(tt, "action") {
-				t.Fatal("whole toolbar leave kept a label")
+			tt.Frame()
+			idlePx := tt.Image().RGBAAt(int(branch0.X+2), int(branch0.Y+branch0.H/2))
+
+			tt.Move(branch0.X+3, branch0.Y+branch0.H/2)
+			tt.SetTime(now.Add(100 * time.Millisecond))
+			assertNoShift("branch hover 100ms")
+			tt.SetTime(now.Add(250 * time.Millisecond))
+			assertNoShift("branch hover 250ms")
+			hoverPx := tt.Image().RGBAAt(int(branch0.X+2), int(branch0.Y+branch0.H/2))
+			if hoverPx == idlePx {
+				t.Fatalf("branch hover did not paint hover background tint: idle=%v hover=%v", idlePx, hoverPx)
 			}
-			// Moving over the dropdown is action hover too, without revealing branch.
-			menu = captionGitFind(t, tt, "Git action options")
-			tt.Move(menu.X+menu.W/2, menu.Y+menu.H/2)
-			if captionGitLabelShown(tt, "branch") || !captionGitLabelShown(tt, "action") {
-				t.Fatal("dropdown hover did not reveal only action")
-			}
+
+			tt.Move(quick0.X+3, quick0.Y+quick0.H/2)
+			tt.SetTime(now.Add(350 * time.Millisecond))
+			assertNoShift("quick hover")
+
+			tt.Move(menu0.X+menu0.W/2, menu0.Y+menu0.H/2)
+			tt.SetTime(now.Add(450 * time.Millisecond))
+			assertNoShift("menu hover")
+
+			tt.Move(750, 300)
+			tt.SetTime(now.Add(650 * time.Millisecond))
+			assertNoShift("pointer leave")
 		})
 	}
 }
-func TestCaptionGitOpenMenusKeepOnlyTheirOwnLabelOnPointerLeave(t *testing.T) {
+
+func TestCaptionGitOpenMenusStayStableOnPointerLeave(t *testing.T) {
 	for _, part := range []string{"branch", "action"} {
 		t.Run(part, func(t *testing.T) {
 			tt, _, _, opens := captionGitLabelFixture(t, "compact")
@@ -97,56 +135,52 @@ func TestCaptionGitOpenMenusKeepOnlyTheirOwnLabelOnPointerLeave(t *testing.T) {
 			if part == "action" {
 				label = "Git action options"
 			}
-			// A physical pointer enters before it clicks. Reveal may grow the
-			// preceding quick label, so click the dropdown's new settled seat.
+			toolbar0 := captionGitFind(t, tt, "Git toolbar")
 			seat := captionGitFind(t, tt, label)
 			tt.Move(seat.X+seat.W/2, seat.Y+seat.H/2)
 			if err := tt.Click(label); err != nil {
 				t.Fatal(err)
 			}
 			tt.Move(750, 300)
-			if !captionGitLabelShown(tt, part) {
-				t.Fatal("open menu lost its label on toolbar leave")
+			tt.Frame()
+			if got := captionGitFind(t, tt, "Git toolbar"); got != toolbar0 {
+				t.Fatalf("open %s menu shifted toolbar: %+v -> %+v", part, toolbar0, got)
 			}
-			other := "action"
-			if part == "action" {
-				other = "branch"
-				if *opens != 1 {
-					t.Fatalf("menu refresh callbacks=%d", *opens)
-				}
+			if part == "action" && *opens != 1 {
+				t.Fatalf("menu refresh callbacks=%d", *opens)
 			}
-			if captionGitLabelShown(tt, other) {
-				t.Fatal("one menu revealed the other part")
+			if part == "branch" && !tt.HasText("Choose branch") {
+				t.Fatalf("branch menu closed on pointer leave: %q", tt.Texts())
+			}
+			if part == "action" && !tt.HasText("Publish repository") {
+				t.Fatalf("action menu closed on pointer leave: %q", tt.Texts())
 			}
 			tt.Key(0, ui.KeyEscape)
-			if captionGitLabelShown(tt, part) {
-				t.Fatal("closed pointer-opened menu kept its label")
+			if tt.HasText("Choose branch") || tt.HasText("Publish repository") {
+				t.Fatalf("Escape did not close %s menu: %q", part, tt.Texts())
 			}
 		})
 	}
 }
-func TestCaptionGitKeyboardRevealAndCallbacks(t *testing.T) {
+
+func TestCaptionGitKeyboardNavigationAndCallbacksZeroShift(t *testing.T) {
 	tt, _, actions, opens := captionGitLabelFixture(t, "full")
-	// Initial automatic focus is not keyboard-visible. Tab to the branch and
-	// continue with the toolkit's real key path rather than setting a test flag.
+	toolbar0 := captionGitFind(t, tt, "Git toolbar")
 	for n := 0; n < 5 && !tt.Focused("Switch branch"); n++ {
 		tt.Key(0, ui.KeyTab)
 	}
 	if !tt.Focused("Switch branch") {
 		t.Fatal("branch is absent from keyboard order")
 	}
-	// If it already had automatic focus, cycling brings it back via the keyboard.
-	if !captionGitLabelShown(tt, "branch") {
-		for n := 0; n < 4; n++ {
-			tt.Key(0, ui.KeyTab)
-		}
-	}
-	if !captionGitLabelShown(tt, "branch") || captionGitLabelShown(tt, "action") {
-		t.Fatal("keyboard branch focus reveal wrong", tt.Texts())
+	if got := captionGitFind(t, tt, "Git toolbar"); got != toolbar0 {
+		t.Fatalf("branch keyboard focus shifted toolbar: %+v -> %+v", toolbar0, got)
 	}
 	tt.Key(0, ui.KeyTab)
-	if !tt.Focused("Commit") || !captionGitLabelShown(tt, "action") || captionGitLabelShown(tt, "branch") {
+	if !tt.Focused("Commit") {
 		t.Fatal("keyboard action focus failed", tt.Texts())
+	}
+	if got := captionGitFind(t, tt, "Git toolbar"); got != toolbar0 {
+		t.Fatalf("action keyboard focus shifted toolbar: %+v -> %+v", toolbar0, got)
 	}
 	tt.Key(0, ui.KeyEnter)
 	if len(*actions) != 1 || (*actions)[0] != "commit" {
@@ -160,8 +194,6 @@ func TestCaptionGitKeyboardRevealAndCallbacks(t *testing.T) {
 	if *opens != 1 {
 		t.Fatalf("keyboard menu-open callback=%d", *opens)
 	}
-	// Publish exists only in the popup, so this cannot accidentally click the
-	// still-present quick Commit control underneath the nonmodal menu.
 	if err := tt.Click("Publish repository"); err != nil {
 		t.Fatal(err)
 	}
@@ -169,26 +201,7 @@ func TestCaptionGitKeyboardRevealAndCallbacks(t *testing.T) {
 		t.Fatalf("menu click action=%v", *actions)
 	}
 }
-func TestCaptionGitLabelMotionUsesTheNativeClock(t *testing.T) {
-	tt, _, _, _ := captionGitLabelFixture(t, "full")
-	tt.SetPreferences(ui.Preferences{})
-	now := time.Now()
-	tt.SetTime(now)
-	branch := captionGitFind(t, tt, "Switch branch")
-	tt.Move(branch.X+2, branch.Y+branch.H/2)
-	tt.SetTime(now.Add(100 * time.Millisecond))
-	halfway := captionGitFind(t, tt, "Git branch label").W
-	tt.SetTime(now.Add(200 * time.Millisecond))
-	full := captionGitFind(t, tt, "Git branch label").W
-	if !(halfway > 0 && halfway < full) {
-		t.Fatalf("native label transition does not progress: half%v full%v", halfway, full)
-	}
-	tt.Move(750, 300)
-	tt.SetTime(now.Add(400 * time.Millisecond))
-	if captionGitLabelShown(tt, "branch") {
-		t.Fatal("native close transition never settled")
-	}
-}
+
 func TestCaptionGitActionLabelsStayEnglishInBothLocales(t *testing.T) {
 	for _, locale := range []string{"zh", "en"} {
 		i18n.SetLocale(locale)

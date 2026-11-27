@@ -82,17 +82,43 @@ func captionPanelToggle(c *ui.Context, icon, label, unavailable, chord string, p
 		run()
 	}
 }
+
+var suppressNonRepoGitInit bool
+
+// WithGlobalPageTrailing runs fn while marking the titlebar trailing row as a
+// non-conversation global page (plugins / schedule / assistant), hiding the
+// unrelated "Initialize Git" button on non-repository directories.
+func WithGlobalPageTrailing(active bool, fn func()) {
+	prev := suppressNonRepoGitInit
+	suppressNonRepoGitInit = active
+	defer func() { suppressNonRepoGitInit = prev }()
+	fn()
+}
+
+func captionGitHoverBg(c *ui.Context) ui.Color {
+	if c.Theme().Dark {
+		return ui.RGBA(255, 255, 255, 0.08)
+	}
+	return ui.RGBA(0, 0, 0, 0.06)
+}
+
 func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 	if !m.Status.IsRepo {
+		if suppressNonRepoGitInit {
+			return
+		}
 		a := captionGitAction{id: "init", label: captionWord("初始化 Git", "Initialize Git"), icon: "branch", disabled: m.GitBusy}
 		captionGitButton(c, m, a, m.Density != "compact").Radius(14).Border(.5, c.Theme().Border)
 		return
 	}
-	toolbar := ui.Row(c.Key("caption-git-toolbar")).Label("Git toolbar").Height(27).Shrink(0).Gap(0).Border(.5, c.Theme().Border).Radius(14).Clip().AlignItems(ui.Center)
-	revealed := ui.Local(toolbar, "revealed-parts", func() captionGitReveal { return captionGitReveal{} })
-	if !toolbar.Hovered() {
-		revealed.observe(false, false, false)
+	compact := m.Density == "compact"
+	branchLabelMax := float32(128)
+	actionLabelMax := float32(132)
+	if m.Density == "cozy" {
+		branchLabelMax = 76
+		actionLabelMax = 88
 	}
+	toolbar := ui.Row(c.Key("caption-git-toolbar")).Label("Git toolbar").Height(27).Shrink(0).Gap(0).Border(.5, c.Theme().Border).Radius(14).Clip().AlignItems(ui.Center)
 	toolbar.Children(func() {
 		branch := m.Status.Branch
 		if branch == "" && m.Git != nil {
@@ -101,17 +127,13 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 		if branch == "" {
 			branch = captionWord("选择分支", "Select branch")
 		}
-		maxWidth := float32(180)
-		if m.Density == "cozy" {
-			maxWidth = 120
-		}
 		branchPart := ui.Row(c.Key("caption-git-branch")).Height(27).Shrink(0).Gap(0)
 		branchPart.Children(func() {
 			padding := float32(10)
-			if m.Density == "compact" {
+			if compact {
 				padding = 8
 			}
-			anchor := ui.ButtonBase(c).Height(27).MaxWidth(maxWidth).Padding(0, padding).Gap(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("切换分支", "Switch branch")).Tooltip(branch).Disabled(m.GitBusy || m.RenderBranches == nil).FocusRing(false)
+			anchor := ui.ButtonBase(c).Height(27).Padding(0, padding).Gap(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("切换分支", "Switch branch")).Tooltip(branch).Disabled(m.GitBusy || m.RenderBranches == nil).FocusRing(false)
 			branchOpen := ui.Local(anchor, "branch-open", func() bool { return false })
 			if m.GitBusy {
 				*branchOpen = false
@@ -123,22 +145,29 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 				m.RenderBranches(c, anchor, branchOpen)
 			}
 			anchor.Expanded(*branchOpen)
-			revealed.observe(toolbar.Hovered(), branchPart.Hovered(), false)
-			shown := revealed.branch || anchor.FocusVisible() || *branchOpen
+			if anchor.Hovered() || anchor.FocusVisible() || *branchOpen {
+				anchor.Background(captionGitHoverBg(c))
+			}
 			anchor.Children(func() {
-				ui.Icon(c, workspaceTrailingIcons["branch"]).Size(14, 14).TextColor(c.Theme().Text)
-				captionGitLabel(c, anchor, branch, "branch", shown, maxWidth-2*padding-32)
-				ui.Icon(c, workspaceTrailingIcons["chevron"]).Size(14, 14).Margin(0, 0, 0, 4).TextColor(c.Theme().Text)
+				ui.Icon(c, workspaceTrailingIcons["branch"]).Size(14, 14).Shrink(0).TextColor(c.Theme().Text)
+				if !compact {
+					captionGitStaticLabel(c, branch, "branch", branchLabelMax)
+				}
+				ui.Icon(c, workspaceTrailingIcons["chevron"]).Size(14, 14).Shrink(0).Margin(0, 0, 0, 4).TextColor(c.Theme().Text)
 			})
 		})
 		captionGitRule(c)
 		quick := resolveCaptionQuick(m)
 		// A disabled button cannot own a toolkit tooltip. Keep its reason on
 		// the enabled presentation wrapper, as the reference span does.
-		actionPart := ui.Row(c.Key("caption-git-action")).Height(27).Shrink(0).Gap(0).Tooltip(quick.hint)
+		actionTip := quick.hint
+		if actionTip == "" && compact {
+			actionTip = quick.label
+		}
+		actionPart := ui.Row(c.Key("caption-git-action")).Height(27).Shrink(0).Gap(0).Tooltip(actionTip)
 		actionPart.Children(func() {
-			primary := captionGitControl(c, m, quick, true).Gap(0)
-			if m.Density == "compact" {
+			primary := captionGitControl(c, m, quick, !compact).Gap(0)
+			if compact {
 				primary.Padding(0, 8)
 			}
 			captionGitRule(c)
@@ -182,11 +211,14 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 				})
 			})
 			trigger.Expanded(*open)
-			revealed.observe(toolbar.Hovered(), false, actionPart.Hovered())
-			shown := revealed.action || primary.FocusVisible() || trigger.FocusVisible() || *open
+			if trigger.Hovered() || trigger.FocusVisible() || *open {
+				trigger.Background(captionGitHoverBg(c))
+			}
 			primary.Children(func() {
-				ui.Icon(c, workspaceTrailingIcons[quick.icon]).Size(14, 14).TextColor(c.Theme().Text)
-				captionGitLabel(c, primary, quick.label, "action", shown, 0)
+				ui.Icon(c, workspaceTrailingIcons[quick.icon]).Size(14, 14).Shrink(0).TextColor(c.Theme().Text)
+				if !compact {
+					captionGitStaticLabel(c, quick.label, "action", actionLabelMax)
+				}
 			})
 			if primary.Clicked() {
 				captionRun(m, quick.id)
@@ -209,6 +241,9 @@ func captionGitControl(c *ui.Context, m WorkspaceTrailingModel, a captionGitActi
 		if hint == "" {
 			b.Tooltip(a.label)
 		}
+	}
+	if !disabled && (b.Hovered() || b.FocusVisible()) {
+		b.Background(captionGitHoverBg(c))
 	}
 	return b
 }

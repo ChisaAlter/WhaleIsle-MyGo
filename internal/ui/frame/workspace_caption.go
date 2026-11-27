@@ -153,8 +153,11 @@ func workspaceSharedCaptionPtr(c *ui.Context, m *Model, snap session.ViewState, 
 			// and ends at the native caption reserve (dshd-wco-controls = 112px).
 			trailing = ui.Row(c.Key("workspace-titlebar-trailing")).Absolute().Top(12).Right(controls).Height(32).Gap(design.Sp(2))
 			observeConversationTabInput(trailing, "trailing", m.ChatPaneTab)
+			globalPage := m.WorkspacePage || (m.ActivePanel != "" && m.ActivePanel != "conversation")
 			trailing.Children(func() {
-				m.WorkspaceTrailing(c, density)
+				chrome.WithGlobalPageTrailing(globalPage, func() {
+					m.WorkspaceTrailing(c, density)
+				})
 			})
 		}
 		// The reference's corner order is terminal, right panel, minimize,
@@ -180,13 +183,15 @@ func workspaceSharedCaptionPtr(c *ui.Context, m *Model, snap session.ViewState, 
 	// conversation-header ::after does.
 	layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
 	tCaption := tk(c)
-	if layout.Active() {
+	if layout.Active() && (!chrome.BackdropActive() || layout.Skin == theme.SkinCodex) {
 		row.Background(theme.Color(layout.ChatBackground))
-	} else if tCaption.Glass || chrome.BackdropActive() {
+	} else if chrome.BackdropActive() {
+		row.Background(frameCanvasFill(tCaption))
+	} else if tCaption.Glass {
 		row.Background(ui.Transparent)
 	}
 	stroke, ink := design.BorderWidth/2, tCaption.Border
-	if m.SystemDark {
+	if c.Theme().Dark {
 		ink = design.TW.White.Alpha(0.02)
 	}
 	// The header's one hairline sits under the view tabs, not between the title

@@ -166,7 +166,7 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 	t := tok(c)
 	row := ui.Row(c.Key("archived-session-"+id)).FillWidth().Height(32).Padding(0, design.Sp(2), 0, design.Sp(2)+float32(depth)*design.Sp(3)).Gap(0).AlignItems(ui.Center).Radius(design.RadiusXL)
 	if row.Hovered() || row.FocusWithin() || row.MenuOpen() {
-		row.Background(sbSelectedBg(t))
+		row.Background(sbHoverBg(t))
 	}
 	menu := func(menu *ui.Menu) {
 		menu.CloseOnPointerLeave(true)
@@ -181,9 +181,12 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 		ui.Box(c).Width(16).Height(20)
 		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, design.Sp(1.5), 0, design.Sp(1)).SingleLine().FontSize(fs(14)).TextColor(muted)
 		showActions := row.Hovered() || row.FocusWithin() || row.MenuOpen()
-		if !showActions && !item.Blank && item.UpdatedAt > 0 {
-			ui.Text(c, sessionTrailingLabel("", item.UpdatedAt)).Label("Session time " + id).
+		if !item.Blank && item.UpdatedAt > 0 {
+			stamp := ui.Text(c, sessionTrailingLabel("", item.UpdatedAt)).Label("Session time " + id).
 				FontSize(fs(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
+			if showActions {
+				stamp.Invisible()
+			}
 		}
 		more := coss.Button(c, "", coss.ButtonOptions{
 			Variant: coss.ButtonGhost,
@@ -191,10 +194,12 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 			Label:   sessionActionsLabel(id, title),
 			Key:     "archived-session-menu-" + id,
 			Content: func() {},
-		}).Size(design.Sp(6), design.Sp(6)).Padding(0).BorderWidth(0).TextColor(muted).Center().Menu(menu)
+		}).Absolute().Right(design.Sp(2)).Top(design.Sp(1)).Size(design.Sp(6), design.Sp(6)).Padding(0).BorderWidth(0).TextColor(muted).Center().Menu(menu)
 		more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.Sp(3.5), design.Sp(3.5)).TextColor(muted) })
 		if !showActions && !more.Focused() {
-			more.Absolute().Right(design.Sp(2)).Opacity(0)
+			more.Opacity(0)
+		} else {
+			more.Draw(sbActionOverlayDraw(t, false, true))
 		}
 	})
 	archivedSessionHoverCard(c, m, row, item, title, row.Pressed())

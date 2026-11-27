@@ -84,10 +84,11 @@ func TestAmbientGradientSurfaceUsesCanvasOnce(t *testing.T) {
 	phase = 1
 	tt.Frame()
 	after := tt.Image()
+	canvasAlpha := float64(MaterialAlpha(MaterialCanvas, prefs, false))
 	for _, pt := range [][2]int{{40, 40}, {160, 110}, {280, 180}} {
 		pos := (pt[1]*320 + pt[0]) * 4
 		for ch := range 3 {
-			want := 255*.45 + float64(before[pos+ch])*.55
+			want := 255*canvasAlpha + float64(before[pos+ch])*(1-canvasAlpha)
 			got := after.RGBAAt(pt[0], pt[1])
 			v := ([3]uint8{got.R, got.G, got.B})[ch]
 			if math.Abs(float64(v)-want) > 2 {

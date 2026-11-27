@@ -148,10 +148,7 @@ func settingsConnectionTrigger(c *ui.Context, m Model, compact bool) {
 			ui.Row(c).Fill().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 				ui.Icon(c, settingsGear).Size(design.IconLG, design.IconLG).TextColor(t.Foreground)
 				if !compact {
-					label := ui.Text(c, seatLabel).Grow(1).SingleLine().FontSize(fs(14)).TextColor(t.Foreground)
-					if status != "" {
-						label.Margin(0, design.Sp(11), 0, 0)
-					}
+					ui.Text(c, seatLabel).Grow(1).SingleLine().FontSize(fs(14)).TextColor(t.Foreground).Margin(0, design.Sp(10), 0, 0)
 				}
 			})
 		})

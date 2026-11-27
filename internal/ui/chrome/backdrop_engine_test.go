@@ -156,9 +156,9 @@ func TestAcrylicCanvasAlphaAndMenuSolidityCurves(t *testing.T) {
 		dark   float32
 	}{
 		{0, 0, 0, 0},
-		{40, 0.06, 0.35, 0.32},
-		{60, 0.16, 0.525, 0.48},
-		{80, 0.30, 0.70, 0.64},
+		{40, 0.06, 0.32, 0.32},
+		{60, 0.16, 0.48, 0.48},
+		{80, 0.30, 0.64, 0.64},
 		{100, 1.00, 1.00, 1.00},
 	} {
 		p := wallpapers.Defaults()

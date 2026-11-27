@@ -232,10 +232,10 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 		button.Label("Select session " + row.Item.SessionID)
 	}
 	menuOpen := button.MenuOpen()
+	hovered := button.Hovered() || button.FocusWithin() || menuOpen
 	if selected {
 		button.Background(sbSelectedBg(t))
-		sbActiveIndicator(button, t)
-	} else if button.Hovered() || button.FocusWithin() || menuOpen {
+	} else if hovered {
 		button.Background(sbHoverBg(t))
 	} else {
 		button.Background(ui.Transparent)
@@ -264,14 +264,7 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 					status = ""
 				}
 				if batch {
-					ui.Box(c).Size(16, 20).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-						check := coss.Checkbox(c, &selected, "", coss.CheckOptions{
-							Disabled: locked || row.Item.Blank,
-							Label:    "Select search checkbox " + row.Item.SessionID,
-							Key:      "batch-search-checkbox-" + row.Item.SessionID,
-						})
-						checkboxChanged = check.Changed()
-					})
+					checkboxChanged = batchCheckboxSlot(c, &selected, locked || row.Item.Blank, "Select search checkbox "+row.Item.SessionID, "batch-search-checkbox-"+row.Item.SessionID)
 				} else {
 					sessionStatusSlot(c, status, muted)
 				}
@@ -279,8 +272,8 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 				if title == "" {
 					title = workspaceText("未命名会话", "Untitled session")
 				}
-				ink := fg
-				if row.Archived {
+				ink := sbRowInk(t, selected, fg)
+				if row.Archived && !selected {
 					ink = muted
 				}
 				ui.Text(c, title).FontSize(fs(14)).FixedLineHeight(fs(20)).TextColor(ink).MinWidth(0).Grow(1).Margin(0, 0, 0, design.Sp(1)).SingleLine()
@@ -291,14 +284,16 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 						Label:   sessionActionsLabel(row.Item.SessionID, row.Item.Title),
 						Key:     "search-result-menu-" + row.Item.SessionID,
 						Content: func() {},
-					}).Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).TextColor(muted).Center().Menu(menu)
+					}).Absolute().Right(0).Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).TextColor(muted).Center().Menu(menu)
 					if !menuOpen {
 						more.Tooltip(workspaceText("会话操作", "Session actions"))
 					}
 					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.IconSM, design.IconSM).TextColor(muted) })
 					showActions := button.Hovered() || button.FocusWithin() || button.MenuOpen()
 					if !showActions && !more.Focused() {
-						more.Absolute().Right(design.Sp(2)).Opacity(0)
+						more.Opacity(0)
+					} else {
+						more.Draw(sbActionOverlayDraw(t, selected, true))
 					}
 				}
 			})

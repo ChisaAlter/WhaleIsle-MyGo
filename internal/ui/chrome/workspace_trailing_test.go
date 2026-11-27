@@ -44,8 +44,11 @@ func TestWorkspaceTrailingDensityAndIndependentPanelGates(t *testing.T) {
 			terminal, surfaces := 0, 0
 			m := WorkspaceTrailingModel{Status: &git.RepositoryStatus{IsRepo: true, Branch: "feature/long-name", Dirty: true}, WorkspaceRoot: "fixture", GitLoaded: true, Density: density, OnGitAction: func(string) {}, ShowTerminal: true, ShowSurfaces: true, TerminalAvailable: false, OnToggleTerminal: func() { terminal++ }, OnToggleSurfaces: func() { surfaces++ }}
 			tt := ui.NewTester(func(c *ui.Context) { WorkspaceTrailing(c, m) }, 800, 100)
-			if tt.HasText("feature/long-name") {
-				t.Fatal("branch label must start collapsed in every density", tt.Texts())
+			if density == "compact" && tt.HasText("feature/long-name") {
+				t.Fatal("compact density must keep branch icon-only", tt.Texts())
+			}
+			if density != "compact" && !tt.HasText("feature/long-name") {
+				t.Fatalf("%s density must show static branch label: %q", density, tt.Texts())
 			}
 			commitLabels := 0
 			for _, label := range tt.Texts() {
@@ -53,10 +56,12 @@ func TestWorkspaceTrailingDensityAndIndependentPanelGates(t *testing.T) {
 					commitLabels++
 				}
 			}
-			wantLabels := 1
-
+			wantLabels := 2 // button Label + static visible text in full/cozy
+			if density == "compact" {
+				wantLabels = 1 // button Label only in icon-only compact mode
+			}
 			if commitLabels != wantLabels {
-				t.Fatal("primary visible text density did not follow source", tt.Texts())
+				t.Fatalf("density=%s commit labels=%d want=%d texts=%q", density, commitLabels, wantLabels, tt.Texts())
 			}
 			if err := tt.Click("Toggle terminal drawer"); err != nil {
 				t.Fatal(err)
@@ -149,5 +154,40 @@ func TestWorkspaceNonrepoInitDoesNotRequireBranchBadge(t *testing.T) {
 	}
 	if len(actions) != 1 || actions[0] != "init" {
 		t.Fatalf("wrong initialization gesture: %v", actions)
+	}
+}
+
+func TestWithGlobalPageTrailingHidesInitGitOnly(t *testing.T) {
+	i18n.SetLocale("en")
+	defer i18n.SetLocale(i18n.DefaultLocale)
+
+	// Non-repo directory on a global page must not show "Initialize Git".
+	ttGlobal := ui.NewTester(func(c *ui.Context) {
+		WithGlobalPageTrailing(true, func() {
+			WorkspaceTrailing(c, WorkspaceTrailingModel{
+				Status:        &git.RepositoryStatus{IsRepo: false},
+				GitLoaded:     true,
+				WorkspaceRoot: "fixture",
+				OnGitAction:   func(string) {},
+			})
+		})
+	}, 500, 100)
+	if ttGlobal.HasText("Initialize Git") {
+		t.Fatalf("global page leaked Initialize Git button: %q", ttGlobal.Texts())
+	}
+
+	// An actual Git repository on a global page keeps its repo controls.
+	ttRepo := ui.NewTester(func(c *ui.Context) {
+		WithGlobalPageTrailing(true, func() {
+			WorkspaceTrailing(c, WorkspaceTrailingModel{
+				Status:        &git.RepositoryStatus{IsRepo: true, Branch: "main", Dirty: true},
+				GitLoaded:     true,
+				WorkspaceRoot: "fixture",
+				OnGitAction:   func(string) {},
+			})
+		})
+	}, 500, 100)
+	if !ttRepo.HasText("Commit") {
+		t.Fatalf("global page unexpectedly hid active repo actions: %q", ttRepo.Texts())
 	}
 }

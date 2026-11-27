@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/shortcuts"
@@ -23,6 +24,8 @@ func TestSidebarNavigationUsesLiveCommandBinding(t *testing.T) {
 		ui.Column(c).Width(280).FillHeight().Children(func() { navigationView(c, m, m.Store.Snapshot()) })
 	}, 1200, 800)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	now := time.Unix(5000, 0)
+	tt.SetTime(now)
 	label := i18n.T(i18n.KeySidebarNewSessionFallback)
 	r, ok := tt.Find(label)
 	if !ok {
@@ -40,14 +43,20 @@ func TestSidebarNavigationUsesLiveCommandBinding(t *testing.T) {
 		return value
 	}
 	initialHint := display()
-	if !tt.HasText(initialHint) {
-		t.Fatalf("default hint not bound: %v", tt.Texts())
+	if tt.HasText(initialHint) {
+		t.Fatalf("default shortcut leaked inline into button flow: %v", tt.Texts())
+	}
+	tt.SetTime(now.Add(time.Second))
+	initialTip := label + " (" + initialHint + ")"
+	if !tt.HasText(initialTip) {
+		t.Fatalf("default hint missing from tooltip %q: %v", initialTip, tt.Texts())
 	}
 	m.PageShortcutBindings = map[string]string{"session.new": "Mod+Alt+F8"}
-	tt.Frame()
+	tt.SetTime(now.Add(1500 * time.Millisecond))
 	customHint := display()
-	if !tt.HasText(customHint) || tt.HasText(initialHint) {
-		t.Fatal("new binding not reflected")
+	customTip := label + " (" + customHint + ")"
+	if !tt.HasText(customTip) || tt.HasText(initialTip) {
+		t.Fatalf("new binding not reflected in tooltip: %v", tt.Texts())
 	}
 	pressFramePhysicalKey(tt, ui.Cmd, ui.KeyN, "KeyN")
 	if created != 0 {
@@ -58,17 +67,17 @@ func TestSidebarNavigationUsesLiveCommandBinding(t *testing.T) {
 		t.Fatalf("new command calls=%d", created)
 	}
 	m.PageShortcutBindings["session.new"] = ""
-	tt.Frame()
-	if tt.HasText(customHint) {
-		t.Fatal("disabled binding left stale hint")
+	tt.SetTime(now.Add(2000 * time.Millisecond))
+	if tt.HasText(customTip) {
+		t.Fatal("disabled binding left stale tooltip hint")
 	}
 	pressFramePhysicalKey(tt, ui.Cmd|ui.Alt, ui.KeyF8, "F8")
 	if created != 1 {
 		t.Fatal("disabled command still dispatched")
 	}
 	m.PageShortcutBindings["session.new"] = "Mod+B" // Conflicts with the existing sidebar binding.
-	tt.Frame()
-	if got := display(); got != "" || tt.HasText("Ctrl+B") {
+	tt.SetTime(now.Add(2500 * time.Millisecond))
+	if got := display(); got != "" || tt.HasText("Ctrl+B") || tt.HasText(label+" (Ctrl+B)") {
 		t.Fatal("conflicting command advertised")
 	}
 }
