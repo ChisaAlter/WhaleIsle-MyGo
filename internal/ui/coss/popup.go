@@ -68,7 +68,10 @@ func panelLook(e ui.Element, t *design.Tokens, radius float32, sc design.Shadows
 type Side uint8
 
 const (
-	SideBottom Side = iota
+	// SideDefault picks the component's default edge (SideBottom for Popover,
+	// SideTop for Tooltip, SideRight for Sheet).
+	SideDefault Side = iota
+	SideBottom
 	SideTop
 	SideRight
 	SideLeft
@@ -87,7 +90,7 @@ const (
 func place(panel, anchor ui.Element, side Side, align Align, offset float32) {
 	var at, self ui.Anchor
 	switch side {
-	case SideBottom, SideTop:
+	case SideDefault, SideBottom, SideTop:
 		top := side == SideTop
 		pick := func(a, b, c ui.Anchor) ui.Anchor {
 			switch align {
@@ -231,7 +234,7 @@ type TooltipOptions struct {
 func Tooltip(c *ui.Context, anchor ui.Element, label string, o TooltipOptions) ui.Element {
 	t := tok(c)
 	side := o.Side
-	if side == SideBottom && o == (TooltipOptions{}) {
+	if side == SideDefault {
 		side = SideTop
 	}
 	return ui.TooltipBase(c, anchor, func(tip ui.Element) {

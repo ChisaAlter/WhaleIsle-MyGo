@@ -91,18 +91,24 @@ func Select(c *ui.Context, selected *string, options []SelectOption, o SelectOpt
 		if placeholder {
 			col = t.MutedForeground.Alpha(design.OpacityPlaceholder)
 		}
-		FlipText(c, current, FlipTextOptions{
-			Key:        "coss-select-trigger",
-			Color:      col,
-			FontSize:   design.TextSM.Size,
-			LineHeight: design.TextSM.LineHeight,
-			FontWeight: design.WeightNormal,
-		}).Grow(1).Shrink(1).MinWidth(0)
-		// The trigger is at least 144 DIPs wide by default. The spacer
-		// carries that floor as intrinsic width, so a caller's explicit
-		// Width — or a narrower row — still wins: ClipX drops its shrink
-		// floor to 0.
-		ui.Box(c).Width(144 - 2*padX - 2*gap - design.IconSM + design.Sp(1)).ClipX()
+		// Keep a 144 DIP default trigger width when unsized without stealing
+		// horizontal flex space from the label when the caller sets an explicit
+		// width (e.g. 88 DIP) or places the trigger in a narrow container:
+		// a Column gives FlipText 100% of the available label slot while a
+		// zero-height strut beneath it supplies the default intrinsic floor.
+		floorW := max(0, 144-2*padX-gap-design.IconSM+design.Sp(1))
+		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).ClipX().Children(func() {
+			FlipText(c, current, FlipTextOptions{
+				Key:        "coss-select-trigger",
+				Color:      col,
+				FontSize:   design.TextSM.Size,
+				LineHeight: design.TextSM.LineHeight,
+				FontWeight: design.WeightNormal,
+			}).FillWidth().MinWidth(0)
+			if floorW > 0 {
+				ui.Box(c).Width(floorW).Height(0)
+			}
+		})
 		icon(c, IconChevronsUpDown, design.IconSM, t.Foreground, false).Margin(0, -design.Sp(1), 0, 0)
 	})
 	parts.Popup(func(panel ui.Element) {
@@ -213,8 +219,19 @@ func Autocomplete(c *ui.Context, value *string, suggestions []string, o Combobox
 }
 
 type comboState struct {
-	text string
-	init bool
+	text         string
+	init         bool
+	lastSelected string
+	lastLabel    string
+}
+
+func comboLabelFor(options []SelectOption, selected string) string {
+	for _, op := range options {
+		if op.Value == selected {
+			return op.label()
+		}
+	}
+	return selected
 }
 
 func combo(c *ui.Context, selected *string, options []SelectOption, o ComboboxOptions, pick bool) ui.Element {
@@ -227,12 +244,11 @@ func combo(c *ui.Context, selected *string, options []SelectOption, o ComboboxOp
 	st := ui.Local(control, "coss.combo", func() comboState { return comboState{} })
 	textp := selected
 	if pick {
-		if !st.init {
-			for _, op := range options {
-				if op.Value == *selected {
-					st.text = op.label()
-				}
-			}
+		want := comboLabelFor(options, *selected)
+		if !st.init || *selected != st.lastSelected || want != st.lastLabel {
+			st.text = want
+			st.lastSelected = *selected
+			st.lastLabel = want
 			st.init = true
 		}
 		textp = &st.text
@@ -296,13 +312,18 @@ func combo(c *ui.Context, selected *string, options []SelectOption, o ComboboxOp
 		if v, ok := cb.Chosen(); ok {
 			*selected = v
 			if pick {
-				for _, op := range options {
-					if op.Value == v {
-						st.text = op.label()
-					}
-				}
-			} else {
-				*selected = v
+				want := comboLabelFor(options, v)
+				st.text = want
+				st.lastSelected = v
+				st.lastLabel = want
+			}
+		} else if pick && !in.Focused() && !cb.Open() {
+			want := comboLabelFor(options, *selected)
+			if st.text != want {
+				st.text = want
+				st.lastSelected = *selected
+				st.lastLabel = want
+				c.AnimationFrame()
 			}
 		}
 		if pick {
@@ -315,7 +336,11 @@ func combo(c *ui.Context, selected *string, options []SelectOption, o ComboboxOp
 			}
 			trig.Children(func() { icon(c, IconChevronsUpDown, design.IconSM, t.Foreground, true).Opacity(a) })
 			if trig.Clicked() {
-				cb.SetOpen(!cb.Open())
+				nextOpen := !cb.Open()
+				cb.SetOpen(nextOpen)
+				if nextOpen {
+					in.Focus()
+				}
 			}
 		}
 	})
