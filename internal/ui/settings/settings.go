@@ -673,7 +673,11 @@ func formPaneMemoKey(c *ui.Context, m Model, snap settings.ViewState, active Sec
 		projectPreferenceMemo(k, a.Project)
 		projectPreferenceMemo(k, a.Assistant)
 		projectPreferenceMemo(k, a.RemoteWorkspace)
-		k.b(a.OnSetAssistant != nil, a.OnSetRemoteWorkspace != nil)
+		k.b(a.OnSetAssistant != nil, a.OnSetRemoteWorkspace != nil, m.Interface != nil)
+		if m.Interface != nil {
+			boolPtrMemo(k, m.Interface.DshbotEnabled)
+			k.b(m.Interface.OnSetDshbot != nil)
+		}
 		return k.sum(), true
 
 	case active != SectionGeneral && active != SectionAccount && active != SectionAppearance &&

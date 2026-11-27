@@ -86,16 +86,37 @@ func (s *Store) LoadNativeCommandOptions(ctx context.Context, o NativeCommandOwn
 	case "model":
 		var cat api.ModelCatalog
 		if err := client.Call(ctx, "session/modelCatalog", map[string]any{}, &cat); err != nil {
+			s.mu.Lock()
+			cleared := s.client == client && s.modelState.CatalogRequest == request && s.modelState.CatalogLoading
+			if cleared {
+				s.modelState.CatalogLoading = false
+				s.invalidateViewLocked()
+			}
+			s.mu.Unlock()
+			if cleared {
+				s.fire()
+			}
 			return nil, err
 		}
 		s.mu.Lock()
 		if !s.nativeCommandCurrentLocked(o, name) || !s.sessionResultCurrentLocked(ctx, client, o.SessionID, follow) || s.modelState.CatalogRequest != request {
+			cleared := s.client == client && s.modelState.CatalogRequest == request && s.modelState.CatalogLoading
+			if cleared {
+				s.modelState.CatalogLoading = false
+				s.invalidateViewLocked()
+			}
 			s.mu.Unlock()
+			if cleared {
+				s.fire()
+			}
 			return nil, errors.New("Command owner changed")
 		}
 		newOptions := flattenModelCatalog(cat)
 		selection := cloneModelSelection(cat.Default)
-		if !s.modelState.CatalogReady || !reflect.DeepEqual(s.modelOptions, newOptions) || !reflect.DeepEqual(s.modelState.Default, selection) {
+		wasLoading := s.modelState.CatalogLoading
+		s.modelState.CatalogLoading = false
+		changed := wasLoading || !s.modelState.CatalogReady || !reflect.DeepEqual(s.modelOptions, newOptions) || !reflect.DeepEqual(s.modelState.Default, selection)
+		if changed {
 			s.invalidateViewLocked()
 		}
 		s.modelOptions = newOptions
@@ -104,6 +125,9 @@ func (s *Store) LoadNativeCommandOptions(ctx context.Context, o NativeCommandOwn
 		current, known := s.currentModelSelectionLocked()
 		options := append([]ModelOption(nil), s.modelOptions...)
 		s.mu.Unlock()
+		if changed {
+			s.fire()
+		}
 		priority := func(id string) int {
 			if id == "deepseek-account" {
 				return 0

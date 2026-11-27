@@ -364,7 +364,11 @@ type cached struct {
 	prev, next *cached
 }
 
-var shared = sync.OnceValue(newSystem)
+var shared = sync.OnceValue(func() *System {
+	s := newSystem()
+	s.ColorAtlas = initialColorAtlas()
+	return s
+})
 
 func newSystem() *System {
 	return &System{
@@ -379,7 +383,7 @@ func newSystem() *System {
 		transient:  map[uint64]GlyphImage{},
 		recent:     map[uint64]uint64{},
 		MaskAtlas:  scene.NewAtlas(1, 256, 256),
-		ColorAtlas: initialColorAtlas(),
+		ColorAtlas: scene.NewAtlas(4, 1, 1),
 	}
 }
 

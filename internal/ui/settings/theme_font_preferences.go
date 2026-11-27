@@ -136,6 +136,7 @@ func themeGridMemoKey(c *ui.Context, e *theme.Editor, colors theme.Colors, colum
 	k := newMemoKey(design.Revision()).u(theme.Revision()).s(i18n.Locale()).
 		b(t.Glass, t.IsDark(), chrome.BackdropActive(), c.Theme().Dark, e.OnSave != nil).
 		u(uint64(columns)).u(uint64(len(families))).u(uint64(len(e.Draft.Custom))).
+		f(float64(themeLibraryRadius(e.Draft, c.Theme().Dark))).
 		s(e.Draft.Light, e.Draft.Dark, colors.BorderL1, colors.Border, colors.Field, colors.BrandPrimary)
 	for _, f := range families {
 		k.s(f.ID, f.LocalizedName(), f.Light.Background, f.Light.Foreground, f.Light.Accent, f.Dark.Background, f.Dark.Foreground, f.Dark.Accent)

@@ -93,6 +93,13 @@ func consumeBackdropOverlayState(buildGen uint64) (active, needsRecheck bool) {
 	painted := backdropPowerState.overlayPainted
 	backdropPowerState.overlayBuilt = false
 	backdropPowerState.overlayPainted = false
+	closedTrackedOverlay := !explicit && !built && !(buildGen > 0 && builtGen == buildGen) &&
+		buildGen > 0 && curBuildGen == buildGen && builtGen > 0 && builtGen < buildGen
+	if closedTrackedOverlay {
+		// Consume the close transition once so a subsequent paint-only overlay
+		// (such as ui.Menu) can freeze ambient motion again.
+		backdropPowerState.overlayBuiltGen = 0
+	}
 	backdropPowerState.mu.Unlock()
 
 	if explicit {
@@ -101,12 +108,7 @@ func consumeBackdropOverlayState(buildGen uint64) (active, needsRecheck bool) {
 	if built || (buildGen > 0 && builtGen == buildGen) {
 		return true, false
 	}
-	if !painted {
-		return false, false
-	}
-	// If a fresh view build ran after the last built overlay and did not
-	// rebuild any overlay, the overlay has closed on this frame.
-	if buildGen > 0 && curBuildGen == buildGen && builtGen > 0 && builtGen < buildGen {
+	if !painted || closedTrackedOverlay {
 		return false, false
 	}
 	// An overlay painted without a tracked build helper (for example ui.Menu)

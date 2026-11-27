@@ -726,12 +726,28 @@ func TestDecorate(t *testing.T) {
 }
 
 func TestColorAtlasInitialWarmup(t *testing.T) {
+	// Isolated/private systems (used by WithRasterSystem) must stay minimal
+	// (1×1 ColorAtlas) so synchronous raster paints never allocate 8 MiB per call.
+	priv := newSystem()
+	if priv.ColorAtlas.W != 1 || priv.ColorAtlas.H != 1 {
+		t.Fatalf("newSystem() ColorAtlas = %dx%d, want 1x1 (must not preallocate 8 MiB for transient raster systems)", priv.ColorAtlas.W, priv.ColorAtlas.H)
+	}
+	Shared().WithRasterSystem(func(rasterSys *System) {
+		if rasterSys.ColorAtlas.W != 1 || rasterSys.ColorAtlas.H != 1 {
+			t.Fatalf("WithRasterSystem ColorAtlas = %dx%d, want 1x1", rasterSys.ColorAtlas.W, rasterSys.ColorAtlas.H)
+		}
+	})
+
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows ClearType ColorAtlas warmup test")
 	}
+	if Shared().ColorAtlas.W < 2048 || Shared().ColorAtlas.H < 1024 {
+		t.Fatalf("Shared() Windows ColorAtlas = %dx%d, want at least 2048x1024", Shared().ColorAtlas.W, Shared().ColorAtlas.H)
+	}
 	s := newSystem()
-	if s.ColorAtlas.W < 1024 || s.ColorAtlas.H < 1024 {
-		t.Fatalf("initial Windows ColorAtlas = %dx%d, want at least 1024x1024", s.ColorAtlas.W, s.ColorAtlas.H)
+	s.ColorAtlas = initialColorAtlas()
+	if s.ColorAtlas.W < 2048 || s.ColorAtlas.H < 1024 {
+		t.Fatalf("initial Windows ColorAtlas = %dx%d, want at least 2048x1024", s.ColorAtlas.W, s.ColorAtlas.H)
 	}
 	initGen := s.ColorAtlas.Generation()
 	s.BeginFrame()

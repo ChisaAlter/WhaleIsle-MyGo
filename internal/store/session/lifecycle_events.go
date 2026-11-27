@@ -59,6 +59,9 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 	s.listGeneration++
 	s.listLoading = false
 	s.listMutations = nil
+	s.modelState.BootstrapPending = false
+	s.modelState.CatalogLoading = false
+	s.invalidateViewLocked()
 	return &EventsOwner{store: s, client: client, mux: s.mux, ctx: ctx, generation: s.eventsGeneration}
 }
 

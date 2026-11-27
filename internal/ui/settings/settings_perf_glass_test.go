@@ -361,3 +361,86 @@ func TestSettingsFormPaneMemoKeepsScrollHitAndLiveUpdates(t *testing.T) {
 		t.Fatalf("clicking scrolled switch inside memoized formPane failed: remote=%v toggled=%v", remote, toggled)
 	}
 }
+
+func TestSettingsFeaturesMemoReflectsExternalDshbotRollbackAndThemeRadiusMemo(t *testing.T) {
+	prev := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
+	assistant, remote, dshbot := false, false, true
+	var gotKey uint64
+	m := fullRailModel()
+	m.DesktopActive = false
+	m.FeaturesActive = true
+	m.Features = &FeaturesAccess{
+		AssistantEnabled:       &assistant,
+		OnSetAssistant:         func(v bool) { assistant = v },
+		RemoteWorkspaceEnabled: &remote,
+		OnSetRemoteWorkspace:   func(v bool) { remote = v },
+		Project:                &ProjectPreferenceAccess{OnSet: func(bool) {}},
+	}
+	m.Interface = &InterfaceAccess{
+		DshbotEnabled: &dshbot,
+		OnSetDshbot:   func(v bool) { dshbot = v },
+	}
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		gotKey, _ = formPaneMemoKey(c, m, m.snapshot(), SectionFeatures, "")
+		View(c, m)
+	}, 900, 640)
+	tt.SetTime(time.Unix(1000, 0))
+	tt.SetTime(time.Unix(1001, 0))
+
+	findBotSwitch := func() ui.Rect {
+		t.Helper()
+		for _, r := range tt.FindAll("机器人（Bots）") {
+			if math.Abs(float64(r.W-toggleWidth)) < 1 && math.Abs(float64(r.H-toggleHeight)) < 1 {
+				return r
+			}
+		}
+		t.Fatalf("Bots switch not found: %v", tt.FindAll("机器人（Bots）"))
+		return ui.Rect{}
+	}
+
+	keyBefore := gotKey
+	swRect := findBotSwitch()
+	// Sample the left side of the 30×18 switch track: when ON, the knob rests
+	// on the right so x+4 paints the dark primary track; when OFF, the knob
+	// slides left so x+4 paints the bright white thumb.
+	sampleSwitchLeft := func() color.RGBA {
+		return tt.Image().RGBAAt(int(swRect.X)+4, int(swRect.Y+swRect.H/2))
+	}
+	pxBefore := sampleSwitchLeft()
+
+	// Simulate an async config rollback (e.g. cancelled Harness restart) without
+	// bumping settings.Store rev: memo key and painted switch must update immediately.
+	dshbot = false
+	tt.SetTime(time.Unix(1002, 0))
+	tt.SetTime(time.Unix(1003, 0))
+	if gotKey == keyBefore {
+		t.Fatalf("SectionFeatures formPaneMemoKey did not change when m.Interface.DshbotEnabled rolled back (%d)", gotKey)
+	}
+	pxAfter := sampleSwitchLeft()
+	if pxAfter == pxBefore {
+		t.Fatalf("Bots switch pixels stayed frozen after external DshbotEnabled rollback: before=%v after=%v", pxBefore, pxAfter)
+	}
+
+	// Verify themeGridMemoKey folds custom --dsw-radius-button-sm override.
+	ed := theme.NewEditor(theme.Defaults(), func(theme.Preferences) error { return nil })
+	custom := ed.Saved.Family(theme.SkinDefault)
+	custom.ID = "custom-radius-test"
+	custom.Light.Overrides = map[string]string{"--dsw-radius-button-sm": "8px"}
+	ed.Draft.Custom = []theme.Family{custom}
+	ed.Draft.Light = custom.ID
+	var gridKey1, gridKey2 uint64
+	ui.NewTester(func(c *ui.Context) {
+		colors := theme.ResolveWithSystem("system", false).Active(false)
+		fams := ed.Draft.Families()
+		gridKey1 = themeGridMemoKey(c, ed, colors, 3, fams)
+		ed.Draft.Custom[0].Light.Overrides["--dsw-radius-button-sm"] = "24px"
+		gridKey2 = themeGridMemoKey(c, ed, colors, 3, ed.Draft.Families())
+	}, 600, 400)
+	if gridKey1 == gridKey2 {
+		t.Fatalf("themeGridMemoKey did not change when custom radius override changed (%d)", gridKey1)
+	}
+}
