@@ -134,8 +134,7 @@ func View(c *ui.Context, m Model) {
 func registrationDialog(c *ui.Context, m Model, request *session.WorkspaceNavigationState, colors theme.Colors) {
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		chrome.DialogReveal(c, backdrop, panel)
-		chrome.FrostSurface(panel.Key("workspace-registration").Width(440).MaxWidthPercent(94).Padding(24).Gap(16), colors, m.SystemDark, chrome.Color(colors.Field), 24).Children(func() {
+		chrome.DialogSurface(c, backdrop, panel.Key("workspace-registration").Gap(design.Sp(4)), colors, 440, design.Sp(6)).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyWSWorkspaceAdd)).FontSize(theme.InterfaceSize(17)).FontWeight(500)
 			if request.Error != "" {
 				ui.Text(c, i18n.T(i18n.KeyWSFolderErrorTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(chrome.Color(colors.Muted))
@@ -362,7 +361,6 @@ func drawIcon(p *ui.Painter, r ui.Rect, kind string, ink ui.Color) {
 
 func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *session.WorkspaceNavigationState, colors theme.Colors) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	borderL2 := chrome.Color(colors.Border)
 	danger := design.For(c).DestructiveForeground
 	title := text("工作区", "Workspace")
 	switch request.Mode {
@@ -373,15 +371,8 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 	}
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		chrome.DialogReveal(c, backdrop, panel)
-		panel.Key(request.Token).Width(380).MaxWidthPercent(94).Padding(0, 0, 24, 0).Gap(20).Radius(28).Clip().
-			Background(chrome.Color(colors.Field)).Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, 28))
-		chrome.MenuElevation(panel)
-		panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			if borderL2.A != 0 && r.W > 0 && r.H > 0 {
-				p.Stroke(r, borderL2, 28, 0.5)
-			}
-		})
+		panel.Key(request.Token).Width(380).MaxWidthPercent(94).Padding(0, 0, design.Sp(6), 0).Gap(design.Sp(5))
+		chrome.DialogDecor(c, backdrop, panel, colors, theme.ContextRadii(c).Dialog)
 		panel.Children(func() {
 			submitted := false
 			blocked := request.Busy

@@ -78,22 +78,48 @@ func MaterialFill(base ui.Color, alpha float32) ui.Color {
 func MaterialSurface(backdrop, f ui.Color) ui.Color { return f.Over(backdrop) }
 
 // MaterialAlphaFor returns the share of the backdrop material m hides over
-// backdrop: MaterialAlpha, raised until ink keeps SecondaryContrast on the
-// surface it produces. In light mode the boost is capped at min(token+0.16,
-// 0.74) (or token itself when already higher) so translucent glass surfaces
-// keep WCAG 3:1 secondary legibility even over near-black wallpapers without
-// washing out to an opaque 85-95% white fog.
+// backdrop: MaterialAlpha, gently nudged up until ink keeps SecondaryContrast
+// on the surface it produces. In light mode the boost is strictly capped at
+// min(token+0.10, 0.56) (or token itself when already higher) so translucent
+// glass popovers never get washed out into opaque white fog; legibility over
+// extreme dark wallpapers relies primarily on high-contrast ink.
 func MaterialAlphaFor(backdrop, base ui.Color, m Material, p wallpapers.Preferences, dark bool, ink ui.Color) float32 {
 	token := MaterialAlpha(m, p, dark)
+	if token <= 0 || ink.A == 0 {
+		return token
+	}
+	if !dark {
+		return lightAlphaBoostFor(backdrop, base, token, ink)
+	}
+	if ContrastRatio(ink, MaterialSurface(backdrop, MaterialFill(base, token))) >= SecondaryContrast {
+		return token
+	}
+	hi := float32(1)
+	if ContrastRatio(ink, MaterialSurface(backdrop, MaterialFill(base, hi))) < SecondaryContrast {
+		return hi
+	}
+	lo, best := token, hi
+	for range 12 {
+		mid := (lo + hi) / 2
+		if ContrastRatio(ink, MaterialSurface(backdrop, MaterialFill(base, mid))) >= SecondaryContrast {
+			best, hi = mid, mid
+		} else {
+			lo = mid
+		}
+	}
+	return best
+}
+
+func lightAlphaBoostFor(backdrop, base ui.Color, token float32, ink ui.Color) float32 {
 	if token <= 0 || ink.A == 0 {
 		return token
 	}
 	if ContrastRatio(ink, MaterialSurface(backdrop, MaterialFill(base, token))) >= SecondaryContrast {
 		return token
 	}
-	hi := float32(1)
-	if !dark {
-		hi = max(token, min(token+0.16, float32(0.74)))
+	hi := max(token, min(token+0.10, float32(0.56)))
+	if hi <= token {
+		return token
 	}
 	if ContrastRatio(ink, MaterialSurface(backdrop, MaterialFill(base, hi))) < SecondaryContrast {
 		return hi

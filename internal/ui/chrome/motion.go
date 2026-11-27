@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/widgets"
 )
 
@@ -158,14 +159,13 @@ func PopoverReveal(c *ui.Context, panel ui.Element) ui.Element {
 	return panel.Opacity(progress)
 }
 
-// DialogMask is the dim layer under a modal card, `--dsw-alias-bg-mask-1`: .24
-// over the light sheet and .5 over the dark one (`Modal.module.css:25-31`), so
-// the card keeps its contrast on either scheme.
+// DialogMask is the dim layer under a modal card: light rgba(18,22,30,0.12)
+// and dark black/0.32 so wallpapers stay luminous instead of turning muddy.
 func DialogMask(c *ui.Context) ui.Color {
 	if c.Theme().Dark {
-		return ui.RGBA(0, 0, 0, .5)
+		return design.TW.Black.Alpha(0.32)
 	}
-	return ui.RGBA(0, 0, 0, .24)
+	return ui.RGBA(18, 22, 30, 0.12)
 }
 
 // DialogReveal fades a hand-run DialogBase overlay in over the reference modal's

@@ -4,7 +4,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/chrome"
@@ -13,19 +12,6 @@ import (
 
 func chatTokens(c *ui.Context) *design.Tokens {
 	return design.For(c)
-}
-
-type chatGlassMaterial struct {
-	blur glass.Blur
-	tint ui.Color
-}
-
-func (m chatGlassMaterial) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
-	m.blur.PaintMaterial(p, box, radii)
-	if m.tint.A == 0 || box.W <= 0 || box.H <= 0 {
-		return
-	}
-	p.Fill(box, m.tint, radii[0])
 }
 
 func chatCardSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
@@ -56,33 +42,7 @@ func chatInsetSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
 }
 
 func chatPopupSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
-	t := design.For(c)
-	e.Radius(radius).TextColor(t.PopoverForeground)
-	if t.Glass || chrome.BackdropActive() {
-		dark := t.IsDark()
-		tint := t.Popover
-		if !t.Glass && chrome.BackdropActive() {
-			tint = chrome.MaterialFill(t.Popover, chrome.MenuSolidity(chrome.BackdropPreferences(), dark))
-		}
-		e.Border(design.BorderWidth*0.5, t.Border).Material(chatGlassMaterial{
-			blur: glass.Blur{Radius: 40, Saturation: 0.50, Dither: true},
-			tint: tint,
-		})
-		if dark {
-			e.Shadow(0, 3, 8, 0, design.TW.Black.Alpha(0.16)).
-				Shadow(0, 10, 28, -2, design.TW.Black.Alpha(0.32))
-		} else {
-			e.Shadow(0, 3, 8, 0, design.TW.Black.Alpha(0.05)).
-				Shadow(0, 10, 28, -2, design.TW.Black.Alpha(0.10))
-		}
-		return e
-	}
-	e.Border(design.BorderWidth, t.Border).Background(t.Popover)
-	for i := len(design.ShadowLg) - 1; i >= 0; i-- {
-		s := design.ShadowLg[i]
-		e.Shadow(s.X, s.Y, s.Blur, s.Spread, s.Color)
-	}
-	return e
+	return chrome.ApplyMenuSurface(e, design.For(c), radius)
 }
 
 func chatStateColor(t *design.Tokens, s rowStatus) ui.Color {

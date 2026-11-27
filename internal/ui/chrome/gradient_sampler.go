@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/ui/design"
 )
 
 // Painting and sampling share the same immutable masked ambient generation.
@@ -39,32 +40,37 @@ func clearGradientBackdrop() {
 	}
 }
 
-// SettingsPanelGlass paints one Panel-opacity fill after the settings CSS
-// backdrop-filter, blur(40px) saturate(150%). canvas and modalMask are explicit
-// colors from the actual caller; modalMask includes reveal alpha. They are only
-// reconstructed in the sampler, not drawn again onto the canvas.
+// SettingsPanelGlass paints one translucent modal fill after a single GPU
+// backdrop blur OpEffect (24/26 DIP radius, high vibrancy saturation) in both
+// wallpaper and ambient gradient modes — never running a whole-screen CPU blur.
 func SettingsPanelGlass(base, canvas, modalMask ui.Color, radius ...float32) func(*ui.Painter, ui.Rect) {
+	_ = canvas
+	_ = modalMask
 	round := firstRadius(radius)
+	if backgroundState.active || design.GlassEnabled() {
+		NoteBackdropOverlayActive()
+	}
 	return func(p *ui.Painter, r ui.Rect) {
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}
 		prefs := effectivePrefs(backgroundState.prefs)
 		if !backgroundState.active {
-			p.Fill(r, base, round)
+			if base.A > 0 {
+				p.Fill(r, base, round)
+			}
 			return
 		}
-		alpha := MaterialAlpha(MaterialPanel, prefs, p.Theme().Dark)
+		dark := p.Theme().Dark
+		alpha := ModalSolidity(prefs, dark)
 		if prefs.Transparent {
 			// Transparency removes workbench chrome, not modal surfaces.
-			alpha = MaterialAlpha(MaterialMenu, prefs, p.Theme().Dark)
+			alpha = MenuSolidity(prefs, dark)
 		}
-		if gradientBackdrop.frame == nil {
-			menuPanelGlass{}.PaintMaterial(p, r, [4]float32{round, round, round, round})
-		} else if bmp := gradientPanelFrames.get(gradientBackdrop.frame, canvas, modalMask, prefs, p.Theme().Dark); bmp != nil {
-			p.Clip(r, round, func() { p.Image(bmp, gradientBackdrop.box, ui.FillBox) })
+		modalPanelGlass{}.PaintMaterial(p, r, [4]float32{round, round, round, round})
+		if base.A > 0 && alpha > 0 {
+			p.Fill(r, MaterialFill(base, alpha), round)
 		}
-		p.Fill(r, MaterialFill(base, alpha), round)
 	}
 }
 
@@ -195,9 +201,9 @@ func gradientPanelPixels(frame *gradientFrame, canvas ui.Color, prefs wallpapers
 	if frame == nil || frame.pixels == nil {
 		return nil
 	}
-	modalMask := ui.RGBA(0, 0, 0, 61.0/255)
+	modalMask := ui.RGBA(18, 22, 30, 0.12)
 	if dark {
-		modalMask = ui.RGBA(0, 0, 0, 128.0/255)
+		modalMask = design.TW.Black.Alpha(0.32)
 	}
 	if len(masks) > 0 {
 		modalMask = masks[0]

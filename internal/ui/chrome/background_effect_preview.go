@@ -22,11 +22,11 @@ func (p *BackgroundEffectPreview) Draw(settings wallpapers.Preferences, reduced 
 		}
 		now := painter.Now()
 		freeze := shouldFreezeAmbientAnimation(reduced, &startedAt, now) || renderpolicy.NoBackdrop()
-		elapsed := p.clock.step(now, reduced, freeze)
+		elapsed, nextIn := p.clock.stepPaced(now, reduced, freeze, ambientFrameInterval)
 		config := gradientConfiguration(settings, float64(bounds.W), float64(bounds.H), painter.Theme().Dark, reduced)
 		config.ambientBackdrop(elapsed).PaintMaterial(painter, bounds, [4]float32{})
 		if !reduced && !freeze {
-			painter.AnimationFrame()
+			painter.After(nextIn)
 		}
 	}
 }

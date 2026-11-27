@@ -359,17 +359,20 @@ func GlassSurface(e ui.Element, base ui.Color, m Material, radius ...float32) ui
 	return e.Background(ui.Transparent).Draw(Glass(base, m, radius...))
 }
 
-// MenuBaseFill returns the reference menu surface base color for colors:
-// when a wallpaper or ambient gradient is active, --dsw-menu-surface-fill
-// uses rgb(248, 249, 250) in light mode and rgb(38, 39, 43) in dark mode;
-// without a backdrop, it returns the flat surface token (#ffffff in light,
-// colors.Field in dark).
+// darkGlassPopoverBase is the shared dark translucent tint base for floating
+// menus and popovers (rgba(32, 34, 40, alpha)).
+var darkGlassPopoverBase = ui.RGB(32, 34, 40)
+
+// MenuBaseFill returns the menu surface base color: when a wallpaper or
+// ambient gradient is active, light mode uses pure white and dark mode uses
+// deep cool charcoal rgb(32, 34, 40); without a backdrop, it returns the flat
+// surface token (#ffffff in light, colors.Field in dark).
 func MenuBaseFill(colors theme.Colors, dark bool) ui.Color {
 	if backgroundState.active {
 		if dark {
-			return ui.RGB(38, 39, 43)
+			return darkGlassPopoverBase
 		}
-		return ui.RGB(248, 249, 250)
+		return design.TW.White
 	}
 	if dark {
 		return Color(colors.Field)
@@ -387,8 +390,29 @@ func MenuBorderColor(colors theme.Colors, dark bool) ui.Color {
 	return Color(colors.BorderL1)
 }
 
-// menuBlur is the reference menu backdrop-filter: blur(40px) saturate(150%) with dither.
-var menuBlur = glass.Blur{Radius: 40, Saturation: 0.5, Dither: true}
+// GlassOuterBorder returns the 0.5 DIP outer hairline border for frosted glass
+// surfaces: crisp subtle dark ink in light mode (~rgba(15,20,30,0.09)) and
+// deep black/0.45 outer bevel in dark mode.
+func GlassOuterBorder(dark bool) ui.Color {
+	if dark {
+		return design.TW.Black.Alpha(0.45)
+	}
+	return design.TW.Slate900.Alpha(0.09)
+}
+
+func popoverBlurFor(dark bool) glass.Blur {
+	if dark {
+		return glass.Blur{Radius: 22, Saturation: 0.70, Dither: true}
+	}
+	return glass.Blur{Radius: 20, Saturation: 0.85, Dither: true}
+}
+
+func modalBlurFor(dark bool) glass.Blur {
+	if dark {
+		return glass.Blur{Radius: 26, Saturation: 0.68, Dither: true}
+	}
+	return glass.Blur{Radius: 24, Saturation: 0.80, Dither: true}
+}
 
 type maskBlurMaterial struct {
 	mask   ui.Color
@@ -416,6 +440,7 @@ func (m blurFillMaterial) PaintMaterial(p *ui.Painter, r ui.Rect, radii [4]float
 	if r.W <= 0 || r.H <= 0 {
 		return
 	}
+	NoteBackdropOverlayPainted()
 	m.blur.PaintMaterial(p, r, radii)
 	if m.tint.A > 0 {
 		radius := radii[0]
@@ -423,9 +448,13 @@ func (m blurFillMaterial) PaintMaterial(p *ui.Painter, r ui.Rect, radii [4]float
 	}
 }
 
-// MenuGlassMaterial returns the shared menu backdrop blur material
-// (blur(40px) saturate(150%), dithered).
+// MenuGlassMaterial returns the shared popover/menu backdrop blur material
+// (20 DIP / sat 0.85 in light, 22 DIP / sat 0.70 in dark, dithered).
 func MenuGlassMaterial() ui.Material { return menuPanelGlass{} }
+
+// ModalGlassMaterial returns the shared modal backdrop blur material
+// (24 DIP / sat 0.80 in light, 26 DIP / sat 0.68 in dark, dithered).
+func ModalGlassMaterial() ui.Material { return modalPanelGlass{} }
 
 // MaskBlurMaterial paints a modal dim mask over a softened backdrop
 // (--dsw-mask-blur: blur(2px)).
@@ -433,18 +462,26 @@ func MaskBlurMaterial(mask ui.Color, radius float32) ui.Material {
 	return maskBlurMaterial{mask: mask, radius: radius}
 }
 
-// DrawGlassRim paints a subtle inner highlight stroke along the inside
-// perimeter of a frosted glass panel without batch-breaking clip/shadow ops.
+// DrawGlassRim paints the refined frosted glass inner edge optics via DrawOver
+// (zero extra OpEffect): an inner 1px specular perimeter stroke plus a crisp
+// curved 1px top highlight lip.
 func DrawGlassRim(p *ui.Painter, r ui.Rect, radius float32) {
 	if r.W <= 2 || r.H <= 2 {
 		return
 	}
-	rim := design.TW.White.Alpha(0.24)
+	rim := design.TW.White.Alpha(0.58)
+	top := design.TW.White.Alpha(0.86)
 	if p.Theme().Dark {
-		rim = design.TW.White.Alpha(0.06)
+		rim = design.TW.White.Alpha(0.13)
+		top = design.TW.White.Alpha(0.22)
 	}
 	inner := ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
-	p.Stroke(inner, rim, max(0, radius-1), 0.5)
+	innerR := max(0, radius-1)
+	p.Stroke(inner, rim, innerR, 1)
+	p.Clip(inner, innerR, func() {
+		cast := ui.Rect{X: inner.X, Y: inner.Y + 1, W: inner.W, H: inner.H}
+		p.Shadow(cast, innerR, 0, -1, 0, 0, top)
+	})
 }
 
 type menuOverlayMaterial struct {
@@ -459,53 +496,68 @@ func (m menuOverlayMaterial) PaintMaterial(p *ui.Painter, r ui.Rect, radii [4]fl
 	drawGlass(p, r, m.base, MaterialMenu, radii[0], false)
 }
 
-// MenuSurface dresses e as the shared menu panel: the menu material, which
-// blurs what was rendered under the menu (backdrop-filter: blur(40px)
-// saturate(150%)) and keeps its own fill instead of following the glass
-// slider, a single 0.5 DIP hairline border, and the lv3 elevation shadow.
+// MenuSurface dresses e as the shared menu panel: translucent popover glass
+// blur (20/22 DIP, high vibrancy saturation), 0.5 DIP outer hairline border,
+// DrawOver inner specular rim + top highlight, and adaptive dual-layer shadow.
 func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
 	return overlayGlassSurface(e, base, border, false, radius...)
 }
 
 // FloatingCardSurface dresses e as an in-app floating preview/panel card:
-// shared 40px menu glass blur, single 0.5 DIP hairline border, and lv2
-// floating-card elevation shadow.
+// translucent popover glass blur, 0.5 DIP outer border, DrawOver specular rim,
+// and lv2 floating-card dual-layer elevation shadow.
 func FloatingCardSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
 	return overlayGlassSurface(e, base, border, true, radius...)
 }
 
 func overlayGlassSurface(e ui.Element, base, border ui.Color, floatingCard bool, radius ...float32) ui.Element {
 	round := firstRadius(radius)
+	glassActive := backgroundState.active || design.GlassEnabled()
+	dark := backgroundState.dark
+	if !backgroundState.active && glassActive {
+		dark = (0.2126*float32(base.R)+0.7152*float32(base.G)+0.0722*float32(base.B))/255 < .5
+	}
 	if backgroundState.active {
+		NoteBackdropOverlayActive()
 		e = e.Radius(round).Background(ui.Transparent).Material(menuOverlayMaterial{base: base})
 	} else if design.GlassEnabled() {
+		NoteBackdropOverlayActive()
 		fill := base
 		if fill.A == 255 {
-			dark := (0.2126*float32(base.R)+0.7152*float32(base.G)+0.0722*float32(base.B))/255 < .5
-			fill = MaterialFill(base, MenuSolidity(effectivePrefs(backgroundState.prefs), dark))
+			tintBase := design.TW.White
+			if dark {
+				tintBase = darkGlassPopoverBase
+			}
+			fill = MaterialFill(tintBase, MenuSolidity(effectivePrefs(backgroundState.prefs), dark))
 		}
-		e = e.Radius(round).Background(ui.Transparent).Material(blurFillMaterial{blur: menuBlur, tint: fill})
+		e = e.Radius(round).Background(ui.Transparent).Material(blurFillMaterial{blur: popoverBlurFor(dark), tint: fill})
 	} else {
 		e = e.Radius(round).Background(base)
 	}
-	if border.A != 0 {
+	if glassActive {
+		e = e.Border(0.5, GlassOuterBorder(dark)).DrawOver(func(p *ui.Painter, r ui.Rect) {
+			DrawGlassRim(p, r, round)
+		})
+	} else if border.A != 0 {
 		e = e.Border(0.5, border)
 	}
 	if floatingCard {
-		return FloatingCardElevation(e, backgroundState.dark)
+		return FloatingCardElevation(e, dark)
 	}
-	return MenuElevation(e)
+	return menuElevationFor(e, dark)
 }
 
 // ApplyMenuSurface dresses a token-styled menu/popover panel with the unified
-// 40px menu glass blur, single hairline border, and adaptive lv3 shadow when
-// glass or a live backdrop is active, falling back to solid coss tokens.
+// translucent popover glass blur (20/22 DIP), 0.5 DIP outer border, DrawOver
+// inner specular rim + top highlight, and adaptive lv3 shadow when glass or a
+// live backdrop is active, falling back to solid coss tokens.
 func ApplyMenuSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element {
 	return applyTokenGlassSurface(e, t, radius, false)
 }
 
-// ApplyFloatingCardSurface dresses a token-styled floating card with the 40px
-// glass blur, single hairline border, and adaptive lv2 shadow.
+// ApplyFloatingCardSurface dresses a token-styled floating card with the
+// unified translucent popover glass blur, 0.5 DIP outer border, DrawOver
+// specular rim + top highlight, and adaptive lv2 shadow.
 func ApplyFloatingCardSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element {
 	return applyTokenGlassSurface(e, t, radius, true)
 }
@@ -513,12 +565,21 @@ func ApplyFloatingCardSurface(e ui.Element, t *design.Tokens, radius float32) ui
 func applyTokenGlassSurface(e ui.Element, t *design.Tokens, radius float32, floatingCard bool) ui.Element {
 	e.Radius(radius).TextColor(t.PopoverForeground)
 	if t.Glass || backgroundState.active {
+		NoteBackdropOverlayActive()
 		dark := t.IsDark()
 		fill := t.Popover
-		if !t.Glass && backgroundState.active {
-			fill = MaterialFill(t.Popover, MenuSolidity(effectivePrefs(backgroundState.prefs), dark))
+		if (!t.Glass && backgroundState.active) || fill.A == 255 {
+			tintBase := design.TW.White
+			if dark {
+				tintBase = darkGlassPopoverBase
+			}
+			fill = MaterialFill(tintBase, MenuSolidity(effectivePrefs(backgroundState.prefs), dark))
 		}
-		e.Border(0.5, t.Border).Material(blurFillMaterial{blur: menuBlur, tint: fill})
+		e.Border(0.5, GlassOuterBorder(dark)).
+			Material(blurFillMaterial{blur: popoverBlurFor(dark), tint: fill}).
+			DrawOver(func(p *ui.Painter, r ui.Rect) {
+				DrawGlassRim(p, r, radius)
+			})
 		if floatingCard {
 			FloatingCardElevation(e, dark)
 		} else {
@@ -600,20 +661,20 @@ func MenuShadow(p *ui.Painter, rect ui.Rect, radius float32) {
 
 func menuElevationFor(e ui.Element, dark bool) ui.Element {
 	if dark {
-		return e.Shadow(0, 10, 28, -2, design.TW.Black.Alpha(.32)).
-			Shadow(0, 3, 8, 0, design.TW.Black.Alpha(.16))
+		return e.Shadow(0, 18, 44, -4, design.TW.Black.Alpha(.46)).
+			Shadow(0, 3, 10, 0, design.TW.Black.Alpha(.24))
 	}
-	return e.Shadow(0, 10, 28, -2, design.TW.Black.Alpha(.10)).
-		Shadow(0, 3, 8, 0, design.TW.Black.Alpha(.05))
+	return e.Shadow(0, 14, 36, -4, design.TW.Black.Alpha(.14)).
+		Shadow(0, 2, 6, 0, design.TW.Black.Alpha(.06))
 }
 
 func modalElevationFor(e ui.Element, dark bool) ui.Element {
 	if dark {
-		return e.Shadow(0, 18, 40, -4, design.TW.Black.Alpha(.32)).
-			Shadow(0, 4, 12, 0, design.TW.Black.Alpha(.16))
+		return e.Shadow(0, 22, 52, -4, design.TW.Black.Alpha(.48)).
+			Shadow(0, 4, 12, 0, design.TW.Black.Alpha(.26))
 	}
-	return e.Shadow(0, 18, 40, -4, design.TW.Black.Alpha(.10)).
-		Shadow(0, 4, 12, 0, design.TW.Black.Alpha(.05))
+	return e.Shadow(0, 18, 44, -4, design.TW.Black.Alpha(.16)).
+		Shadow(0, 3, 10, 0, design.TW.Black.Alpha(.07))
 }
 
 // ModalElevation applies the shared lv3 modal elevation shadow to e.
@@ -624,11 +685,11 @@ func ModalElevation(e ui.Element, dark bool) ui.Element {
 // FloatingCardElevation applies the shared lv2 floating-card elevation shadow to e.
 func FloatingCardElevation(e ui.Element, dark bool) ui.Element {
 	if dark {
-		return e.Shadow(0, 8, 20, -2, design.TW.Black.Alpha(.22)).
-			Shadow(0, 2, 6, 0, design.TW.Black.Alpha(.12))
+		return e.Shadow(0, 12, 32, -3, design.TW.Black.Alpha(.38)).
+			Shadow(0, 3, 8, 0, design.TW.Black.Alpha(.20))
 	}
-	return e.Shadow(0, 6, 16, -2, design.TW.Black.Alpha(.07)).
-		Shadow(0, 1, 4, 0, design.TW.Black.Alpha(.04))
+	return e.Shadow(0, 10, 26, -3, design.TW.Black.Alpha(.11)).
+		Shadow(0, 2, 6, 0, design.TW.Black.Alpha(.05))
 }
 
 // MenuElevation gives a floating menu or card its drop shadow, matching the
@@ -638,19 +699,30 @@ func MenuElevation(e ui.Element) ui.Element {
 }
 
 // menuPanelGlass is the ui.Material a theme's Menu asks for (Theme.Menu) and
-// that MenuSurface applies: a real scene backdrop blur (blur(40px)
-// saturate(150%)) over whatever was rendered behind the menu (ambient
-// gradient, wallpaper, composer card, borders, and text), plus the wallpaper
-// frost fallback when applicable.
+// that MenuSurface applies: a translucent scene backdrop blur (20/22 DIP with
+// vibrant saturation) over whatever was rendered behind the menu.
 type menuPanelGlass struct{}
 
-// PaintMaterial paints the menu frost and scene backdrop blur over box,
-// rounded by radii.
+// PaintMaterial paints the popover/menu scene backdrop blur over box, rounded
+// by radii, and notifies the ambient backdrop overlay gate.
 func (menuPanelGlass) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
 	if (!backgroundState.active && !design.GlassEnabled()) || box.W <= 0 || box.H <= 0 {
 		return
 	}
-	menuBlur.PaintMaterial(p, box, radii)
+	NoteBackdropOverlayPainted()
+	popoverBlurFor(p.Theme().Dark).PaintMaterial(p, box, radii)
+}
+
+// modalPanelGlass is the ui.Material for dialogs, sheets and settings frames:
+// a softer 24/26 DIP backdrop blur with high vibrancy saturation.
+type modalPanelGlass struct{}
+
+func (modalPanelGlass) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
+	if (!backgroundState.active && !design.GlassEnabled()) || box.W <= 0 || box.H <= 0 {
+		return
+	}
+	NoteBackdropOverlayPainted()
+	modalBlurFor(p.Theme().Dark).PaintMaterial(p, box, radii)
 }
 
 // MenuStyle returns the ui.Theme.Menu of the resolved colors: the menu's own
@@ -801,12 +873,24 @@ func AcrylicCanvasAlpha(p wallpapers.Preferences) float32 {
 	return float32(math.Round(100*math.Pow(uncapped, 1.5)) / 100)
 }
 
-// MenuSolidity returns the menu surface fill opacity for p.Glass:
-// light max(g*0.80, g*1.8-80)/100 (0.64 at g=80), dark max(g*0.8, g*2.75-175)/100.
+// MenuSolidity returns the translucent menu/popover fill opacity for p.Glass:
+// light max(g*0.55, g*2.8-180)/100 (0.44 at g=80, 1.00 at g=100),
+// dark max(g*0.60, g*2.6-160)/100 (0.48 at g=80, 1.00 at g=100).
 func MenuSolidity(p wallpapers.Preferences, dark bool) float32 {
 	g := clampPercent(p.Glass)
 	if dark {
-		return float32(math.Max(g*0.8, g*2.75-175) / 100)
+		return float32(math.Max(g*0.60, g*2.6-160) / 100)
 	}
-	return float32(math.Max(g*0.80, g*1.8-80) / 100)
+	return float32(math.Max(g*0.55, g*2.8-180) / 100)
+}
+
+// ModalSolidity returns the translucent modal/dialog fill opacity for p.Glass:
+// light max(g*0.60, g*2.6-160)/100 (0.48 at g=80, 1.00 at g=100),
+// dark max(g*0.675, g*2.3-130)/100 (0.54 at g=80, 1.00 at g=100).
+func ModalSolidity(p wallpapers.Preferences, dark bool) float32 {
+	g := clampPercent(p.Glass)
+	if dark {
+		return float32(math.Max(g*0.675, g*2.3-130) / 100)
+	}
+	return float32(math.Max(g*0.60, g*2.6-160) / 100)
 }

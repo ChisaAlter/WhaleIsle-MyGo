@@ -68,8 +68,8 @@ func TestGradientModeDrawGlassBlursBackdropAndDialogs(t *testing.T) {
 	}
 
 	// Verify DialogSurfaceTheme and DialogDecorTheme in gradient mode use
-	// menuPanelGlass (40px blur), deep charcoal tint, single crisp outer
-	// hairline border, and no inner specular rim.
+	// modalPanelGlass (26px dark blur), deep charcoal tint, 0.5 DIP dark outer
+	// bevel border, and bright inner 1px specular rim + top highlight at y+1.
 	for _, kind := range []string{"surface", "decor"} {
 		t.Run(kind, func(t *testing.T) {
 			open := true
@@ -112,11 +112,11 @@ func TestGradientModeDrawGlassBlursBackdropAndDialogs(t *testing.T) {
 			outerLum := RelativeLuminance(pixel(outerEdge))
 			edgeLum := RelativeLuminance(pixel(innerEdge))
 			intLum := RelativeLuminance(pixel(interior))
-			if outerLum <= intLum {
-				t.Fatalf("dialog %s missing single outer hairline border: outer=%v interior=%v", kind, outerEdge, interior)
+			if outerLum >= intLum {
+				t.Fatalf("dialog %s missing dark 0.5 DIP outer bevel border: outer=%v interior=%v", kind, outerEdge, interior)
 			}
-			if edgeLum > intLum+0.02 {
-				t.Fatalf("dialog %s unexpectedly painted an inner specular rim: edge=%v interior=%v", kind, innerEdge, interior)
+			if edgeLum <= intLum+0.02 {
+				t.Fatalf("dialog %s missing bright inner specular rim + top highlight: edge=%v interior=%v", kind, innerEdge, interior)
 			}
 			_ = color.RGBA{}
 		})
@@ -150,27 +150,35 @@ func TestWallpaperBlurPreservesEdgesWithoutBleed(t *testing.T) {
 
 func TestAcrylicCanvasAlphaAndMenuSolidityCurves(t *testing.T) {
 	for _, tc := range []struct {
-		glass  float64
-		canvas float32
-		light  float32
-		dark   float32
+		glass      float64
+		canvas     float32
+		menuLight  float32
+		menuDark   float32
+		modalLight float32
+		modalDark  float32
 	}{
-		{0, 0, 0, 0},
-		{40, 0.06, 0.32, 0.32},
-		{60, 0.16, 0.48, 0.48},
-		{80, 0.30, 0.64, 0.64},
-		{100, 1.00, 1.00, 1.00},
+		{0, 0, 0, 0, 0, 0},
+		{40, 0.06, 0.22, 0.24, 0.24, 0.27},
+		{60, 0.16, 0.33, 0.36, 0.36, 0.405},
+		{80, 0.30, 0.44, 0.48, 0.48, 0.54},
+		{100, 1.00, 1.00, 1.00, 1.00, 1.00},
 	} {
 		p := wallpapers.Defaults()
 		p.Glass = tc.glass
 		if got := AcrylicCanvasAlpha(p); math.Abs(float64(got-tc.canvas)) > 1e-4 {
 			t.Fatalf("AcrylicCanvasAlpha(%.0f) = %v, want %v", tc.glass, got, tc.canvas)
 		}
-		if got := MenuSolidity(p, false); math.Abs(float64(got-tc.light)) > 1e-4 {
-			t.Fatalf("MenuSolidity(%.0f, light) = %v, want %v", tc.glass, got, tc.light)
+		if got := MenuSolidity(p, false); math.Abs(float64(got-tc.menuLight)) > 1e-4 {
+			t.Fatalf("MenuSolidity(%.0f, light) = %v, want %v", tc.glass, got, tc.menuLight)
 		}
-		if got := MenuSolidity(p, true); math.Abs(float64(got-tc.dark)) > 1e-4 {
-			t.Fatalf("MenuSolidity(%.0f, dark) = %v, want %v", tc.glass, got, tc.dark)
+		if got := MenuSolidity(p, true); math.Abs(float64(got-tc.menuDark)) > 1e-4 {
+			t.Fatalf("MenuSolidity(%.0f, dark) = %v, want %v", tc.glass, got, tc.menuDark)
+		}
+		if got := ModalSolidity(p, false); math.Abs(float64(got-tc.modalLight)) > 1e-4 {
+			t.Fatalf("ModalSolidity(%.0f, light) = %v, want %v", tc.glass, got, tc.modalLight)
+		}
+		if got := ModalSolidity(p, true); math.Abs(float64(got-tc.modalDark)) > 1e-4 {
+			t.Fatalf("ModalSolidity(%.0f, dark) = %v, want %v", tc.glass, got, tc.modalDark)
 		}
 	}
 }

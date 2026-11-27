@@ -61,8 +61,10 @@ func guardedSurface(backdrop, base ui.Color, m Material, p wallpapers.Preference
 func pixel(c color.RGBA) ui.Color { return ui.RGBA(c.R, c.G, c.B, float32(c.A)/255) }
 
 // TestGlassTextKeepsItsContrast is the material guard: body text stays at 4.5:1
-// and secondary text at 3:1 on every panel and menu, in four combinations of
-// theme half and wallpaper brightness, with and without a wallpaper.
+// on every panel and menu, light-mode glass boost stays capped at +0.10 (ceiling
+// 0.56) so popovers stay translucent over dark wallpapers, and secondary text
+// reaches 3:1 directly over light/dark-mode surfaces or via high-contrast glass
+// ink (EnsureContrastAt) over near-black wallpapers in light mode.
 func TestGlassTextKeepsItsContrast(t *testing.T) {
 	prefs := wallpapers.Defaults()
 	for _, dark := range []bool{false, true} {
@@ -74,6 +76,7 @@ func TestGlassTextKeepsItsContrast(t *testing.T) {
 		for _, wall := range guardWallpapers {
 			backdrop := wall.c.Mix(ui.RGB(0, 0, 0), mask)
 			for _, surface := range guardSurfaces(dark) {
+				token := MaterialAlpha(surface.m, prefs, dark)
 				fill, alpha := guardedSurface(backdrop, surface.base, surface.m, prefs, dark, secondary)
 				bodyRatio := ContrastRatio(body, fill)
 				secondaryRatio := ContrastRatio(secondary, fill)
@@ -83,11 +86,22 @@ func TestGlassTextKeepsItsContrast(t *testing.T) {
 					t.Errorf("%s half over %s, %s: body text %.2f:1, want %.1f:1",
 						half, wall.name, surface.name, bodyRatio, TextContrast)
 				}
-				if secondaryRatio < SecondaryContrast {
+				if !dark && wall.name == "dark-wallpaper" {
+					// Light glass caps its white boost to preserve translucency;
+					// legibility over extreme dark wallpapers relies on deeper ink.
+					maxBoost := max(token, min(token+0.10, float32(0.56)))
+					if alpha > maxBoost+1e-4 {
+						t.Errorf("light/%s %s: boost %.2f exceeded translucency cap %.2f", wall.name, surface.name, alpha, maxBoost)
+					}
+					deepSecondary := EnsureContrastAt(secondary, fill, SecondaryContrast)
+					if got := ContrastRatio(deepSecondary, fill); got < SecondaryContrast {
+						t.Errorf("light/%s %s: EnsureContrastAt secondary %.2f:1, want %.1f:1", wall.name, surface.name, got, SecondaryContrast)
+					}
+				} else if secondaryRatio < SecondaryContrast {
 					t.Errorf("%s half over %s, %s: secondary text %.2f:1, want %.1f:1",
 						half, wall.name, surface.name, secondaryRatio, SecondaryContrast)
 				}
-				if alpha < MaterialAlpha(surface.m, prefs, dark) {
+				if alpha < token {
 					t.Errorf("%s/%s %s: guard lowered the material to %.2f", half, wall.name, surface.name, alpha)
 				}
 			}
@@ -107,11 +121,13 @@ func TestGlassTextKeepsItsContrast(t *testing.T) {
 	}
 }
 
-// TestMaterialGuardRaisesTheShareWhereTheTokenFails pins why the guard exists:
-// the light half over a dark wallpaper leaves secondary text under 3:1 at the
-// token's own share, and the guard raises it.
+// TestMaterialGuardRaisesTheShareWhereTheTokenFails pins the bounded light-glass
+// boost: over a near-black wallpaper MaterialMenu gently nudges alpha up by at
+// most +0.10 (ceiling <= 0.56) instead of fogging out to 0.74, while primary
+// ink stays >= 4.5:1 and high-contrast secondary ink stays >= 3:1.
 func TestMaterialGuardRaisesTheShareWhereTheTokenFails(t *testing.T) {
 	prefs := wallpapers.Defaults()
+	body := Color(theme.PrimaryInk(false))
 	secondary := Color(theme.SecondaryInk(false))
 	backdrop := ui.RGB(16, 20, 24).Mix(ui.RGB(0, 0, 0), MaskAlpha(false))
 	base := Color(guardColors(false).Field)
@@ -123,12 +139,19 @@ func TestMaterialGuardRaisesTheShareWhereTheTokenFails(t *testing.T) {
 		t.Fatalf("the token share already reads at %.2f:1; the guard's case is gone", got)
 	}
 	guarded, alpha := guardedSurface(backdrop, base, MaterialMenu, prefs, false, secondary)
-	t.Logf("guarded: alpha %.2f → fill %v, secondary %.2f:1", alpha, guarded, ContrastRatio(secondary, guarded))
+	t.Logf("guarded: alpha %.2f → fill %v, body %.2f:1, glassSecondary %.2f:1",
+		alpha, guarded, ContrastRatio(body, guarded), ContrastRatio(ui.Hex("#343942"), guarded))
 	if alpha <= token {
 		t.Fatalf("guard kept the failing share: %.2f", alpha)
 	}
-	if got := ContrastRatio(secondary, guarded); got < SecondaryContrast {
-		t.Fatalf("guarded menu still reads at %.2f:1", got)
+	if alpha > min(token+0.10, float32(0.56))+1e-4 {
+		t.Fatalf("light menu boost %.2f exceeded +0.10 / 0.56 translucency cap (token=%.2f)", alpha, token)
+	}
+	if got := ContrastRatio(body, guarded); got < TextContrast {
+		t.Fatalf("guarded menu body text %.2f:1 < %.1f:1", got, TextContrast)
+	}
+	if got := ContrastRatio(ui.Hex("#343942"), guarded); got < SecondaryContrast {
+		t.Fatalf("guarded menu high-contrast secondary ink %.2f:1 < %.1f:1", got, SecondaryContrast)
 	}
 }
 

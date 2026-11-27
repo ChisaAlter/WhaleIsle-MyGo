@@ -161,6 +161,10 @@ func (s *WorkspaceFileState) activeTabPath(workspaceRoot string) string {
 }
 
 func (s *WorkspaceFileState) capture(m Model) {
+	s.capturePtr(&m)
+}
+
+func (s *WorkspaceFileState) capturePtr(m *Model) {
 	if m.FileTabs != nil {
 		s.Tabs = *m.FileTabs
 	}
@@ -209,6 +213,10 @@ func (s *WorkspaceFileState) capture(m Model) {
 }
 
 func (s *WorkspaceFileState) publish(m Model) {
+	s.publishPtr(&m)
+}
+
+func (s *WorkspaceFileState) publishPtr(m *Model) {
 	if m.FileTabs != nil {
 		*m.FileTabs = s.Tabs
 	}
@@ -296,10 +304,22 @@ func (n *WorkspacePane) eachLeaf(visit func(*WorkspacePane)) {
 }
 
 func (w *WorkspacePanes) fileState(n *WorkspacePane, m Model) *WorkspaceFileState {
+	return w.fileStatePtr(n, &m)
+}
+
+func (w *WorkspacePanes) fileStatePtr(n *WorkspacePane, m *Model) *WorkspaceFileState {
+	var rightTree float32
+	if m.Sizes != nil {
+		rightTree = m.Sizes.RightTree
+	}
+	return w.fileStateFrom(n, rightTree, m.FileTabs)
+}
+
+func (w *WorkspacePanes) fileStateFrom(n *WorkspacePane, rightTree float32, tabs *files.Tabs) *WorkspaceFileState {
 	if n.Files == nil {
-		n.Files = &WorkspaceFileState{Expanded: map[string]bool{}, Mode: files.EditViewEdit, Split: 200, TreeSplit: m.Sizes.RightTree}
-		if m.FileTabs != nil {
-			n.Files.Tabs.Preferences = m.FileTabs.Preferences
+		n.Files = &WorkspaceFileState{Expanded: map[string]bool{}, Mode: files.EditViewEdit, Split: 200, TreeSplit: rightTree}
+		if tabs != nil {
+			n.Files.Tabs.Preferences = tabs.Preferences
 		}
 	}
 	return n.Files
@@ -358,14 +378,220 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 	return m
 }
 
+// diffProjectionAdapter captures only the 5 fields needed by diff capture so
+// the WorkspaceTrailing closure never heap-allocates a full copy of Model.
+type diffProjectionAdapter struct {
+	workspaceRoot string
+	diffPath      *string
+	diffText      *string
+	diffErr       *string
+	gitWorkbench  *diffsurface.Workbench
+}
+
+func newDiffProjectionAdapter(m *Model) diffProjectionAdapter {
+	return diffProjectionAdapter{
+		workspaceRoot: m.WorkspaceRoot,
+		diffPath:      m.DiffPath,
+		diffText:      m.DiffText,
+		diffErr:       m.DiffErr,
+		gitWorkbench:  m.GitWorkbench,
+	}
+}
+
+func (d *WorkspaceDiffState) captureDiffAdapter(a diffProjectionAdapter) {
+	if d.Root != "" && d.Root != a.workspaceRoot {
+		d.Workbench.ClosePane()
+		*d = WorkspaceDiffState{Root: a.workspaceRoot}
+		return
+	}
+	d.Path, d.Text, d.Error = derefString(a.diffPath), derefString(a.diffText), derefString(a.diffErr)
+	d.Root = a.workspaceRoot
+	if a.gitWorkbench != nil {
+		d.Workbench = *a.gitWorkbench
+	}
+}
+
+func (d *WorkspaceDiffState) publishDiffAdapter(a diffProjectionAdapter) {
+	if a.diffPath != nil {
+		*a.diffPath = d.Path
+	}
+	if a.diffText != nil {
+		*a.diffText = d.Text
+	}
+	if a.diffErr != nil {
+		*a.diffErr = d.Error
+	}
+	if a.gitWorkbench != nil {
+		*a.gitWorkbench = d.Workbench
+	}
+}
+
+func (w *WorkspacePanes) beginDiffProjectionAdapter(a diffProjectionAdapter) {
+	if previous := w.Root.find(w.legacyDiffID); previous != nil && previous.Diff != nil {
+		previous.Diff.captureDiffAdapter(a)
+	}
+	hasDiff := false
+	w.Root.eachLeaf(func(n *WorkspacePane) { hasDiff = hasDiff || n.Diff != nil })
+	currentPane := w.Root.find(w.Active)
+	current := w.diffState(currentPane)
+	if !hasDiff {
+		current.captureDiffAdapter(a)
+	}
+	current.publishDiffAdapter(a)
+	if currentPane != nil {
+		w.legacyDiffID = currentPane.ID
+	}
+}
+
+// filePreviewAdapter captures only the fields needed by deliverable preview
+// callbacks, avoiding per-frame heap-escaping copies of the entire Model.
+type filePreviewAdapter struct {
+	workspaceRoot string
+	fileBindingID string
+	store         *session.Store
+	rightTree     float32
+	rightPaneTab  *string
+	tabs          *files.Tabs
+	expanded      *map[string]bool
+	selected      *string
+	filter        *string
+	preview       *string
+	previewErr    *string
+	editDraft     *string
+	editStatus    *string
+	statNote      *string
+	editing       *bool
+	editViewMode  *files.EditViewMode
+	editSplit     *float32
+	previewList   *ui.ListState
+}
+
+func newFilePreviewAdapter(m *Model) *filePreviewAdapter {
+	var rightTree float32
+	if m.Sizes != nil {
+		rightTree = m.Sizes.RightTree
+	}
+	return &filePreviewAdapter{
+		workspaceRoot: m.WorkspaceRoot,
+		fileBindingID: m.FileBindingID,
+		store:         m.Store,
+		rightTree:     rightTree,
+		rightPaneTab:  m.RightPaneTab,
+		tabs:          m.FileTabs,
+		expanded:      m.FileExpanded,
+		selected:      m.SelectedFile,
+		filter:        m.FileFilter,
+		preview:       m.FilePreview,
+		previewErr:    m.FilePreviewErr,
+		editDraft:     m.FileEditDraft,
+		editStatus:    m.FileEditStatus,
+		statNote:      m.FileStatNote,
+		editing:       m.FileEditing,
+		editViewMode:  m.FileEditViewMode,
+		editSplit:     m.FileEditSplit,
+		previewList:   m.FilePreviewList,
+	}
+}
+
+func (s *WorkspaceFileState) captureAdapter(a *filePreviewAdapter) {
+	if a.tabs != nil {
+		s.Tabs = *a.tabs
+	}
+	if a.expanded != nil {
+		s.Expanded = *a.expanded
+	}
+	if a.selected != nil {
+		if *a.selected != "" {
+			s.Selected = *a.selected
+		} else if s.activeTabPath(a.workspaceRoot) == "" {
+			s.Selected = ""
+		} else if s.Selected == "" {
+			s.Selected = s.activeTabPath(a.workspaceRoot)
+		}
+	}
+	if a.filter != nil {
+		s.Filter = *a.filter
+	}
+	if a.preview != nil {
+		s.Preview = *a.preview
+	}
+	if a.previewErr != nil {
+		s.Error = *a.previewErr
+	}
+	if a.editDraft != nil {
+		s.Draft = *a.editDraft
+	}
+	if a.editStatus != nil {
+		s.Status = *a.editStatus
+	}
+	if a.statNote != nil {
+		s.Stat = *a.statNote
+	}
+	if a.editing != nil {
+		s.Editing = *a.editing
+	}
+	if a.editViewMode != nil {
+		s.Mode = *a.editViewMode
+	}
+	if a.editSplit != nil {
+		s.Split = *a.editSplit
+	}
+	if a.previewList != nil {
+		s.List = *a.previewList
+	}
+}
+
+func (s *WorkspaceFileState) publishAdapter(a *filePreviewAdapter) {
+	if a.tabs != nil {
+		*a.tabs = s.Tabs
+	}
+	if a.expanded != nil {
+		*a.expanded = s.Expanded
+	}
+	if a.selected != nil {
+		*a.selected = s.Selected
+	}
+	if a.filter != nil {
+		*a.filter = s.Filter
+	}
+	if a.preview != nil {
+		*a.preview = s.Preview
+	}
+	if a.previewErr != nil {
+		*a.previewErr = s.Error
+	}
+	if a.editDraft != nil {
+		*a.editDraft = s.Draft
+	}
+	if a.editStatus != nil {
+		*a.editStatus = s.Status
+	}
+	if a.statNote != nil {
+		*a.statNote = s.Stat
+	}
+	if a.editing != nil {
+		*a.editing = s.Editing
+	}
+	if a.editViewMode != nil {
+		*a.editViewMode = s.Mode
+	}
+	if a.editSplit != nil {
+		*a.editSplit = s.Split
+	}
+	if a.previewList != nil {
+		*a.previewList = s.List
+	}
+}
+
 func (w *WorkspacePanes) beginFileProjectionPtr(m *Model) {
 	if previous := w.Root.find(w.legacyFileID); previous != nil && previous.Files != nil && previous.Files.ProjectTarget == nil {
-		previous.Files.capture(*m)
+		previous.Files.capturePtr(m)
 	}
+	diffAdapter := newDiffProjectionAdapter(m)
 	if diffPane := w.nonProjectActivePane(); diffPane != nil {
 		actual := w.Active
 		w.Active = diffPane.ID
-		w.beginDiffProjection(*m)
+		w.beginDiffProjectionAdapter(diffAdapter)
 		w.Active = actual
 	}
 	active := w.legacyFileOwner()
@@ -373,28 +599,27 @@ func (w *WorkspacePanes) beginFileProjectionPtr(m *Model) {
 	w.Root.eachResource(func(n *WorkspacePane) { hasFiles = hasFiles || n.Files != nil })
 	var state *WorkspaceFileState
 	if active != nil {
-		state = w.fileState(active, *m)
+		state = w.fileStatePtr(active, m)
 	} else {
 		var tmp WorkspaceFileState
-		tmp.capture(*m)
+		tmp.capturePtr(m)
 		state = &tmp
 	}
 	if !hasFiles {
-		state.capture(*m)
+		state.capturePtr(m)
 	}
 	// First-frame recovery may create this state after BeginContentFrame's
 	// binding sweep. Bind before publishing so restored drafts participate in
 	// the same-owner preview gate immediately; Bind keeps those drafts intact.
 	state.Tabs.Bind(m.FileBindingID, m.WorkspaceRoot)
 	state.previewBinding, state.previewRoot = m.FileBindingID, m.WorkspaceRoot
-	state.publish(*m)
+	state.publishPtr(m)
 	w.legacyFileID = ""
 	if active != nil {
 		w.legacyFileID = active.ID
 	}
 
 	if trailing := m.WorkspaceTrailing; trailing != nil {
-		captured := *m
 		m.WorkspaceTrailing = func(c *ui.Context, density string, globalPage bool) {
 			owner := w.Root.find(w.legacyDiffID)
 			if owner == nil {
@@ -405,7 +630,7 @@ func (w *WorkspacePanes) beginFileProjectionPtr(m *Model) {
 			// their changes before a pane renders or the end-of-frame projection
 			// would replace a newly opened review with the pane's earlier copy.
 			if owner != nil && w.Root.find(owner.ID) == owner {
-				w.diffState(owner).capture(captured)
+				w.diffState(owner).captureDiffAdapter(diffAdapter)
 			}
 		}
 	}
@@ -413,127 +638,132 @@ func (w *WorkspacePanes) beginFileProjectionPtr(m *Model) {
 	if m.OnPreviewDeliverable == nil && m.OnPreviewDeliverablePresentation == nil {
 		return
 	}
-	captured := *m
-	wrapPreview := func(preview func(string) error) func(string) error {
-		return func(path string) error {
-			previousID, previousLegacy := w.Active, w.legacyFileID
-			previousRoute, previousFocus, previousFullscreen, previousPending := w.route, w.focusPending, w.Fullscreen, w.pending
-			adapterRoute := derefString(captured.RightPaneTab)
-			if owner := w.Root.find(previousLegacy); owner != nil && owner.Files != nil {
-				owner.Files.capture(captured)
-			}
-			if w.deliveryPreviewHasUnsavedFile(captured, path) {
-				return fmt.Errorf("%s", paneLabel("文件有未保存的草稿；请先保存后再预览", "The file has an unsaved draft; save it before previewing"))
-			}
-			var target *WorkspacePane
-			relative, inWorkspace := files.WorkspaceRelativePath(captured.WorkspaceRoot, path)
-			w.Root.eachResource(func(n *WorkspacePane) {
-				if inWorkspace && n.Kind == "files" && n.Files != nil && n.Files.ResourcePath == relative && n.Files.previewBinding == captured.FileBindingID && n.Files.previewRoot == captured.WorkspaceRoot {
-					target = n
-				}
-			})
-			// Unqualified Files is the established legacy preview owner. Keep
-			// its tabs, drafts and adapter pointers; addressed per-file resources
-			// continue to require their exact path and binding above.
-			if target == nil {
-				w.Root.eachResource(func(n *WorkspacePane) {
-					if target == nil && n.Kind == "files" && w.Root.dockGroup(n.ID) == w.Root.dockGroup(previousID) && (n.Files == nil || n.Files.ResourcePath == "" && n.Files.ProjectTarget == nil) {
-						target = n
-					}
-				})
-			}
-			added := target == nil
-			if target == nil {
-				target = w.leaf("files")
-				if inWorkspace {
-					w.fileState(target, captured).ResourcePath = relative
-				}
-				w.placeDockResource(target, w.Root.find(previousID), false)
-			}
-			w.activateDockTab(target.ID)
-			state := w.fileState(target, captured)
-			// A first-frame preview can arrive before the Files body renders.
-			// Publish the intended occurrence with its real binding, so the normal
-			// reader validates its existing drafts rather than a fresh adapter.
-			state.Tabs.Bind(captured.FileBindingID, captured.WorkspaceRoot)
-			state.previewBinding, state.previewRoot = captured.FileBindingID, captured.WorkspaceRoot
-			if captured.Store != nil {
-				state.Tabs.SyncPlanSession(captured.Store.SelectedSessionID())
-			}
-			state.publish(captured)
-			err := preview(path)
-			state.capture(captured)
-			if err != nil {
-				if added {
-					w.disposeWorkspaceResource(target.ID)
-				}
-				w.pending, w.focusPending, w.Fullscreen = previousPending, previousFocus, previousFullscreen
-				w.activateDockTab(previousID)
-				w.route, w.legacyFileID = previousRoute, previousLegacy
-				if captured.RightPaneTab != nil {
-					*captured.RightPaneTab = adapterRoute
-				}
-				if owner := w.Root.find(previousLegacy); owner != nil && owner.Files != nil {
-					owner.Files.publish(captured)
-				}
-				return err
-			}
-			// The callback selects browser only after accepting a document route.
-			// Text/image previews remain in the addressed Files occurrence.
-			if captured.RightPaneTab != nil && *captured.RightPaneTab == "browser" {
-				state.ResourcePath = ""
-				w.selectKind(target, "browser")
-			} else {
-				w.activateDockTab(target.ID)
-				if target.Float != nil && target.Float.Minimized {
-					w.MinimizeWorkspaceFloat(target.ID, false)
-				}
-				if captured.RightPaneTab != nil {
-					*captured.RightPaneTab = "files"
-				}
-			}
-			if guide := w.Root.find(previousID); guide != nil && guide.Kind == "guide" {
-				w.disposeWorkspaceResource(guide.ID)
-			}
-			w.legacyFileID = w.Active
-			return nil
-		}
-	}
+	adapter := newFilePreviewAdapter(m)
 	if preview := m.OnPreviewDeliverable; preview != nil {
-		m.OnPreviewDeliverable = wrapPreview(preview)
+		m.OnPreviewDeliverable = func(path string) error {
+			return w.runDeliverablePreview(adapter, preview, path)
+		}
 	}
 	if presentation := m.OnPreviewDeliverablePresentation; presentation != nil {
 		m.OnPreviewDeliverablePresentation = func(path, mode string) error {
-			return wrapPreview(func(path string) error { return presentation(path, mode) })(path)
+			return w.runDeliverablePreview(adapter, func(p string) error { return presentation(p, mode) }, path)
 		}
 	}
+}
+
+func (w *WorkspacePanes) runDeliverablePreview(a *filePreviewAdapter, preview func(string) error, path string) error {
+	previousID, previousLegacy := w.Active, w.legacyFileID
+	previousRoute, previousFocus, previousFullscreen, previousPending := w.route, w.focusPending, w.Fullscreen, w.pending
+	adapterRoute := derefString(a.rightPaneTab)
+	if owner := w.Root.find(previousLegacy); owner != nil && owner.Files != nil {
+		owner.Files.captureAdapter(a)
+	}
+	if w.deliveryPreviewHasUnsavedFileFor(a.workspaceRoot, a.fileBindingID, path) {
+		return fmt.Errorf("%s", paneLabel("文件有未保存的草稿；请先保存后再预览", "The file has an unsaved draft; save it before previewing"))
+	}
+	var target *WorkspacePane
+	relative, inWorkspace := files.WorkspaceRelativePath(a.workspaceRoot, path)
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if inWorkspace && n.Kind == "files" && n.Files != nil && n.Files.ResourcePath == relative && n.Files.previewBinding == a.fileBindingID && n.Files.previewRoot == a.workspaceRoot {
+			target = n
+		}
+	})
+	// Unqualified Files is the established legacy preview owner. Keep
+	// its tabs, drafts and adapter pointers; addressed per-file resources
+	// continue to require their exact path and binding above.
+	if target == nil {
+		w.Root.eachResource(func(n *WorkspacePane) {
+			if target == nil && n.Kind == "files" && w.Root.dockGroup(n.ID) == w.Root.dockGroup(previousID) && (n.Files == nil || n.Files.ResourcePath == "" && n.Files.ProjectTarget == nil) {
+				target = n
+			}
+		})
+	}
+	added := target == nil
+	if target == nil {
+		target = w.leaf("files")
+		if inWorkspace {
+			w.fileStateFrom(target, a.rightTree, a.tabs).ResourcePath = relative
+		}
+		w.placeDockResource(target, w.Root.find(previousID), false)
+	}
+	w.activateDockTab(target.ID)
+	state := w.fileStateFrom(target, a.rightTree, a.tabs)
+	// A first-frame preview can arrive before the Files body renders.
+	// Publish the intended occurrence with its real binding, so the normal
+	// reader validates its existing drafts rather than a fresh adapter.
+	state.Tabs.Bind(a.fileBindingID, a.workspaceRoot)
+	state.previewBinding, state.previewRoot = a.fileBindingID, a.workspaceRoot
+	if a.store != nil {
+		state.Tabs.SyncPlanSession(a.store.SelectedSessionID())
+	}
+	state.publishAdapter(a)
+	err := preview(path)
+	state.captureAdapter(a)
+	if err != nil {
+		if added {
+			w.disposeWorkspaceResource(target.ID)
+		}
+		w.pending, w.focusPending, w.Fullscreen = previousPending, previousFocus, previousFullscreen
+		w.activateDockTab(previousID)
+		w.route, w.legacyFileID = previousRoute, previousLegacy
+		if a.rightPaneTab != nil {
+			*a.rightPaneTab = adapterRoute
+		}
+		if owner := w.Root.find(previousLegacy); owner != nil && owner.Files != nil {
+			owner.Files.publishAdapter(a)
+		}
+		return err
+	}
+	// The callback selects browser only after accepting a document route.
+	// Text/image previews remain in the addressed Files occurrence.
+	if a.rightPaneTab != nil && *a.rightPaneTab == "browser" {
+		state.ResourcePath = ""
+		w.selectKind(target, "browser")
+	} else {
+		w.activateDockTab(target.ID)
+		if target.Float != nil && target.Float.Minimized {
+			w.MinimizeWorkspaceFloat(target.ID, false)
+		}
+		if a.rightPaneTab != nil {
+			*a.rightPaneTab = "files"
+		}
+	}
+	if guide := w.Root.find(previousID); guide != nil && guide.Kind == "guide" {
+		w.disposeWorkspaceResource(guide.ID)
+	}
+	w.legacyFileID = w.Active
+	return nil
 }
 
 // Only the same saved file under the current binding blocks a delivery preview;
 // drafts of other files and foreign owners never become a global veto.
 func (w *WorkspacePanes) deliveryPreviewHasUnsavedFile(m Model, path string) bool {
-	relative, ok := previewWorkspaceRelative(m.WorkspaceRoot, path)
+	return w.deliveryPreviewHasUnsavedFileFor(m.WorkspaceRoot, m.FileBindingID, path)
+}
+
+func (w *WorkspacePanes) deliveryPreviewHasUnsavedFileFor(workspaceRoot, fileBindingID, path string) bool {
+	relative, ok := previewWorkspaceRelative(workspaceRoot, path)
 	if !ok {
 		return false
 	}
 	dirty := false
 	w.Root.eachResource(func(n *WorkspacePane) {
 		state := n.Files
-		if state == nil || state.previewBinding != m.FileBindingID || !samePreviewPath(state.previewRoot, m.WorkspaceRoot) {
+		if state == nil || state.previewBinding != fileBindingID || !samePreviewPath(state.previewRoot, workspaceRoot) {
 			return
 		}
-		if selected, ok := previewWorkspaceRelative(m.WorkspaceRoot, state.Selected); ok && samePreviewPath(selected, relative) && state.Editing && state.Draft != state.Preview {
+		if selected, ok := previewWorkspaceRelative(workspaceRoot, state.Selected); ok && samePreviewPath(selected, relative) && state.Editing && state.Draft != state.Preview {
 			dirty = true
 		}
 		for root, workspace := range state.Tabs.Workspaces {
-			if workspace == nil || !samePreviewPath(root, m.WorkspaceRoot) {
+			if workspace == nil || !samePreviewPath(root, workspaceRoot) {
 				continue
 			}
 			for _, tab := range workspace.Open {
 				if tab == nil {
 					continue
 				}
-				if candidate, ok := previewWorkspaceRelative(m.WorkspaceRoot, tab.Path); ok && samePreviewPath(candidate, relative) && tab.Dirty() {
+				if candidate, ok := previewWorkspaceRelative(workspaceRoot, tab.Path); ok && samePreviewPath(candidate, relative) && tab.Dirty() {
 					dirty = true
 				}
 			}

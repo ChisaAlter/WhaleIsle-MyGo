@@ -27,25 +27,43 @@ func (c *ambientAnimationClock) reset() {
 }
 
 func (c *ambientAnimationClock) step(now time.Time, reduced, frozen bool) float64 {
+	sec, _ := c.stepPaced(now, reduced, frozen, 0)
+	return sec
+}
+
+func (c *ambientAnimationClock) stepPaced(now time.Time, reduced, frozen bool, interval time.Duration) (float64, time.Duration) {
 	if reduced {
-		return 0
+		return 0, 0
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if now.IsZero() {
-		return c.elapsed.Seconds()
+		return c.quantizedLocked(interval)
 	}
 	if c.last.IsZero() || now.Before(c.last) {
 		c.last = now
 		c.wasFrozen = frozen
-		return c.elapsed.Seconds()
+		return c.quantizedLocked(interval)
 	}
 	if !frozen && !c.wasFrozen {
 		c.elapsed += now.Sub(c.last)
 	}
 	c.last = now
 	c.wasFrozen = frozen
-	return c.elapsed.Seconds()
+	return c.quantizedLocked(interval)
+}
+
+func (c *ambientAnimationClock) quantizedLocked(interval time.Duration) (float64, time.Duration) {
+	if interval <= 0 {
+		return c.elapsed.Seconds(), 0
+	}
+	rem := c.elapsed % interval
+	quantized := c.elapsed - rem
+	nextIn := interval - rem
+	if nextIn <= 0 {
+		nextIn = interval
+	}
+	return quantized.Seconds(), nextIn
 }
 
 var mainAmbientClock ambientAnimationClock
@@ -274,19 +292,26 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 		}
 	}
 	var startedAt time.Time
+	buildGen := beginAmbientBackdropBuild()
 	return func(painter *ui.Painter, r ui.Rect) {
 		backgroundState.dark = painter.Theme().Dark
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}
 		now := painter.Now()
-		freeze := shouldFreezeAmbientAnimation(reduced, &startedAt, now) || renderpolicy.NoBackdrop()
-		elapsed := mainAmbientClock.step(now, reduced, freeze)
+		overlayFrozen, overlayRecheck := consumeBackdropOverlayState(buildGen)
+		powerFrozen := shouldFreezeAmbientAnimation(reduced, &startedAt, now) || renderpolicy.NoBackdrop()
+		freeze := powerFrozen || overlayFrozen
+		elapsed, nextIn := mainAmbientClock.stepPaced(now, reduced, freeze, ambientFrameInterval)
 		config := gradientConfiguration(p, float64(r.W), float64(r.H), painter.Theme().Dark, reduced)
 		publishGradientPalette(config, r)
 		config.ambientBackdrop(elapsed).PaintMaterial(painter, r, [4]float32{})
-		if !reduced && !freeze {
-			painter.AnimationFrame()
+		if !reduced {
+			if !freeze {
+				painter.After(nextIn)
+			} else if overlayRecheck && !powerFrozen {
+				painter.After(ambientFrameInterval)
+			}
 		}
 	}
 }
