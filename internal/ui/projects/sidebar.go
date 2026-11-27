@@ -112,6 +112,22 @@ func View(c *ui.Context, m Model) {
 	projectModals(c, m)
 }
 
+const (
+	projectRowActionWidth = float32(28)
+	projectTitleFadeWidth = float32(14)
+)
+
+// applyProjectTitleFadeOverflow prepares paint-only right-edge clipping and
+// fading for project sidebar titles behind the hover menu button.
+// After mygo/ui's paint-only FadeOverflowRight lands in the merged workspace,
+// delegate directly to el.FadeOverflowRight(insetRight, fadeRight).
+func applyProjectTitleFadeOverflow(el ui.Element, insetRight, fadeRight float32) {
+	if !el.Valid() || insetRight <= 0 {
+		return
+	}
+	_, _ = el, fadeRight
+}
+
 func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory string, colors theme.Colors) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	if p.Lifecycle == "archived" {
@@ -127,7 +143,9 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 	}
 	menu := func(menu *ui.Menu) { projectRowMenu(menu, m, p) }
 	row.ContextMenu(menu)
+	statusSlotW := ui.Local(row, "status-slot-width", func() float32 { return 0 })
 	row.Children(func() {
+		var titleText, dirText ui.Element
 		open := ui.ButtonBase(c).Label(p.Title).Tooltip(p.Title+"\n"+p.CanonicalWorkingDirectory).Grow(1).MinWidth(0).MinHeight(36).Padding(6, 0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(m.Busy || !m.Listing.Available)
 		open.Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
@@ -137,12 +155,12 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 				}
 				projectIcon(c, "folder", 16, folderInk, false)
 				ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-					title := ui.Text(c, p.Title).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).FillWidth().SingleLine()
+					titleText = ui.Text(c, p.Title).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).FillWidth().SingleLine()
 					if selected {
-						title.FontWeight(500)
+						titleText.FontWeight(500)
 					}
 					if directory != "" {
-						ui.Text(c, directory).FontSize(theme.InterfaceSize(12)).TextColor(muted).MinWidth(0).FillWidth().SingleLine()
+						dirText = ui.Text(c, directory).FontSize(theme.InterfaceSize(12)).TextColor(muted).MinWidth(0).FillWidth().SingleLine()
 					}
 				})
 			})
@@ -167,6 +185,9 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 				ui.Box(c).Size(6, 6).Shrink(0).Radius(3).Background(ink)
 				ui.Text(c, status).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(ink).MinWidth(0).SingleLine()
 			})
+			statusRow.ObserveLayout(func(r ui.Rect) { *statusSlotW = r.W + 4 })
+		} else {
+			*statusSlotW = 0
 		}
 		var more ui.Element
 		ui.Row(c).Absolute().Right(4).Top(0).Bottom(0).AlignItems(ui.Center).Children(func() {
@@ -184,8 +205,13 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 		moreVisible := showMenu || more.Focused() || more.MenuOpen()
 		if !moreVisible {
 			more.Opacity(0)
-		} else if statusRow.Valid() {
-			statusRow.Opacity(0).PassThrough()
+		} else {
+			if statusRow.Valid() {
+				statusRow.Opacity(0).PassThrough()
+			}
+			insetRight := max(float32(0), projectRowActionWidth+4-*statusSlotW)
+			applyProjectTitleFadeOverflow(titleText, insetRight, projectTitleFadeWidth)
+			applyProjectTitleFadeOverflow(dirText, insetRight, projectTitleFadeWidth)
 		}
 	})
 }

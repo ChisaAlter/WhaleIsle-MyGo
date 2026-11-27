@@ -71,8 +71,8 @@ func (s *connectionTriggerState) project(now time.Time, epoch uint64, phase stri
 	return s.rendered, max(0, alpha)
 }
 
-var connectionRefresh = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6a5 5 0 1 0 0 5M13 2v4H9"/></svg>`))
-var connectionCheck = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3 3 7-7"/></svg>`))
+var connectionRefresh = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6a5 5 0 1 0 0 5M13 2v4H9"/></svg>`))
+var connectionCheck = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3 3 7-7"/></svg>`))
 var updateDownload = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M8 1.95317V10.0469M4.25 6.29688L8 10.0469L11.75 6.29688M1.5 10.0469V13.158C1.5 13.3937 1.60536 13.6198 1.79289 13.7865C1.98043 13.9532 2.23478 14.0469 2.5 14.0469H13.5C13.7652 14.0469 14.0196 13.9532 14.2071 13.7865C14.3946 13.6198 14.5 13.3937 14.5 13.158V10.0469"/></svg>`))
 var settingsGear = ui.MustParseSVG([]byte(`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="m8 2-.5 2-2 .9-1.8-.5L2 7.4l1.5 1.5v2.2L2 12.6l1.7 3 1.8-.5 2 .9.5 2h4l.5-2 2-.9 1.8.5 1.7-3-1.5-1.5V8.9L18 7.4l-1.7-3-1.8.5-2-.9-.5-2z"/><circle cx="10" cy="10" r="3"/></svg>`))
 
@@ -162,38 +162,13 @@ func settingsConnectionTrigger(c *ui.Context, m Model, compact bool) {
 		if compact {
 			seat.Top(0)
 		}
-		if !reduced && (!state.entered.IsZero() || !state.leaveUntil.IsZero()) {
-			entered := state.entered
-			leaveUntil := state.leaveUntil
-			bg := t.Sidebar
-			seat.DrawOver(func(p *ui.Painter, r ui.Rect) {
-				now := p.Now()
-				var a float32 = 1
-				animating := false
-				if !leaveUntil.IsZero() {
-					rem := leaveUntil.Sub(now)
-					if rem > 0 {
-						a = float32(rem) / float32(150*time.Millisecond)
-						animating = true
-					} else {
-						a = 0
-					}
-				} else if !entered.IsZero() {
-					el := now.Sub(entered)
-					if el < 150*time.Millisecond {
-						a = max(0, float32(el)/float32(150*time.Millisecond))
-						animating = true
-					}
-				}
-				if a < 1 {
-					p.Fill(r, bg.Alpha(1-max(0, a)), design.RadiusMD)
-				}
-				if animating {
-					p.After(16 * time.Millisecond)
-				}
-			})
-		} else if opacity < 1 {
+		if opacity < 1 {
 			seat.Opacity(opacity)
+		}
+		now := c.Now()
+		isUpdate := status == "installing" || len(status) > 7 && status[:7] == "update:"
+		if !reduced && !isUpdate && ((!state.leaveUntil.IsZero() && now.Before(state.leaveUntil)) || (!state.entered.IsZero() && now.Sub(state.entered) < 150*time.Millisecond)) {
+			c.After(16 * time.Millisecond)
 		}
 		seat.Children(func() {
 			if status == "installing" || len(status) > 7 && status[:7] == "update:" {

@@ -12,7 +12,7 @@ import (
 	"whaleisle/internal/ui/coss"
 )
 
-var previewMiniIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="7" width="4.5" height="4.5" rx=".7" fill="currentColor"/></svg>`))
+var previewMiniIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.05"/><rect x="8" y="7" width="4.5" height="4.5" rx=".7" fill="currentColor"/></svg>`))
 
 // The active installed ui-preview provider keeps tools in one anchored More
 // menu. Only its explicitly enabled device toolbar occupies another row.

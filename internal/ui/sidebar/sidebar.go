@@ -267,7 +267,7 @@ func sidebarBrand(c *ui.Context, m Model, platform string) {
 	}
 }
 
-var newSessionIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.37091 11.2501C1.58745 9.89288 1.32067 8.29835 1.61969 6.76006C1.91872 5.22177 2.76342 3.8433 3.99826 2.87846C5.2331 1.91362 6.77494 1.42737 8.33988 1.50925C9.90482 1.59113 11.3875 2.23562 12.5149 3.32406C13.6425 4.41269 14.3387 5.87206 14.4754 7.4334C14.612 8.99474 14.18 10.5529 13.2587 11.8209C12.3375 13.0888 10.9891 13.9813 9.46194 14.3337C8.18691 14.628 6.85895 14.5294 5.64989 14.0605C5.1712 13.8748 4.76962 13.4932 4.26534 13.3967C3.67413 13.2835 2.95257 13.5598 2.03794 14.3337"/><path d="M8 5V11M5 8H11"/></svg>`))
+var newSessionIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M2.37091 11.2501C1.58745 9.89288 1.32067 8.29835 1.61969 6.76006C1.91872 5.22177 2.76342 3.8433 3.99826 2.87846C5.2331 1.91362 6.77494 1.42737 8.33988 1.50925C9.90482 1.59113 11.3875 2.23562 12.5149 3.32406C13.6425 4.41269 14.3387 5.87206 14.4754 7.4334C14.612 8.99474 14.18 10.5529 13.2587 11.8209C12.3375 13.0888 10.9891 13.9813 9.46194 14.3337C8.18691 14.628 6.85895 14.5294 5.64989 14.0605C5.1712 13.8748 4.76962 13.4932 4.26534 13.3967C3.67413 13.2835 2.95257 13.5598 2.03794 14.3337"/><path d="M8 5V11M5 8H11"/></svg>`))
 
 func newSessionButton(c *ui.Context, m Model) {
 	t := tok(c)
@@ -562,6 +562,27 @@ func View(c *ui.Context, m Model) {
 	batchDialogPtr(c, &m)
 }
 
+// sessionRowActionsWidth returns the exact width of the trailing action cluster
+// in a session row: 1 button = 24, 2 buttons = 50, 3 buttons = 76 (24px buttons
+// with 2px gap). Blank draft rows render no actions (0).
+func sessionRowActionsWidth(m Model, it session.Item) float32 {
+	return sessionRowActionsWidthPtr(&m, it)
+}
+
+func sessionRowActionsWidthPtr(m *Model, it session.Item) float32 {
+	if it.Blank {
+		return 0
+	}
+	count := 1 // more menu button is always present for non-blank sessions
+	if m.OnArchive != nil {
+		count++
+	}
+	if pinActionPtr(m, it) != nil {
+		count++
+	}
+	return float32(count)*design.Sp(6) + float32(count-1)*design.Sp(0.5)
+}
+
 func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, border ui.Color) {
 	label := it.Title
 	if it.Blank {
@@ -609,6 +630,14 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	}
 	hoverPressed := row.Pressed()
 	titleInk := sbRowInk(t, selected, fg)
+	trailingW := ui.Local(row, "trailing-width", func() float32 { return 0 })
+	if it.Blank {
+		*trailingW = 0
+	}
+	reserveRight := float32(0)
+	if showActions && !it.Blank {
+		reserveRight = max(float32(0), sessionRowActionsWidthPtr(&m, it)+4-*trailingW)
+	}
 	row.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Height(32).AlignItems(ui.Center).Gap(0).Children(func() {
 			if status == "" && !it.Blank {
@@ -620,7 +649,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			} else {
 				sessionStatusSlot(c, status, muted)
 			}
-			title := sessionTitleCell(c, row, it.SessionID, label, titleInk)
+			title := sessionTitleCell(c, row, it.SessionID, label, titleInk, reserveRight)
 			if m.sessionHover != nil {
 				m.sessionHover.dragging = m.sessionHover.dragging || title.Dragging()
 			}
@@ -637,6 +666,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			}
 			if !it.Blank {
 				trailing := ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(0)
+				trailing.ObserveLayout(func(r ui.Rect) { *trailingW = r.W })
 				if showActions {
 					trailing.Invisible()
 				}
@@ -655,8 +685,6 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 				actions := ui.Row(c).Key("session-actions-" + it.SessionID).Absolute().Right(0).Top(0).Bottom(0).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(0.5))
 				if !showActions {
 					actions.Opacity(0)
-				} else {
-					actions.Draw(sbActionOverlayDraw(t, selected, true))
 				}
 				actions.Children(func() {
 					more := coss.Button(c, "", coss.ButtonOptions{

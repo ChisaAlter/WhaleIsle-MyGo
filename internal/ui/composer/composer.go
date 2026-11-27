@@ -416,12 +416,8 @@ func View(c *ui.Context, m Model) {
 			}
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
 		})
-		borderWidth := design.BorderWidth
-		if glassMode && !focused {
-			borderWidth = design.BorderWidth * 0.5
-		}
 		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			p.Stroke(r, cardBorder, cardRadius, borderWidth)
+			p.Stroke(r, cardBorder, cardRadius, composerCardBorderWidth(p))
 		})
 		card.Children(func() {
 			if !inputDisabled && !collapsedPill {

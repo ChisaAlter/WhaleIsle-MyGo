@@ -180,16 +180,20 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 			m.OnDelete(id)
 		}
 	}
+	stampW := ui.Local(row, "stamp-width", func() float32 { return 0 })
 	row.ContextMenu(menu).Children(func() {
 		ui.Box(c).Width(16).Height(20)
-		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, design.Sp(1.5), 0, design.Sp(1)).SingleLine().FontSize(fs(14)).TextColor(muted)
+		titleText := ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, design.Sp(1.5), 0, design.Sp(1)).SingleLine().FontSize(fs(14)).TextColor(muted)
 		showActions := row.Hovered() || row.FocusWithin() || row.MenuOpen()
 		if !item.Blank && item.UpdatedAt > 0 {
 			stamp := ui.Text(c, sessionTrailingLabel("", item.UpdatedAt)).Label("Session time " + id).
 				FontSize(fs(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
+			stamp.ObserveLayout(func(r ui.Rect) { *stampW = r.W })
 			if showActions {
 				stamp.Invisible()
 			}
+		} else {
+			*stampW = 0
 		}
 		more := coss.Button(c, "", coss.ButtonOptions{
 			Variant: coss.ButtonGhost,
@@ -202,7 +206,7 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 		if !showActions && !more.Focused() {
 			more.Opacity(0)
 		} else {
-			more.Draw(sbActionOverlayDraw(t, false, true))
+			applySidebarTitleFadeOverflow(titleText, max(float32(0), design.Sp(6)+4-*stampW), sidebarTitleFadeWidth)
 		}
 	})
 	archivedSessionHoverCard(c, m, row, item, title, row.Pressed())

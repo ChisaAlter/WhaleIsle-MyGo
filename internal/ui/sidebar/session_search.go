@@ -276,7 +276,7 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 				if row.Archived && !selected {
 					ink = muted
 				}
-				ui.Text(c, title).FontSize(fs(14)).FixedLineHeight(fs(20)).TextColor(ink).MinWidth(0).Grow(1).Margin(0, 0, 0, design.Sp(1)).SingleLine()
+				titleText := ui.Text(c, title).FontSize(fs(14)).FixedLineHeight(fs(20)).TextColor(ink).MinWidth(0).Grow(1).Margin(0, 0, 0, design.Sp(1)).SingleLine()
 				if row.Archived && !batch {
 					more := coss.Button(c, "", coss.ButtonOptions{
 						Variant: coss.ButtonGhost,
@@ -293,7 +293,7 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 					if !showActions && !more.Focused() {
 						more.Opacity(0)
 					} else {
-						more.Draw(sbActionOverlayDraw(t, selected, true))
+						applySidebarTitleFadeOverflow(titleText, design.IconSM+4, sidebarTitleFadeWidth)
 					}
 				}
 			})

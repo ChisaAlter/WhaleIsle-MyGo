@@ -28,9 +28,9 @@ var todoPanelCollapsedFB = false
 
 var (
 	// Delicate outline list-bullet icon and compact chevron matching Electron TodoPanel header
-	todoChecklistIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.5" cy="4.75" r="1.55"/><path d="M7.25 4.75H13.5"/><circle cx="3.5" cy="11.25" r="1.55"/><path d="M7.25 11.25H13.5"/></svg>`))
-	todoChevronDown   = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6.5L8 9.5L11 6.5"/></svg>`))
-	todoChevronUp     = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9.5L8 6.5L11 9.5"/></svg>`))
+	todoChecklistIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.5" cy="4.75" r="1.55"/><path d="M7.25 4.75H13.5"/><circle cx="3.5" cy="11.25" r="1.55"/><path d="M7.25 11.25H13.5"/></svg>`))
+	todoChevronDown   = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6.5L8 9.5L11 6.5"/></svg>`))
+	todoChevronUp     = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9.5L8 6.5L11 9.5"/></svg>`))
 )
 
 type todoDockState struct {

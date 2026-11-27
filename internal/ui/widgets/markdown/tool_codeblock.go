@@ -30,8 +30,18 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 	if copied {
 		c.After(copiedUntil.Sub(c.Now()))
 	}
-	// A flow spacer reserves42px while the overlaid banner follows the owner's
+	top := max(float32(0), scrollY-4)
+	// A sticky banner cannot leave the bottom of its code-card ancestor.
+	bounds := ui.Local(root, "bounds", func() ui.Rect { return ui.Rect{} })
+	root.ObserveLayout(func(r ui.Rect) { *bounds = r })
+	if bounds.H > 0 {
+		top = min(top, max(float32(0), bounds.H-42))
+	}
+	// A flow spacer reserves 42px while the overlaid banner follows the owner's
 	// scroll offset, keeping the source in its original document position.
+	// When scrolled (top > 0), shifting codeClip down by +top and codeContent
+	// back up by -top clips code lines cleanly below the sticky banner without
+	// changing card height or painting an opaque patch over translucent glass.
 	root.Children(func() {
 		ui.Box(c).Height(42).Shrink(0)
 		spans := toolCodeSpans(language, code, st)
@@ -42,28 +52,42 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 				text.NoWrap()
 			}
 		}
-		if *wrap {
-			paint()
-		} else {
-			ui.ScrollHorizontal(c.Key("columns")).MinWidth(0).Children(paint)
+		codeClip := ui.Box(c.Key("code-clip")).FillWidth().MinWidth(0).Shrink(0).Clip()
+		if top > 0 {
+			clipTop := top
+			codeClip.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: clipTop} })
 		}
-		top := max(float32(0), scrollY-4)
-		// A sticky banner cannot leave the bottom of its code-card ancestor.
-		bounds := ui.Local(root, "bounds", func() ui.Rect { return ui.Rect{} })
-		root.ObserveLayout(func(r ui.Rect) { *bounds = r })
-		if bounds.H > 0 {
-			top = min(top, max(float32(0), bounds.H-42))
-		}
+		codeClip.Children(func() {
+			codeContent := ui.Box(c.Key("code-content")).FillWidth().MinWidth(0).Shrink(0)
+			if top > 0 {
+				contentOffset := -top
+				codeContent.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: contentOffset} })
+			}
+			codeContent.Children(func() {
+				if *wrap {
+					paint()
+				} else {
+					ui.ScrollHorizontal(c.Key("columns")).MinWidth(0).Children(paint)
+				}
+			})
+		})
 		banner := ui.Row(c.Key("banner")).Absolute().Top(top).Left(0).Right(0).Height(42).Padding(10, 18, 8, 22).
 			Gap(12).AlignItems(ui.Center).Radius(16, 16, 0, 0).Label(codeLabel(st))
-		// At rest (top == 0), root already paints the card fill and border, so
-		// banner stays transparent and never calls CodeSurface a second time.
-		// Once scrolled (top > 0), fill banner with opaque CodeBG so scrolled
-		// code lines cannot bleed through behind the sticky controls.
-		if top > 0 && st.CodeBG.A > 0 {
-			bannerBG := st.CodeBG
-			bannerBG.A = 255
-			banner = banner.Background(bannerBG)
+		// Keep banner transparent in both opaque and glass modes: root paints
+		// the card surface while codeClip prevents scrolled lines from bleeding
+		// behind the sticky controls. Draw a 1px hairline when stuck.
+		if top > 0 {
+			divider := st.Muted.Alpha(0.16)
+			banner.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				if r.W <= 0 || r.H <= 0 || divider.A == 0 {
+					return
+				}
+				px := float32(1)
+				if scale := p.Scale(); scale > 0 {
+					px = 1 / scale
+				}
+				p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - px, W: r.W, H: px}, divider, 0)
+			})
 		}
 		banner.Children(func() {
 			ui.Text(c, language).Font(font).FontSize(11).FixedLineHeight(18).TextColor(languageInk).NoWrap().Grow(1).MinWidth(0)

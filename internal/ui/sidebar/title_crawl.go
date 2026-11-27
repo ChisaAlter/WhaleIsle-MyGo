@@ -40,8 +40,12 @@ func (t *titleCrawl) stop() {
 // offset is the displacement for a content width at now, and whether the title
 // is still moving (the caller keeps the frame loop alive while it is).
 func (t *titleCrawl) offset(now time.Time, content float32) (float32, bool) {
-	overflow := content - t.cell
-	if !t.active || t.cell <= 0 || overflow <= minTitleReveal {
+	return t.offsetForWidth(now, content, t.cell)
+}
+
+func (t *titleCrawl) offsetForWidth(now time.Time, content, visibleWidth float32) (float32, bool) {
+	overflow := content - visibleWidth
+	if !t.active || visibleWidth <= 0 || overflow <= minTitleReveal {
 		return 0, false
 	}
 	elapsed := max(time.Duration(0), now.Sub(t.since))
@@ -69,7 +73,13 @@ func titleFadeEdges(hovered bool, offset, content, cell float32) (left, right fl
 // only its text moves, clipped away from the leading status and trailing actions.
 // Crawling runs strictly inside Draw with paint-only p.After timers so hovering
 // a long title never triggers full-tree rebuilds.
-func sessionTitleCell(c *ui.Context, row ui.Element, id, label string, ink ui.Color) ui.Element {
+// Optional reserve specifies paint-only right clearance (in DIPs) for hovering
+// action buttons so crawling reveals the full tail left of those buttons.
+func sessionTitleCell(c *ui.Context, row ui.Element, id, label string, ink ui.Color, reserve ...float32) ui.Element {
+	var reserveRight float32
+	if len(reserve) > 0 && reserve[0] > 0 {
+		reserveRight = reserve[0]
+	}
 	crawl := ui.Local(row, "title-crawl:"+id, func() titleCrawl { return titleCrawl{} })
 	hovered := row.Hovered()
 	if !hovered {
@@ -83,6 +93,7 @@ func sessionTitleCell(c *ui.Context, row ui.Element, id, label string, ink ui.Co
 	content := float32(0)
 	crawling := false
 	reduceMotion := c.Preferences().ReduceMotion
+	visW := max(float32(0), crawl.cell-reserveRight)
 	if hovered {
 		if crawl.label != label || crawl.fontSize != fontSize || crawl.fontFamily != fontFamily || crawl.layout == nil {
 			layout := ui.ShapeTextLine(label, ui.Font{Family: fontFamily, Size: fontSize}, 0)
@@ -96,7 +107,7 @@ func sessionTitleCell(c *ui.Context, row ui.Element, id, label string, ink ui.Co
 		}
 		content = crawl.measured + 10
 		crawl.start(c.Now())
-		if crawl.cell > 0 && content-crawl.cell > minTitleReveal {
+		if visW > 0 && content-visW > minTitleReveal {
 			crawling = true
 		}
 	}
@@ -109,6 +120,8 @@ func sessionTitleCell(c *ui.Context, row ui.Element, id, label string, ink ui.Co
 			// Keep identical height, pointer lane geometry, and accessible text
 			// while painting the horizontally crawling text in Draw.
 			text.Opacity(0)
+		} else if reserveRight > 0 {
+			applySidebarTitleFadeOverflow(text, reserveRight, sidebarTitleFadeWidth)
 		}
 	})
 	if crawling {
@@ -119,17 +132,25 @@ func sessionTitleCell(c *ui.Context, row ui.Element, id, label string, ink ui.Co
 			if layout == nil {
 				return
 			}
+			clipR := ui.Rect{X: r.X, Y: r.Y, W: max(float32(0), r.W-reserveRight), H: r.H}
+			if clipR.W <= 0 || clipR.H <= 0 {
+				return
+			}
 			var offset float32
 			var moving bool
 			if reduceMotion {
-				if overflow := content - crawl.cell; crawl.cell > 0 && overflow > minTitleReveal {
+				if overflow := content - clipR.W; clipR.W > 0 && overflow > minTitleReveal {
 					offset = -overflow
 				}
 			} else {
-				offset, moving = crawl.offset(p.Now(), content)
+				offset, moving = crawl.offsetForWidth(p.Now(), content, clipR.W)
+			}
+			fadeL, fadeR := titleFadeEdges(true, offset, content, clipR.W)
+			if fadeR > 0 && reserveRight > 0 {
+				fadeR = max(fadeR, sidebarTitleFadeWidth)
 			}
 			y := r.Y + (r.H-layoutH)/2
-			p.Clip(r, 0, func() {
+			drawSidebarCrawlClip(p, clipR, fadeL, fadeR, func() {
 				p.TextLayout(layout, r.X+padLeft+offset, y, ink)
 			})
 			if moving {

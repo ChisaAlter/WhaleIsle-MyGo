@@ -58,18 +58,57 @@ func composerCardFill(t *design.Tokens) ui.Color {
 	return t.Background
 }
 
+const (
+	composerFocusBorderAlphaLight = float32(0.55)
+	composerFocusBorderAlphaDark  = float32(0.62)
+	composerFocusHaloSpread       = float32(2)
+	composerFocusHaloBlur         = float32(2)
+	composerFocusHaloAlphaLight   = float32(0.20)
+	composerFocusHaloAlphaDark    = float32(0.24)
+)
+
+// composerFocusBase returns the full-opacity focus hue so the composer card's
+// border and halo alphas stay calibrated whether t.Ring is opaque or translucent.
+func composerFocusBase(t *design.Tokens) ui.Color {
+	base := t.Ring
+	if base.A == 0 {
+		base = t.Primary
+	}
+	if base.A > 0 {
+		base.A = 255
+	}
+	return base
+}
+
 func composerCardBorder(t *design.Tokens, focused bool) ui.Color {
 	if focused {
-		return t.Ring
+		alpha := composerFocusBorderAlphaLight
+		if t.IsDark() {
+			alpha = composerFocusBorderAlphaDark
+		}
+		return composerFocusBase(t).Alpha(alpha)
 	}
 	return t.Input
+}
+
+// composerCardBorderWidth keeps the composer outline at a crisp 1 physical pixel
+// across both resting and focused states and across DPI scales.
+func composerCardBorderWidth(p *ui.Painter) float32 {
+	if scale := p.Scale(); scale > 0 {
+		return 1 / scale
+	}
+	return design.BorderWidth
 }
 
 func composerCardElevation(e ui.Element, t *design.Tokens, focused, disabled bool) {
 	if disabled || !focused {
 		return
 	}
-	e.Shadow(0, 0, 0, design.InputRingWidth, t.Ring.Alpha(design.InputRingAlpha))
+	alpha := composerFocusHaloAlphaLight
+	if t.IsDark() {
+		alpha = composerFocusHaloAlphaDark
+	}
+	e.Shadow(0, 0, composerFocusHaloBlur, composerFocusHaloSpread, composerFocusBase(t).Alpha(alpha))
 }
 
 // menuPanelLook gives a popup the shared coss popover look: popover fill,
