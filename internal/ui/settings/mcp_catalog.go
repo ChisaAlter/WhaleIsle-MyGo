@@ -96,7 +96,7 @@ func mcpCatalogDetails(c *ui.Context, a *MCPCatalogAccess, id string, fg, muted 
 	if !open {
 		return
 	}
-	ui.Text(c, mcpCatalogText("已注册工具（上次刷新）", "Registered tools (last refresh)")).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).TextColor(fg)
+	ui.Text(c, mcpCatalogText("已注册工具（上次刷新）", "Registered tools (last refresh)")).FontSize(fonttheme.InterfaceSize(12)).FontWeight(design.WeightMedium).TextColor(fg)
 	var tools []string
 	for _, row := range s.Rows {
 		if row.Id == id && row.Connection != nil {
@@ -111,7 +111,7 @@ func mcpCatalogDetails(c *ui.Context, a *MCPCatalogAccess, id string, fg, muted 
 		ui.Text(c, name).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
 	if tested && diagnostic.Err == "" {
-		ui.Text(c, mcpCatalogText("上次显式测试返回的工具", "Tools returned by the last explicit test")).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).TextColor(fg)
+		ui.Text(c, mcpCatalogText("上次显式测试返回的工具", "Tools returned by the last explicit test")).FontSize(fonttheme.InterfaceSize(12)).FontWeight(design.WeightMedium).TextColor(fg)
 		if len(diagnostic.Result.ToolNames) == 0 {
 			ui.Text(c, mcpCatalogText("测试返回空工具列表", "Test returned an empty tool list")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

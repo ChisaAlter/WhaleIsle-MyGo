@@ -464,7 +464,11 @@ func generalFontSizeRow(c *ui.Context, e *theme.Editor, role, title, hint string
 							label = providerCopy("减小", "Decrease") + " " + title
 							disabled = value <= lo
 						}
-						button := ui.ButtonBase(c.Key(label)).Label(label).Tooltip(label).Size(17, 12).Padding(0).Radius(design.RadiusSM).BorderWidth(0).Background(tk(c).Background.Alpha(.75)).Center().Cursor(ui.CursorPointer).Disabled(e.OnSave == nil || disabled)
+						btnDisabled := e.OnSave == nil || disabled
+						button := ui.ButtonBase(c.Key(label)).Label(label).Tooltip(label).Size(17, 12).Padding(0).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).Center().Cursor(ui.CursorPointer).Disabled(btnDisabled)
+						if !btnDisabled && (button.Hovered() || button.Pressed()) {
+							button.Background(tk(c).Accent)
+						}
 						button.Children(func() {
 							icon := ui.Icon(c, bodyIcon("down")).Size(9, 9).TextColor(fg).PassThrough()
 							if direction > 0 {

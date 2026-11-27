@@ -33,7 +33,7 @@ func settingsToggle(c *ui.Context, title string, value *bool, disabled bool) ui.
 	}
 	x := toggle.AnimateWith("settings-toggle-thumb", b01(on)*(toggleKnob-4), design.MotionFast, design.EaseInOut)
 	focus := toggle.FocusVisible() && !disabled
-	thumb, ring, gap := t.Background, t.Ring, t.Background
+	thumb, ring := t.Background, t.Ring
 	shadow := design.TW.Black.Alpha(0.05)
 	// The track and the thumb are painted, not laid out: a child box would take
 	// the pointer hit before the button sees it and the switch would stop
@@ -43,8 +43,9 @@ func settingsToggle(c *ui.Context, title string, value *bool, disabled bool) ui.
 			return
 		}
 		if focus {
-			p.Fill(ui.Rect{X: r.X - design.RingOffset - design.RingWidth, Y: r.Y - design.RingOffset - design.RingWidth, W: r.W + 2*(design.RingOffset+design.RingWidth), H: r.H + 2*(design.RingOffset+design.RingWidth)}, ring, r.H)
-			p.Fill(ui.Rect{X: r.X - design.RingOffset, Y: r.Y - design.RingOffset, W: r.W + 2*design.RingOffset, H: r.H + 2*design.RingOffset}, gap, r.H)
+			o := design.RingOffset + design.RingWidth
+			outer := ui.Rect{X: r.X - o, Y: r.Y - o, W: r.W + 2*o, H: r.H + 2*o}
+			p.Stroke(outer, ring, outer.H/2, design.RingWidth)
 		}
 		p.Fill(r, track, r.H/2)
 		knob := ui.Rect{X: r.X + 1 + x, Y: r.Y + 1, W: toggleKnob, H: toggleKnob}

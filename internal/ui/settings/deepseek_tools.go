@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/errcopy"
 	settingsstore "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -53,7 +54,7 @@ func DeepSeekToolsPane(c *ui.Context, a *DeepSeekToolsAccess, fg, muted ui.Color
 	// Billing is stated before any switch, not discovered on the invoice.
 	ui.Column(c.Key("deepseek-tools/billing")).FillWidth().MinWidth(0).Padding(12, 14).Gap(4).Radius(10).
 		Border(.5, c.Theme().Border.Alpha(0.45)).Background(modelWell(c).Alpha(.55)).Children(func() {
-		ui.Text(c, providerCopy("按量计费", "Billed per use")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		ui.Text(c, providerCopy("按量计费", "Billed per use")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FontWeight(design.WeightMedium).TextColor(fg)
 		body(providerCopy(
 			"这些调用按 DeepSeek 官方价格另行计费。语音合成按字符计费，单次最多 10,000 计费字符，一个汉字按 2 个字符计算；转写与识别按上传的文件计费。开启前请确认账号余额。",
 			"These calls bill separately at DeepSeek's official rates. Speech is billed per character, at most 10,000 billed characters per call with one Chinese character counted as two; transcription and recognition bill per uploaded file. Check the account balance before enabling."))

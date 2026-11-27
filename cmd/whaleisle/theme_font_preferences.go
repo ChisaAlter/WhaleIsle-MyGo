@@ -169,7 +169,7 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	t.AccentHover = chrome.Color(colors.ButtonInfoHover)
 	t.AccentPressed = chrome.Color(colors.ButtonInfoHover)
 	t.AccentText = chrome.Color(colors.ButtonFG)
-	t.Focus = t.Accent
+	t.Focus = t.Accent.Alpha(0.45)
 	t.Selection = t.Accent.Alpha(.3)
 	// ui-theme/src/styles/scrollbar.css uses a 5 DIP thumb; its colors come from
 	// the theme's scroll bar tokens (--dsw-alias-scrollbar-bg-l1/-hover-l1), which

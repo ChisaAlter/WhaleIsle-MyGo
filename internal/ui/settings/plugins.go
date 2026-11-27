@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/errcopy"
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -68,7 +69,7 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 
 func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 	builtinPluginGrid(c, a, fg, muted)
-	ui.Text(c, pluginsText("已安装插件包", "Installed plugin bundles")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+	ui.Text(c, pluginsText("已安装插件包", "Installed plugin bundles")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 	if !a.ClientReady {
 		ui.Text(c, pluginsText("运行时未连接，请连接后管理插件。", "Runtime disconnected. Connect to manage plugins.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
@@ -200,7 +201,7 @@ func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 			card := chrome.FrostSurface(ui.Column(c.Key("builtin-plugin/"+plugin.Name)).MinWidth(0).Height(60).Gap(2).Padding(12, 16),
 				fonttheme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center)
 			card.Children(func() {
-				ui.Text(c, plugin.Name).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg).SingleLine().Ellipsis("…")
+				ui.Text(c, plugin.Name).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg).SingleLine().Ellipsis("…")
 				if detail != "" {
 					ui.Text(c, detail).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Ellipsis("…")
 				}

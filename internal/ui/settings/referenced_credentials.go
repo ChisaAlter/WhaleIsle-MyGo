@@ -38,7 +38,7 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		providerCredentialField(c, a, namespace, fg, muted)
 		return
 	}
-	ui.Text(c, providerCopy("供应商鉴权与 API Key", "Provider authentication and API keys")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+	ui.Text(c, providerCopy("供应商鉴权与 API Key", "Provider authentication and API keys")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 	ui.Text(c, providerCopy("按 Host 配置中的引用保存；留空保留已有密钥。密钥不会读回。", "Saved under the Host configuration's reference. Leave blank to keep the existing key. Stored keys are never read back.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if !s.Connected {
 		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)

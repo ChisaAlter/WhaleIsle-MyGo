@@ -37,9 +37,9 @@ func kPageTitle(c *ui.Context, s string) ui.Element {
 	return kText(c, s, design.TextLG, design.WeightSemibold, tk(c).Foreground).FillWidth().Role(ui.RoleHeading)
 }
 
-// kHeading is a group heading inside a page: text-sm semibold foreground.
+// kHeading is a group heading inside a page: text-sm medium foreground.
 func kHeading(c *ui.Context, s string) ui.Element {
-	return kText(c, s, design.TextSM, design.WeightSemibold, tk(c).Foreground).FillWidth().Role(ui.RoleHeading)
+	return kText(c, s, design.TextSM, design.WeightMedium, tk(c).Foreground).FillWidth().Role(ui.RoleHeading)
 }
 
 // kLabel is a row's title: coss Label, text-sm medium foreground.

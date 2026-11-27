@@ -28,16 +28,15 @@ func settingsPreferenceSwitch(c *ui.Context, value *bool, style settingsSwitchSt
 	handle := ui.Local(switcher, "switch-handle", func() ui.Handle { return ui.Handle{} })
 	switcher.Bind(handle)
 	position := switcher.AnimateWith("settings-switch-thumb", b01(*value), design.MotionFast, design.EaseInOut)
-	off, on, thumb, ring, gap := t.Input, t.Primary, t.Background, t.Ring, t.Background
+	off, on, thumb, ring := t.Input, t.Primary, t.Background, t.Ring
 	shadow := design.TW.Black.Alpha(0.05)
 	switcher.DisabledOpacity(design.OpacityDisabled)
 	switcher.Draw(func(p *ui.Painter, bounds ui.Rect) {
 		track := ui.Rect{X: bounds.X + (bounds.W-toggleWidth)/2, Y: bounds.Y + (bounds.H-toggleHeight)/2, W: toggleWidth, H: toggleHeight}
 		if el := c.Resolve(*handle); el.Valid() && el.FocusVisible() && !el.IsDisabled() {
 			o := design.RingOffset + design.RingWidth
-			p.Fill(ui.Rect{X: track.X - o, Y: track.Y - o, W: track.W + 2*o, H: track.H + 2*o}, ring, track.H)
-			g := design.RingOffset
-			p.Fill(ui.Rect{X: track.X - g, Y: track.Y - g, W: track.W + 2*g, H: track.H + 2*g}, gap, track.H)
+			outer := ui.Rect{X: track.X - o, Y: track.Y - o, W: track.W + 2*o, H: track.H + 2*o}
+			p.Stroke(outer, ring, outer.H/2, design.RingWidth)
 		}
 		p.Fill(track, off.Mix(on, position), track.H/2)
 		knob := ui.Rect{X: track.X + 1 + position*(toggleKnob-4), Y: track.Y + 1, W: toggleKnob, H: toggleKnob}

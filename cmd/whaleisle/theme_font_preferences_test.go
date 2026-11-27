@@ -31,6 +31,9 @@ func TestAppearanceFrameMapsNativeInteractiveTokens(t *testing.T) {
 			if native.ScrollbarWidth != 5 {
 				t.Fatalf("native scrollbar width=%v, source requires5 DIP", native.ScrollbarWidth)
 			}
+			if wantFocus := native.Accent.Alpha(0.45); native.Focus != wantFocus {
+				t.Fatalf("native focus=%+v, want restrained translucent accent %+v", native.Focus, wantFocus)
+			}
 		})
 	}
 }
