@@ -192,3 +192,58 @@ func TestSkillRemovalReloadsComposerWinner(t *testing.T) {
 		})
 	}
 }
+
+func TestRefreshSkillsFallsBackToGlobalInventoryWhenSessionNotAttached(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		scopedInvCalls := 0
+		globalInvCalls := 0
+		s, _ := skillOwnerFixture(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/skills/list"):
+				return nil, &dsh.Error{Code: "session/not-found", Message: `session "session-whale-1" not found (not attached)`}
+			case strings.HasSuffix(r.URL.Path, "/skillInventory/list"):
+				var body struct {
+					Payload struct {
+						Args struct {
+							Request api.SkillInventoryScope `json:"request"`
+						} `json:"args"`
+					} `json:"payload"`
+				}
+				raw, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := json.Unmarshal(raw, &body); err != nil {
+					t.Fatal(err)
+				}
+				r.Body = io.NopCloser(strings.NewReader(string(raw)))
+				if body.Payload.Args.Request.SessionId != nil || body.Payload.Args.Request.Cwd != nil {
+					scopedInvCalls++
+					return nil, &dsh.Error{Code: "session/not-found", Message: `session "session-whale-1" not found (not attached)`}
+				}
+				globalInvCalls++
+				return skillOwnerResponse(r, api.SkillInventorySnapshot{
+					Skills: []api.SkillInventorySnapshotSkillsItem{
+						{Name: "global-helper", Source: "user", UserInvocable: true, ModelInvocable: true},
+					},
+				})
+			default:
+				t.Fatalf("unexpected RPC %s", r.URL.Path)
+				return nil, nil
+			}
+		})
+		s.RefreshSkills(context.Background())
+		synctest.Wait()
+
+		got := s.Snapshot()
+		if scopedInvCalls == 0 || globalInvCalls == 0 {
+			t.Fatalf("expected scoped -> global inventory fallback, got scoped=%d global=%d", scopedInvCalls, globalInvCalls)
+		}
+		if got.SkillsErr != nil {
+			t.Fatalf("transient session/not-found leaked into SkillsErr: %+v", got.SkillsErr)
+		}
+		if len(got.SkillOptions) != 1 || got.SkillOptions[0].Name != "global-helper" {
+			t.Fatalf("global inventory fallback did not populate SkillOptions: %+v", got.SkillOptions)
+		}
+	})
+}

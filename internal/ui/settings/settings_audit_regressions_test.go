@@ -478,8 +478,13 @@ func TestAboutVersionBadgeVerticallyCentered(t *testing.T) {
 }
 
 // TestVoiceInputUsesCossSelectAndThrottlesActiveMeter ensures the microphone
-// selector uses coss.Select (not bare "▾" SelectBase) and renders cleanly.
+// selector uses coss.Select (not bare "▾" SelectBase) and throttles active
+// meter repaints via a 33ms c.After timer rather than immediate invalidation.
 func TestVoiceInputUsesCossSelectAndThrottlesActiveMeter(t *testing.T) {
+	prev := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
 	mic := voiceinput.NewMicrophone(
 		voicecapture.Device{ID: "mic-1", Label: "Studio USB Mic"},
 		func(voicecapture.Device) error { return nil },
@@ -497,9 +502,80 @@ func TestVoiceInputUsesCossSelectAndThrottlesActiveMeter(t *testing.T) {
 		t.Fatalf("VoiceInputDeviceView still renders bare '▾' SelectBase instead of coss.Select")
 	}
 	if _, ok := tt.Find("选择麦克风"); !ok {
-		if _, okEN := tt.Find("Select microphone"); !okEN {
-			t.Fatalf("microphone coss.Select trigger missing: %v", tt.Texts())
+		t.Fatalf("microphone coss.Select trigger missing: %v", tt.Texts())
+	}
+
+	// Verify active meter uses c.After(33ms) (single build per frame, never a
+	// synchronous Invalidate busy-loop) and returns to 0Hz when inactive.
+	state := voiceinput.MicrophoneState{
+		Selected: voicecapture.Device{ID: "mic-1", Label: "Studio USB Mic"},
+		Devices:  []voicecapture.Device{{ID: "mic-1", Label: "Studio USB Mic"}},
+		Active:   true,
+		Level:    0.65,
+	}
+	builds := 0
+	var scheduled []time.Duration
+	meterTT := ui.NewTester(func(c *ui.Context) {
+		builds++
+		ui.Column(c).FillWidth().Padding(16).Children(func() {
+			voiceInputDeviceStateView(c, state, nil, nil, func(d time.Duration) {
+				scheduled = append(scheduled, d)
+				c.After(d)
+			})
+		})
+	}, 600, 300)
+
+	start := time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)
+	builds = 0
+	scheduled = nil
+	meterTT.SetTime(start)
+	if builds != 1 {
+		t.Fatalf("active meter triggered %d builds in one settle (expected 1; immediate Invalidate would busy-loop)", builds)
+	}
+	if len(scheduled) != 1 || scheduled[0] != 33*time.Millisecond {
+		t.Fatalf("active meter scheduled %v, want [33ms]", scheduled)
+	}
+	if _, ok := meterTT.Find("麦克风输入电平"); !ok {
+		t.Fatalf("active meter row missing: %v", meterTT.Texts())
+	}
+	beforePix := append([]byte(nil), meterTT.Pixels()...)
+
+	// Advance virtual clock by 33ms with a new input level: one build, next 33ms
+	// wakeup scheduled, and meter bar pixels actually update.
+	state.Level = 0.12
+	builds = 0
+	scheduled = nil
+	meterTT.SetTime(start.Add(33 * time.Millisecond))
+	if builds != 1 {
+		t.Fatalf("active meter 33ms tick triggered %d builds, want 1", builds)
+	}
+	if len(scheduled) != 1 || scheduled[0] != 33*time.Millisecond {
+		t.Fatalf("active meter 33ms tick scheduled %v, want [33ms]", scheduled)
+	}
+	afterPix := meterTT.Pixels()
+	differs := false
+	for i := range beforePix {
+		if beforePix[i] != afterPix[i] {
+			differs = true
+			break
 		}
 	}
-	_ = time.Millisecond
+	if !differs {
+		t.Fatal("active meter pixels did not update when microphone level changed at 33ms tick")
+	}
+
+	// Inactive meter must stop scheduling wakeups (0Hz idle) and hide meter row.
+	state.Active = false
+	builds = 0
+	scheduled = nil
+	meterTT.SetTime(start.Add(66 * time.Millisecond))
+	if builds != 1 {
+		t.Fatalf("inactive meter triggered %d builds, want 1", builds)
+	}
+	if len(scheduled) != 0 {
+		t.Fatalf("inactive meter scheduled %v, want none (0Hz idle)", scheduled)
+	}
+	if _, ok := meterTT.Find("麦克风输入电平"); ok {
+		t.Fatal("inactive meter still rendered level row")
+	}
 }

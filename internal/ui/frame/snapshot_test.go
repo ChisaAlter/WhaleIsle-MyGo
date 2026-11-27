@@ -32,11 +32,11 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 	preferences := theme.CurrentPreferences()
 	theme.SetPreferences(theme.Defaults())
 	defer theme.SetPreferences(preferences)
-	trailing := func(terminal bool) func(*ui.Context, string) {
-		return func(c *ui.Context, density string) {
+	trailing := func(terminal bool) func(*ui.Context, string, bool) {
+		return func(c *ui.Context, density string, globalPage bool) {
 			chrome.WorkspaceTrailing(c, chrome.WorkspaceTrailingModel{
 				Status:        &desktopgit.RepositoryStatus{IsRepo: true, Branch: "main", HasOrigin: true, HasUpstream: true, IsDefault: true},
-				WorkspaceRoot: "C:/isolated-fixture", Density: density, GitLoaded: true,
+				WorkspaceRoot: "C:/isolated-fixture", Density: density, GitLoaded: true, GlobalPage: globalPage,
 				ShowTerminal: true, TerminalAvailable: true, TerminalOpen: terminal, ShowSurfaces: true, SurfacesOpen: true,
 				OnToggleTerminal: func() {}, OnToggleSurfaces: func() {}, OnGitAction: func(string) {},
 				RenderBranches: func(*ui.Context, ui.Element, *bool) {},

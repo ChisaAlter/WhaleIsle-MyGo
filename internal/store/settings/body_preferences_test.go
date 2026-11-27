@@ -432,3 +432,81 @@ func TestBodyPreferenceFieldErrorIsolatedFromGlobalErrAndClearedOnLeave(t *testi
 		t.Fatalf("ClearTransientErrors left stale errors: err=%q prefErrs=%v", cleared.Err, cleared.PreferenceErrors)
 	}
 }
+
+func TestRefreshDescribeErrorOnAlreadyDescribedHostPreservesWritability(t *testing.T) {
+	failDescribe := false
+	mutateCalls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if strings.HasSuffix(r.URL.Path, "/settings/mutate") {
+			mutateCalls++
+			rpcOK(w, body["rpcId"], map[string]any{
+				"ns": "ui-chat", "revision": 2,
+				"value": map[string]any{"flag": true},
+				"user":  map[string]any{"flag": true},
+			})
+			return
+		}
+		if failDescribe {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"type": "server-response", "rpcId": body["rpcId"],
+				"result": map[string]any{"ok": false, "error": map[string]any{"code": "unavailable", "message": "temporary outage"}},
+			})
+			return
+		}
+		rpcOK(w, body["rpcId"], map[string]any{
+			"hasDocument": true, "writable": true,
+			"namespaces": []any{map[string]any{
+				"ns": "ui-chat", "revision": 1,
+				"schema": json.RawMessage(`{"uid":2,"refs":{"1":{"type":"boolean"},"2":{"type":"object","dict":{"flag":1}}}}`),
+				"value":  map[string]any{"flag": false},
+			}},
+		})
+	}))
+	defer srv.Close()
+
+	st := New()
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
+	st.Attach(client, nil)
+	st.RefreshDescribe(context.Background())
+
+	waitLoadingDone := func() {
+		t.Helper()
+		deadline := time.Now().Add(3 * time.Second)
+		for st.Snapshot().Value.Loading && time.Now().Before(deadline) {
+			time.Sleep(time.Millisecond)
+		}
+	}
+	waitLoadingDone()
+	if snap := st.Snapshot().Value; !snap.Described || !snap.Writable {
+		t.Fatalf("expected initial describe to succeed: %+v", snap)
+	}
+
+	// 1) A canceled context on RefreshDescribe must not poison Err or Described.
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	st.RefreshDescribe(canceled)
+	waitLoadingDone()
+	if snap := st.Snapshot().Value; !snap.Described || snap.Err != "" {
+		t.Fatalf("canceled RefreshDescribe poisoned already-described store: described=%v err=%q", snap.Described, snap.Err)
+	}
+
+	// 2) A transient RPC error during background refresh on an already-described
+	// Host keeps Described=true so global Err stays clean and Host writes stay alive.
+	failDescribe = true
+	st.RefreshDescribeBackground(context.Background())
+	waitLoadingDone()
+	if snap := st.Snapshot().Value; !snap.Described || snap.Err != "" {
+		t.Fatalf("background describe failure poisoned already-described store: described=%v err=%q", snap.Described, snap.Err)
+	}
+
+	st.PatchDescribedField(context.Background(), "ui-chat", "flag", "true")
+	deadline := time.Now().Add(3 * time.Second)
+	for (mutateCalls == 0 || len(st.Snapshot().Value.PreferencePending) > 0) && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if snap := st.Snapshot().Value; mutateCalls != 1 || snap.Err != "" || len(snap.PreferenceErrors) != 0 {
+		t.Fatalf("Host preference write broke after transient describe failure: calls=%d err=%q prefErrs=%v", mutateCalls, snap.Err, snap.PreferenceErrors)
+	}
+}

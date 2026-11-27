@@ -190,7 +190,7 @@ func conversationView(c *ui.Context, m Model) {
 			StatusView(c, m)
 		}
 		HistoryNavigationView(c, m, list, muted)
-		whaleUIPanelView(c, m)
+		panelRendered := whaleUIPanelView(c, m)
 		if !m.FullColumnViewport {
 			coss.Separator(c, coss.Horizontal)
 		}
@@ -200,12 +200,18 @@ func conversationView(c *ui.Context, m Model) {
 				m.Inspector.CancelReveal()
 			}
 			// The empty Session is the Hero's job (conversationPhase), so this
-			// only paints for a standalone surface or an errored settle: center
-			// the hint instead of pinning a 13px line to the top-left corner.
-			if m.Snapshot.HistoryError == nil && !m.FullColumnViewport {
-				ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyChatEmpty)).FontSize(theme.InterfaceSize(14)).TextColor(muted)
-				})
+			// only paints for a standalone surface, an errored settle, or the
+			// Whale assistant session (which opts out of the Hero shell).
+			if m.Snapshot.HistoryError == nil && !panelRendered {
+				if isWhaleAssistantConversation(m.Snapshot) {
+					whaleEmptyWelcomeView(c, m.Snapshot, colors, muted)
+					return
+				}
+				if !m.FullColumnViewport {
+					ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+						ui.Text(c, i18n.T(i18n.KeyChatEmpty)).FontSize(theme.InterfaceSize(14)).TextColor(muted)
+					})
+				}
 			}
 			ui.Box(c).Grow(1) // keep composer pinned to the bottom of the dialogue column
 			return

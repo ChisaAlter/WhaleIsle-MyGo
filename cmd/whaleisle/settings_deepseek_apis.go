@@ -17,25 +17,27 @@ const deepSeekAPITimeout = 45 * time.Second
 // refreshDeepSeekAPIs re-reads the Host description and the credential
 // reference's stored state. Called when the page opens, after a Host
 // replacement, and when a person presses 重新加载.
+// Both store methods run on their own async goroutines with internal timeouts,
+// so callers must not attach a short-lived defer cancel() around the calls.
 func (s *mainState) refreshDeepSeekAPIs() {
 	store := s.settings
 	if store == nil {
 		return
 	}
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), deepSeekAPITimeout)
-		defer cancel()
-		store.RefreshDescribe(ctx)
-		ref := store.SnapshotDeepSeekTools().APIKeyEnv
-		if ref == "" {
-			ref = settingsstore.CredRefAPIKey
-		}
-		store.RefreshDeepSeekKey(ctx, ref)
-		s.updateDeepSeekAPIsUI()
-	}()
+	if store.Snapshot().Value.Described {
+		store.RefreshDescribeBackground(context.Background())
+	} else {
+		store.RefreshDescribe(context.Background())
+	}
+	ref := store.SnapshotDeepSeekTools().APIKeyEnv
+	if ref == "" {
+		ref = settingsstore.CredRefAPIKey
+	}
+	store.RefreshDeepSeekKey(context.Background(), ref)
+	s.updateDeepSeekAPIsUI()
 }
 
-func (s *mainState) runDeepSeekAPIs(action func(context.Context)) {
+func (s *mainState) runDeepSeekAPIsSync(action func(context.Context)) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), deepSeekAPITimeout)
 		defer cancel()
@@ -75,11 +77,13 @@ func (s *mainState) settingsDeepSeekAPIsAccess() *settings.DeepSeekToolsAccess {
 				return
 			}
 			b.SetDraft(field, strconv.FormatBool(value))
-			s.runDeepSeekAPIs(b.Save)
+			b.Save(context.Background())
+			s.updateDeepSeekAPIsUI()
 		},
 		OnSave: func() {
 			if b := binding(); b != nil {
-				s.runDeepSeekAPIs(b.Save)
+				b.Save(context.Background())
+				s.updateDeepSeekAPIsUI()
 			}
 		},
 		OnReload: func() {
@@ -90,7 +94,7 @@ func (s *mainState) settingsDeepSeekAPIsAccess() *settings.DeepSeekToolsAccess {
 		},
 		OnRefresh: s.refreshDeepSeekAPIs,
 		OnSaveKey: func(ref, value string) {
-			s.runDeepSeekAPIs(func(ctx context.Context) { store.SaveDeepSeekKey(ctx, ref, value) })
+			s.runDeepSeekAPIsSync(func(ctx context.Context) { store.SaveDeepSeekKey(ctx, ref, value) })
 		},
 	}
 }

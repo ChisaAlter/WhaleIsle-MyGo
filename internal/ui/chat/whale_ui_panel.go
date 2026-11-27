@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 	"whaleisle/internal/paths"
@@ -645,10 +646,10 @@ func (p *whalePanelState) toggleCollapsed() {
 	p.mu.Unlock()
 }
 
-func whaleUIPanelView(c *ui.Context, m Model) {
+func whaleUIPanelView(c *ui.Context, m Model) bool {
 	p := whalePanelForUI(m, c.Services().Invalidate)
 	if p == nil {
-		return
+		return false
 	}
 	p.mu.Lock()
 	raw := append(json.RawMessage(nil), p.Snapshot...)
@@ -658,8 +659,9 @@ func whaleUIPanelView(c *ui.Context, m Model) {
 	if len(raw) == 0 || string(raw) == "null" {
 		if errText != "" {
 			ui.Text(c, errText).FontSize(12)
+			return true
 		}
-		return
+		return false
 	}
 	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
@@ -675,7 +677,7 @@ func whaleUIPanelView(c *ui.Context, m Model) {
 		ui.Text(c, errText).FontSize(12)
 	}
 	if collapsed {
-		return
+		return true
 	}
 	program := "root = Col([Genui(" + string(raw) + ")])"
 	msg := session.Message{ID: "whale-ui-panel", Role: "assistant"}
@@ -695,4 +697,38 @@ func whaleUIPanelView(c *ui.Context, m Model) {
 		}, nil
 	}
 	openUIBlockView(c, m, msg, "whale-ui", program, int(generation), "whale-ui-panel", true, guarded)
+	return true
+}
+
+func isWhaleAssistantConversation(snap session.ViewState) bool {
+	if snap.SelectedID == "" {
+		return false
+	}
+	if strings.HasPrefix(snap.SelectedID, "session-whale-") {
+		return true
+	}
+	for _, item := range snap.Items {
+		if item.SessionID == snap.SelectedID {
+			return item.Presentation != nil && item.Presentation.Owner == "dsh-whale:assistant"
+		}
+	}
+	return false
+}
+
+func whaleEmptyWelcomeView(c *ui.Context, snap session.ViewState, colors theme.Colors, muted ui.Color) {
+	title := whaleLabel("鲸鱼娘", "Whale Assistant")
+	for _, item := range snap.Items {
+		if item.SessionID == snap.SelectedID && item.Presentation != nil && strings.TrimSpace(item.Presentation.Title) != "" {
+			title = strings.TrimSpace(item.Presentation.Title)
+			break
+		}
+	}
+	subtitle := whaleLabel(
+		"我是你的专属桌面助理。在下方输入问题，或让我协助处理工作区任务、定时提醒与工具操作。",
+		"Your personal desktop assistant. Ask anything below, or have me help with workspace tasks, schedules, and tools.",
+	)
+	ui.Column(c.Key("whale-empty-welcome")).FillWidth().Grow(1).AlignItems(ui.Center).Justify(ui.Center).Padding(design.Sp(6)).Gap(design.Sp(2)).Children(func() {
+		ui.Text(c, title).FontSize(theme.InterfaceSize(design.TextXL.Size)).FontWeight(design.WeightSemibold).TextColor(theme.Color(colors.FG))
+		ui.Text(c, subtitle).FontSize(theme.InterfaceSize(design.TextSM.Size)).TextColor(muted).MaxWidthPercent(70)
+	})
 }

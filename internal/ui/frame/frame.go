@@ -194,7 +194,7 @@ type Model struct {
 	DisableDeveloperTools  bool
 	DeveloperToolsPending  bool
 	TitlebarPreferences    settings.TitlebarPreferences
-	WorkspaceTrailing      func(*ui.Context, string)
+	WorkspaceTrailing      func(*ui.Context, string, bool)
 	WorkspacePage          bool
 	// ActivePanel is the visible global route, or empty for a conversation.
 	ActivePanel             string

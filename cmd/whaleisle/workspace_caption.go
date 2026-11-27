@@ -113,7 +113,11 @@ func (s *mainState) bindWorkspaceTrailing(win *mygo.Window, m *frame.Model, badg
 	report, reportRoot := s.gitPRReport, s.gitPRRoot
 	statusCurrent := s.gitCheckedRoot == root && s.gitRepositoryStatus == status
 	terminalOpen, surfacesOpen := s.terminalVisible, s.filesPaneOpen
+	globalPage := m.WorkspacePage || s.marketOpen || s.scheduleOpen || (m.ActivePanel != "" && m.ActivePanel != "conversation") || strings.HasPrefix(selected, "session-whale-")
 	s.mu.Unlock()
+	if !globalPage && s.assistantService().Open() {
+		globalPage = true
+	}
 	if m.WorkspacePage {
 		surfacesOpen = false
 	}
@@ -135,11 +139,11 @@ func (s *mainState) bindWorkspaceTrailing(win *mygo.Window, m *frame.Model, badg
 	diffModel := diffsurface.Model{Workbench: m.GitWorkbench, WorkspaceRoot: root, ThemeID: m.ThemeID, SystemDark: m.SystemDark, CaptionAdmission: current}
 	preferences := m.TitlebarPreferences
 	toggleSurfaces, toggleTerminal := m.OnToggleTools, m.OnToggleTerminal
-	m.WorkspaceTrailing = func(c *ui.Context, density string) {
+	m.WorkspaceTrailing = func(c *ui.Context, density string, pageGlobal bool) {
 		model := chrome.WorkspaceTrailingModel{
 			Git: badge, Status: status, WorkspaceRoot: cwd, Density: density,
 			GitLoaded: status != nil && statusCurrent && cwd == root, GitBusy: busy || m.GitWorkbench != nil && m.GitWorkbench.Operation != nil,
-			ManagedSession: managedCaptionSession(snapshot), HideGit: hideGit, ChangeRequestOpen: changeRequestOpen,
+			ManagedSession: managedCaptionSession(snapshot), HideGit: hideGit, GlobalPage: globalPage || pageGlobal, ChangeRequestOpen: changeRequestOpen,
 			ShowTerminal: !preferences.HideTerminalToggle, TerminalAvailable: snapshot.HasWorkspaces,
 			TerminalOpen: terminalOpen, ShowSurfaces: !preferences.HideSurfacesToggle, SurfacesOpen: surfacesOpen,
 			OnToggleTerminal: toggleTerminal, OnToggleSurfaces: toggleSurfaces,

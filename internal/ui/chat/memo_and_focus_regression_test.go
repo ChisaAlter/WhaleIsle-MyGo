@@ -131,3 +131,55 @@ func TestWorkflowMemberFocusRingZeroLayoutShift(t *testing.T) {
 		t.Fatalf("focus ring shifted workflow member text: rest=%+v focused=%+v", labelRest, labelFocused)
 	}
 }
+
+func TestWhaleEmptyConversationRendersWelcomeInsteadOfBlankCanvas(t *testing.T) {
+	prev := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
+	list := &ui.ListState{}
+	whaleSnap := session.ViewState{
+		SelectedID:   "session-whale-1",
+		HistoryReady: true,
+		Items: []session.Item{{
+			SessionID:    "session-whale-1",
+			Blank:        true,
+			Presentation: &session.SessionPresentation{Owner: "dsh-whale:assistant", Title: "鲸鱼娘"},
+		}},
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		View(c, Model{
+			Snapshot:           whaleSnap,
+			List:               list,
+			ThemeID:            "deepseek",
+			SystemDark:         true,
+			SuppressStatus:     true,
+			FullColumnViewport: true,
+			ContentWidth:       720,
+		})
+	}, 800, 500)
+	if !tt.HasText("鲸鱼娘") {
+		t.Fatalf("empty Whale conversation rendered blank canvas instead of welcome title: %v", tt.Texts())
+	}
+
+	// Ordinary empty FullColumnViewport session still defers to Hero (no Whale welcome).
+	ordinarySnap := session.ViewState{
+		SelectedID:   "session-regular-1",
+		HistoryReady: true,
+	}
+	list2 := &ui.ListState{}
+	tt2 := ui.NewTester(func(c *ui.Context) {
+		View(c, Model{
+			Snapshot:           ordinarySnap,
+			List:               list2,
+			ThemeID:            "deepseek",
+			SystemDark:         true,
+			SuppressStatus:     true,
+			FullColumnViewport: true,
+			ContentWidth:       720,
+		})
+	}, 800, 500)
+	if tt2.HasText("鲸鱼娘") || tt2.HasText("Whale Assistant") {
+		t.Fatalf("ordinary empty session leaked Whale welcome view: %v", tt2.Texts())
+	}
+}

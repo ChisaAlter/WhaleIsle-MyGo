@@ -155,9 +155,7 @@ func workspaceSharedCaptionPtr(c *ui.Context, m *Model, snap session.ViewState, 
 			observeConversationTabInput(trailing, "trailing", m.ChatPaneTab)
 			globalPage := m.WorkspacePage || (m.ActivePanel != "" && m.ActivePanel != "conversation")
 			trailing.Children(func() {
-				chrome.WithGlobalPageTrailing(globalPage, func() {
-					m.WorkspaceTrailing(c, density)
-				})
+				m.WorkspaceTrailing(c, density, globalPage)
 			})
 		}
 		// The reference's corner order is terminal, right panel, minimize,

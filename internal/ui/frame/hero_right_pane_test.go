@@ -304,10 +304,11 @@ func TestWorkspaceCaptionHairlineFollowsContextDarkAndGlobalPageHidesInitGit(t *
 					ThemeID:       theme.IDDeepseekLight,
 					WorkspacePage: tc.workspacePage,
 					ActivePanel:   tc.activePanel,
-					WorkspaceTrailing: func(c *ui.Context, density string) {
+					WorkspaceTrailing: func(c *ui.Context, density string, globalPage bool) {
 						chrome.WorkspaceTrailing(c, chrome.WorkspaceTrailingModel{
 							Status:        &git.RepositoryStatus{IsRepo: false},
 							GitLoaded:     true,
+							GlobalPage:    globalPage,
 							WorkspaceRoot: "fixture",
 							Density:       density,
 							OnGitAction:   func(string) {},

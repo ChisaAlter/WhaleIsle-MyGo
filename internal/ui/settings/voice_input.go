@@ -11,13 +11,18 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+const voiceMeterPollInterval = 33 * time.Millisecond
+
 // VoiceInputDeviceView is the microphone row in the existing voice plugin
 // settings. The application owns SetActive while that page/window is visible.
 func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 	if microphone == nil {
 		return
 	}
-	state := microphone.Snapshot()
+	voiceInputDeviceStateView(c, microphone.Snapshot(), microphone.Select, microphone.Refresh, nil)
+}
+
+func voiceInputDeviceStateView(c *ui.Context, state voiceinput.MicrophoneState, onSelect func(voicecapture.Device), onRefresh func(), schedule func(time.Duration)) {
 	text := func(zh, en string) string {
 		if i18n.Locale() == "en" {
 			return en
@@ -63,16 +68,16 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 					Disabled: state.Loading,
 				}).FillWidth().Changed()
 			})
-			if changed {
+			if changed && onSelect != nil {
 				for _, device := range choices {
 					if device.ID == choice.Value {
-						microphone.Select(device)
+						onSelect(device)
 						break
 					}
 				}
 			}
-			if kButtonDisabled(c, text("刷新", "Refresh"), state.Loading).Clicked() {
-				microphone.Refresh()
+			if kButtonDisabled(c, text("刷新", "Refresh"), state.Loading).Clicked() && onRefresh != nil {
+				onRefresh()
 			}
 		})
 		if state.Active && !state.Missing && !state.Loading && state.Error == "" {
@@ -86,7 +91,11 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 					ui.Box(c).Width(8).Height(12).Radius(2).Background(color)
 				}
 			})
-			c.After(33 * time.Millisecond)
+			if schedule != nil {
+				schedule(voiceMeterPollInterval)
+			} else {
+				c.After(voiceMeterPollInterval)
+			}
 		}
 		settingsAlert(c, "voice_input:89", state.Error != "", providerCopy("没能保存语音输入设置，请重试。", "The voice input setting was not saved. Try again."), state.Error)
 	})

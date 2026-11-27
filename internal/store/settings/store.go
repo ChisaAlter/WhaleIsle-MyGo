@@ -5,15 +5,29 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
 	"sync"
+	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/state"
 )
+
+const defaultSettingsRPCTimeout = 45 * time.Second
+
+func withDefaultRPCTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, defaultSettingsRPCTimeout)
+}
 
 // Namespace is one settings form from describe.
 type Namespace struct {
@@ -431,6 +445,12 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 	s.refreshDescribe(ctx, false)
 }
 
+// RefreshDescribeBackground refreshes settings/describe without revoking an
+// already-accepted Host description if the refresh encounters a transient error.
+func (s *Store) RefreshDescribeBackground(ctx context.Context) {
+	s.refreshDescribe(ctx, true)
+}
+
 func (s *Store) refreshDescribe(ctx context.Context, background bool) {
 	s.mu.Lock()
 	client := s.client
@@ -453,11 +473,13 @@ func (s *Store) refreshDescribe(ctx context.Context, background bool) {
 	s.fire()
 
 	go func() {
+		callCtx, cancel := withDefaultRPCTimeout(ctx)
+		defer cancel()
 		var out api.SettingsDescribeValue
-		err := client.Call(ctx, "settings/describe", nil, &out)
+		err := client.Call(callCtx, "settings/describe", nil, &out)
 		defaults := PermissionDefaults{}
 		if err == nil {
-			defaults = loadPermissionDefaults(ctx, client, out)
+			defaults = loadPermissionDefaults(callCtx, client, out)
 		}
 
 		s.mu.Lock()
@@ -467,7 +489,8 @@ func (s *Store) refreshDescribe(ctx context.Context, background bool) {
 		}
 		s.loading = false
 		if err != nil {
-			if !background || s.describedClient != client {
+			sameHost := s.describedClient == client
+			if !(sameHost && (background || errors.Is(err, context.Canceled))) {
 				s.describedClient = nil
 				s.err = err
 			}

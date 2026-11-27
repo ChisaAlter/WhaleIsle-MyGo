@@ -86,7 +86,7 @@ func TestDesktopNarrowHeaderKeepsTrailingCluster(t *testing.T) {
 		tt := ui.NewTester(func(c *ui.Context) {
 			sizes.observeSidebarViewport(float32(tc.width))
 			m := Model{Store: session.New(), Sizes: &sizes}
-			m.WorkspaceTrailing = func(c *ui.Context, density string) {
+			m.WorkspaceTrailing = func(c *ui.Context, density string, _ bool) {
 				called = true
 				ui.Box(c).Size(120, 32)
 			}

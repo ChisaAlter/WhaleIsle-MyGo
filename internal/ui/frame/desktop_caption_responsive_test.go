@@ -25,7 +25,7 @@ func TestDesktopCaptionDensityInstalledBoundaries(t *testing.T) {
 			got := ""
 			ui.NewTester(func(c *ui.Context) {
 				m := Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: tc.details > 0, FilePaneWidth: &tc.details}
-				m.WorkspaceTrailing = func(c *ui.Context, density string) { got = density; ui.Box(c).Size(68, 32) }
+				m.WorkspaceTrailing = func(c *ui.Context, density string, _ bool) { got = density; ui.Box(c).Size(68, 32) }
 				workspaceSharedCaption(c, m, session.ViewState{}, theme.Resolve("deepseek.light").Light, false)
 			}, 1200, 200)
 			if got != tc.want {
@@ -49,7 +49,7 @@ func TestDesktopNarrowCaptionPanelAndTerminalRemainClickable(t *testing.T) {
 			open, terminalClicks, panelClicks := false, 0, 0
 			tt := ui.NewTester(func(c *ui.Context) {
 				m := Model{Store: store, Sizes: &sizes, RightPaneOpen: open, HideChatViewTabs: true}
-				m.WorkspaceTrailing = func(c *ui.Context, density string) {
+				m.WorkspaceTrailing = func(c *ui.Context, density string, _ bool) {
 					chrome.WorkspaceTrailing(c, chrome.WorkspaceTrailingModel{Density: density, HideGit: true, ShowTerminal: true, TerminalAvailable: true, ShowSurfaces: true,
 						OnToggleTerminal: func() {
 							terminalClicks++

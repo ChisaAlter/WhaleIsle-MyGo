@@ -35,7 +35,7 @@ func TestSharedCaptionIsOneRowAcrossEveryRoute(t *testing.T) {
 				cols := sizes.ResolveColumns(1200, true)
 				right = cols.Details
 				m := Model{Store: store, Sizes: &sizes, RightPaneOpen: true, FilePaneWidth: &right, HideChatViewTabs: tc.hideTabs, WorkspacePage: tc.global}
-				m.WorkspaceTrailing = func(c *ui.Context, d string) {
+				m.WorkspaceTrailing = func(c *ui.Context, d string, _ bool) {
 					density = d
 					ui.Box(c).Size(120, 32).Draw(func(_ *ui.Painter, r ui.Rect) { trailing = r })
 				}
@@ -139,7 +139,7 @@ func TestPadReservesBodyWithoutMovingCaptionOrChangingSidebarBreakpoint(t *testi
 		cols := sizes.resolveColumnsWithReserve(1200, reserve, true)
 		right = cols.Details
 		m := Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: true, FilePaneWidth: &right, RightOverlayReserve: reserve}
-		m.WorkspaceTrailing = func(c *ui.Context, _ string) {
+		m.WorkspaceTrailing = func(c *ui.Context, _ string, _ bool) {
 			ui.Box(c).Size(120, 32).Draw(func(_ *ui.Painter, r ui.Rect) { trailing = r })
 		}
 		sidebarColumns(c, &sizes, func() { ui.Box(c).Fill() }, func() {
@@ -179,7 +179,7 @@ func TestCaptionReflowsAfterAsyncToolArrivalAndRemoval(t *testing.T) {
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
 		m := Model{Store: store, Sizes: &sizes, HideChatViewTabs: true}
-		m.WorkspaceTrailing = func(c *ui.Context, _ string) { ui.Box(c).Size(width, 32) }
+		m.WorkspaceTrailing = func(c *ui.Context, _ string, _ bool) { ui.Box(c).Size(width, 32) }
 		workspaceSharedCaption(c, m, snap, theme.Resolve("deepseek.light").Light, false)
 	}, 600, 300)
 	before, ok := tt.Find("Conversation session title")

@@ -131,7 +131,7 @@ func TestWorkspaceCaptionActionsKeepCurrentPageAndDock(t *testing.T) {
 						if model.WorkspaceTrailing == nil {
 							t.Fatal("main binder omitted the caption producer")
 						}
-						tt := ui.NewTester(func(c *ui.Context) { model.WorkspaceTrailing(c, "compact") }, 900, 750)
+						tt := ui.NewTester(func(c *ui.Context) { model.WorkspaceTrailing(c, "compact", global) }, 900, 750)
 						assertUnexecuted := func() {
 							t.Helper()
 							if workbench.Operation != nil || workbench.Progress != nil || workbench.Commit != nil && (workbench.Commit.Task != nil || workbench.Commit.Plan != nil || workbench.Commit.StackPlan != nil) || workbench.Remote != nil && (workbench.Remote.Task != nil || workbench.Remote.Generation != nil || workbench.Remote.Plan != nil) || workbench.PublishReview {

@@ -21,6 +21,7 @@ type WorkspaceTrailingModel struct {
 	Status                                        *git.RepositoryStatus
 	WorkspaceRoot, Density                        string
 	GitLoaded, GitBusy, ManagedSession, HideGit   bool
+	GlobalPage                                    bool
 	ChangeRequestOpen                             bool
 	ChangeRequestShort                            string
 	OnGitAction                                   func(action string)
@@ -84,18 +85,6 @@ func captionPanelToggle(c *ui.Context, icon, label, unavailable, chord string, p
 	}
 }
 
-var suppressNonRepoGitInit bool
-
-// WithGlobalPageTrailing runs fn while marking the titlebar trailing row as a
-// non-conversation global page (plugins / schedule / assistant), hiding the
-// unrelated "Initialize Git" button on non-repository directories.
-func WithGlobalPageTrailing(active bool, fn func()) {
-	prev := suppressNonRepoGitInit
-	suppressNonRepoGitInit = active
-	defer func() { suppressNonRepoGitInit = prev }()
-	fn()
-}
-
 func captionGitHoverBg(c *ui.Context) ui.Color {
 	if c.Theme().Dark {
 		return design.TW.White.Alpha(0.08)
@@ -105,7 +94,7 @@ func captionGitHoverBg(c *ui.Context) ui.Color {
 
 func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 	if !m.Status.IsRepo {
-		if suppressNonRepoGitInit {
+		if m.GlobalPage {
 			return
 		}
 		a := captionGitAction{id: "init", label: captionWord("初始化 Git", "Initialize Git"), icon: "branch", disabled: m.GitBusy}

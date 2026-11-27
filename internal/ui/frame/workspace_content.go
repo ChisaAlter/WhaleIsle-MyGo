@@ -395,12 +395,12 @@ func (w *WorkspacePanes) beginFileProjectionPtr(m *Model) {
 
 	if trailing := m.WorkspaceTrailing; trailing != nil {
 		captured := *m
-		m.WorkspaceTrailing = func(c *ui.Context, density string) {
+		m.WorkspaceTrailing = func(c *ui.Context, density string, globalPage bool) {
 			owner := w.Root.find(w.legacyDiffID)
 			if owner == nil {
 				owner = w.Root.find(w.legacyFileID)
 			}
-			trailing(c, density)
+			trailing(c, density, globalPage)
 			// The caption's callbacks retain the main Workbench adapter. Collect
 			// their changes before a pane renders or the end-of-frame projection
 			// would replace a newly opened review with the pane's earlier copy.

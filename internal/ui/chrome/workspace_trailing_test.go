@@ -157,19 +157,18 @@ func TestWorkspaceNonrepoInitDoesNotRequireBranchBadge(t *testing.T) {
 	}
 }
 
-func TestWithGlobalPageTrailingHidesInitGitOnly(t *testing.T) {
+func TestWorkspaceTrailingGlobalPageHidesInitGitOnly(t *testing.T) {
 	i18n.SetLocale("en")
 	defer i18n.SetLocale(i18n.DefaultLocale)
 
 	// Non-repo directory on a global page must not show "Initialize Git".
 	ttGlobal := ui.NewTester(func(c *ui.Context) {
-		WithGlobalPageTrailing(true, func() {
-			WorkspaceTrailing(c, WorkspaceTrailingModel{
-				Status:        &git.RepositoryStatus{IsRepo: false},
-				GitLoaded:     true,
-				WorkspaceRoot: "fixture",
-				OnGitAction:   func(string) {},
-			})
+		WorkspaceTrailing(c, WorkspaceTrailingModel{
+			Status:        &git.RepositoryStatus{IsRepo: false},
+			GitLoaded:     true,
+			GlobalPage:    true,
+			WorkspaceRoot: "fixture",
+			OnGitAction:   func(string) {},
 		})
 	}, 500, 100)
 	if ttGlobal.HasText("Initialize Git") {
@@ -178,13 +177,12 @@ func TestWithGlobalPageTrailingHidesInitGitOnly(t *testing.T) {
 
 	// An actual Git repository on a global page keeps its repo controls.
 	ttRepo := ui.NewTester(func(c *ui.Context) {
-		WithGlobalPageTrailing(true, func() {
-			WorkspaceTrailing(c, WorkspaceTrailingModel{
-				Status:        &git.RepositoryStatus{IsRepo: true, Branch: "main", Dirty: true},
-				GitLoaded:     true,
-				WorkspaceRoot: "fixture",
-				OnGitAction:   func(string) {},
-			})
+		WorkspaceTrailing(c, WorkspaceTrailingModel{
+			Status:        &git.RepositoryStatus{IsRepo: true, Branch: "main", Dirty: true},
+			GitLoaded:     true,
+			GlobalPage:    true,
+			WorkspaceRoot: "fixture",
+			OnGitAction:   func(string) {},
 		})
 	}, 500, 100)
 	if !ttRepo.HasText("Commit") {

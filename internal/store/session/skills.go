@@ -2,10 +2,17 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
+
+func isSessionNotFoundError(err error) bool {
+	var remote *dsh.Error
+	return errors.As(err, &remote) && remote.Code == "session/not-found"
+}
 
 // SkillOption is one row in the composer skills picker.
 type SkillOption struct {
@@ -125,6 +132,24 @@ func (s *Store) refreshSkillsForOwner(ctx context.Context, expected *workspaceSe
 			if invErr := client.Call(ctx, "skillInventory/list", map[string]any{"request": scope}, &inv); invErr == nil {
 				opts = flattenSkillInventory(inv)
 				err = nil
+			} else if sessionID != "" || cwd != "" {
+				// Mirror skill_groups.go: when a session is not yet attached (such as
+				// selecting the sidebar Whale assistant before FollowSelected attaches
+				// it), fall back to the global skill inventory instead of surfacing a
+				// transient session/not-found error.
+				s.mu.Lock()
+				valid := (expected == nil || expected.currentLocked(s)) && s.skillOptionsScopeCurrentLocked(owner) && ctx.Err() == nil
+				s.mu.Unlock()
+				if !valid {
+					return
+				}
+				var globalInv api.SkillInventorySnapshot
+				if globalErr := client.Call(ctx, "skillInventory/list", map[string]any{"request": api.SkillInventoryScope{}}, &globalInv); globalErr == nil {
+					opts = flattenSkillInventory(globalInv)
+					err = nil
+				} else if err == nil {
+					err = globalErr
+				}
 			} else if err == nil {
 				err = invErr
 			}
@@ -135,6 +160,10 @@ func (s *Store) refreshSkillsForOwner(ctx context.Context, expected *workspaceSe
 			return
 		}
 		if err != nil {
+			if isSessionNotFoundError(err) {
+				s.mu.Unlock()
+				return
+			}
 			s.setSkillsErrLocked(err)
 			s.mu.Unlock()
 			s.fire()

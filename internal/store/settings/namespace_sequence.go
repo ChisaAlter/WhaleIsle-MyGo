@@ -94,12 +94,14 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 	s.unlockPublish()
 	s.fire()
 	go func() {
+		callCtx, cancel := withDefaultRPCTimeout(ctx)
+		defer cancel()
 		keySaved := literal == ""
 		saveKey := func() error {
 			if keySaved {
 				return nil
 			}
-			if err := credential.saveLiteral(ctx, ref, literal); err != nil {
+			if err := credential.saveLiteral(callCtx, ref, literal); err != nil {
 				return err
 			}
 			keySaved = true
@@ -141,10 +143,10 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 				args["ops"] = w.ops
 				enables = visualReplyMutationEnables(w.ops)
 			}
-			err := s.verifyVisualReplyEnable(ctx, w.ns.NS, enables, b.client.Endpoint.Origin, b.generation)
+			err := s.verifyVisualReplyEnable(callCtx, w.ns.NS, enables, b.client.Endpoint.Origin, b.generation)
 			var out api.SettingsNamespaceView
 			if err == nil {
-				err = b.client.Call(ctx, method, args, &out)
+				err = b.client.Call(callCtx, method, args, &out)
 			}
 			s.mu.Lock()
 			if s.client != b.client || s.generation != b.generation {
@@ -161,7 +163,7 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 				s.saving, s.err, s.lastAction = false, err, err.Error()
 				s.unlockPublish()
 				s.fire()
-				s.RefreshDescribe(ctx)
+				s.RefreshDescribe(context.WithoutCancel(callCtx))
 				return
 			}
 			current.Revision = out.Revision
