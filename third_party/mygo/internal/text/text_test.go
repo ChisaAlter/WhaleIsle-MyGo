@@ -767,3 +767,13 @@ func TestColorAtlasInitialWarmup(t *testing.T) {
 	}
 	s.EndFrame()
 }
+
+func TestWindowsGrayscaleContrastCapped(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows DirectWrite grayscale contrast cap test")
+	}
+	p := Shared().TextParams()
+	if p.Contrast > 0.5 {
+		t.Fatalf("DirectWrite grayscale enhanced contrast = %v, want <= 0.5", p.Contrast)
+	}
+}

@@ -114,7 +114,7 @@ func (p *Painter) visible(r Rect, margin float32) bool {
 }
 
 func (p *Painter) element(e *node) {
-	if e.fade[0] > 0 || e.fade[1] > 0 {
+	if e.fade[0] > 0 || e.fade[1] > 0 || e.fadeInset[0] > 0 || e.fadeInset[1] > 0 {
 		p.fadedElement(e)
 		return
 	}
@@ -304,12 +304,23 @@ func (e *node) clipRect() (Rect, [4]float32) {
 	return r, rad
 }
 
+// linePixels converts a positive border or divider width in DIPs to whole
+// device pixels: hairline widths up to 1 DIP floor to whole pixels (at least
+// 1px), matching Blink so 1 DIP stays 1px at 100%–175% DPI and steps to 2px at
+// 200%; thicker widths round to the nearest whole pixel.
+func linePixels(v, scale float32) float32 {
+	if v <= 1 {
+		return max(float32(math.Floor(float64(v*scale))), 1)
+	}
+	return max(round(v*scale), 1)
+}
+
 // borders returns border widths in device pixels, whole ones at least one
 // wide where they are not zero.
 func (p *Painter) borders(w [4]float32) [4]float32 {
 	for i, v := range w {
 		if v > 0 {
-			w[i] = max(round(v*p.scale), 1)
+			w[i] = linePixels(v, p.scale)
 		}
 	}
 	return w
@@ -467,7 +478,7 @@ func (p *Painter) dividers(e *node) {
 // across: vertical in a row, horizontal in a column, whole pixels thick.
 func (p *Painter) divider(row bool, at, lo, hi, width float32, c Color) {
 	s := p.scale
-	t := max(round(width*s), 1)
+	t := linePixels(width, s)
 	a := round(at*s - t/2)
 	r := scene.Rect{X: round(lo * s), Y: a, W: round(hi*s) - round(lo*s), H: t}
 	box := Rect{lo, a / s, hi - lo, t / s}

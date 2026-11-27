@@ -1013,7 +1013,7 @@ func (r *renderer) glyphs(op *scene.Op) {
 		if g.Thin {
 			boost = scene.ThinBoost
 		}
-		correct := contrast != 0 || boost != 0 || text.GammaRatios != [4]float32{}
+		correct := !g.RawMask && (contrast != 0 || boost != 0 || text.GammaRatios != [4]float32{})
 		if !g.Colored && !g.Subpixel && pt == nil && !correct && g.Color.A == 255 {
 			r.maskOpaque(atlas, g, gx, gy, image.Rect(x0, y0, x1, y1))
 			continue

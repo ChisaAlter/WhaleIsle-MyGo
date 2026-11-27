@@ -205,6 +205,10 @@ type Glyph struct {
 	// take half more contrast whatever their color (see TextCoverage), as
 	// Direct2D gives them.
 	Thin bool
+	// RawMask marks non-text coverage masks (SVG icons, vector paths) stored
+	// in Scene.MaskAtlas: renderers blend their coverage linearly (cov *
+	// color.a) without DirectWrite text contrast or gamma correction.
+	RawMask bool
 }
 
 // TextParams corrects the coverage of mask and subpixel glyphs for the

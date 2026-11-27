@@ -154,3 +154,32 @@ func TestSourceSum(t *testing.T) {
 		t.Error("the sum does not tell sources apart")
 	}
 }
+
+func TestBuildRawMask(t *testing.T) {
+	atlas := scene.NewAtlas(1, 32, 32)
+	s := &scene.Scene{
+		Width:     64,
+		Height:    32,
+		MaskAtlas: atlas,
+		Text:      scene.TextParams{GammaRatios: scene.GammaRatios(1.8), Contrast: 1, SubpixelContrast: 0.5},
+		Glyphs: []scene.Glyph{
+			{X: 2, Y: 2, W: 8, H: 8, U: 0, V: 0, UW: 8, VH: 8, Color: scene.Color{R: 104, G: 104, B: 104, A: 255}, Thin: true},
+			{X: 16, Y: 2, W: 8, H: 8, U: 0, V: 0, UW: 8, VH: 8, Color: scene.Color{R: 104, G: 104, B: 104, A: 255}, Thin: true, RawMask: true},
+		},
+		Ops: []scene.Op{
+			{Kind: scene.OpGlyphs, Start: 0, End: 2},
+		},
+	}
+	var b Builder
+	b.Build(s, nil)
+	if len(b.Instances) != 2 {
+		t.Fatalf("got %d instances, want 2", len(b.Instances))
+	}
+	textInst, rawInst := b.Instances[0], b.Instances[1]
+	if textInst.Params[0] != 2 || textInst.Params[1] != 0 || textInst.Inner[0] != 1 || textInst.Inner[1] != scene.ThinBoost || textInst.Radii != s.Text.GammaRatios {
+		t.Fatalf("text glyph instance unexpected: %+v", textInst)
+	}
+	if rawInst.Params[0] != 2 || rawInst.Params[1] != 1 || rawInst.Inner != [4]float32{} || rawInst.Radii != [4]float32{} {
+		t.Fatalf("raw mask instance must bypass textCoverage: %+v", rawInst)
+	}
+}

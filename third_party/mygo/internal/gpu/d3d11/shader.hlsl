@@ -304,7 +304,11 @@ PSOut ps(VSOut i) {
 		res = premul(i.color) * s;
 	} else if (kind < 2.5) {
 		float4 c = paint(i.p, i.params.z, i.rect, i.color, i.color2, i.grad);
-		res = c * textCoverage(maskTex.Sample(samp, i.tex).r, unpremul(c), i.inner.x, i.inner.y, i.radii);
+		float cov = maskTex.Sample(samp, i.tex).r;
+		if (i.params.y < 0.5) {
+			cov = textCoverage(cov, unpremul(c), i.inner.x, i.inner.y, i.radii);
+		}
+		res = c * cov;
 	} else if (kind < 3.5) {
 		res = colorTex.Sample(samp, i.tex) * i.color.a;
 	} else if (kind < 4.5) {

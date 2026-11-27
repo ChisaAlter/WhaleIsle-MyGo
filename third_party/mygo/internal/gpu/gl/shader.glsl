@@ -322,7 +322,11 @@ void main() {
 		res = premul(vColor) * s;
 	} else if (kind < 2.5) {
 		vec4 c = paint(p, vParams.z, vRect, vColor, vColor2, vGrad);
-		res = c * textCoverage(texture(uMask, tex).r, unpremul(c), vInner.x, vInner.y, vRadii);
+		float cov = texture(uMask, tex).r;
+		if (vParams.y < 0.5) {
+			cov = textCoverage(cov, unpremul(c), vInner.x, vInner.y, vRadii);
+		}
+		res = c * cov;
 	} else if (kind < 3.5) {
 		res = texture(uColor, tex) * vColor.a;
 	} else if (kind < 4.5) {

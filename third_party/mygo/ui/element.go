@@ -259,6 +259,8 @@ type node struct {
 	opacity      float32
 	opacitySet   bool
 	fade         [2]float32 // left and right alpha fades, in DIPs
+	fadeInset    [2]float32 // left and right paint-only clip insets, in DIPs
+	fadeOverflow bool       // only fade text when layout reaches inset right edge
 	cursor       Cursor
 	paintFn      func(p *Painter, r Rect)
 	styleFn      func(e *node)

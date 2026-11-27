@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/internal/raster"
+	"github.com/egoist/mygo/internal/scene"
 )
 
 // countBlue counts the pixels of img that are mostly blue.
@@ -170,4 +171,90 @@ func TestOpaqueUnderElements(t *testing.T) {
 	tt.Frame()
 	tt.Scroll(250, 50, 0, 10)
 	frame("a row the list clips", map[string]bool{"row": true})
+}
+
+// TestOneDIPBordersAndDividersPhysicalPixels verifies Blink-aligned floor
+// rounding for hairline widths (<= 1 DIP): 1 DIP borders and dividers render
+// at 1 physical pixel across 1.0x/1.25x/1.5x/1.75x and step to 2px at 2.0x,
+// while widths > 1 DIP continue rounding to the nearest pixel.
+func TestOneDIPBordersAndDividersPhysicalPixels(t *testing.T) {
+	red := RGB(220, 20, 20)
+	blue := RGB(20, 40, 220)
+	green := RGB(20, 180, 40)
+	cases := []struct {
+		scale   float32
+		want1px float32
+		want2px float32
+	}{
+		{1.0, 1, 2},
+		{1.25, 1, 3},
+		{1.5, 1, 3},
+		{1.75, 1, 4},
+		{2.0, 2, 4},
+	}
+	for _, tc := range cases {
+		tt := coreNewTester(func(c *context) {
+			coreColumn(c).Fill().Background(RGB(255, 255, 255)).Gap(8).Padding(8).Children(func() {
+				coreBox(c).Size(60, 24).Border(1, red).Label("b1")
+				coreBox(c).Size(60, 24).Border(2, blue).Label("b2")
+				coreColumn(c).Width(60).Gap(10).Dividers(1, green).Children(func() {
+					coreBox(c).Height(10)
+					coreBox(c).Height(10)
+				})
+				coreRow(c).Height(20).Gap(10).Dividers(1, green).Children(func() {
+					coreBox(c).Width(20)
+					coreBox(c).Width(20)
+				})
+			})
+		}, 120, 160)
+		tt.SetScale(tc.scale)
+		tt.Frame()
+
+		var gotB1, gotB2 [4]float32
+		var hDivH, vDivW float32
+		for _, op := range tt.rt.scene.Ops {
+			if op.Kind != scene.OpFill {
+				continue
+			}
+			switch {
+			case op.BorderColor == red.scene() && scene.HasBorder(op.Border):
+				gotB1 = op.Border
+			case op.BorderColor == blue.scene() && scene.HasBorder(op.Border):
+				gotB2 = op.Border
+			case op.Color == green.scene():
+				if op.Rect.W > op.Rect.H {
+					hDivH = op.Rect.H
+				} else {
+					vDivW = op.Rect.W
+				}
+			}
+		}
+		want1 := [4]float32{tc.want1px, tc.want1px, tc.want1px, tc.want1px}
+		want2 := [4]float32{tc.want2px, tc.want2px, tc.want2px, tc.want2px}
+		if gotB1 != want1 {
+			t.Errorf("scale %.2f: 1 DIP border = %v, want %v", tc.scale, gotB1, want1)
+		}
+		if gotB2 != want2 {
+			t.Errorf("scale %.2f: 2 DIP border = %v, want %v", tc.scale, gotB2, want2)
+		}
+		if hDivH != tc.want1px || vDivW != tc.want1px {
+			t.Errorf("scale %.2f: 1 DIP dividers h=%v w=%v, want %v", tc.scale, hDivH, vDivW, tc.want1px)
+		}
+
+		// Verify rendered physical pixel thickness of the 1 DIP top border.
+		img := tt.Image()
+		b1, _ := tt.Find("b1")
+		cx := int(round((b1.X + b1.W/2) * tc.scale))
+		y0 := int(round(b1.Y * tc.scale))
+		redRows := 0
+		for y := y0; y < y0+6; y++ {
+			p := img.RGBAAt(cx, y)
+			if p.R > 180 && p.G < 80 {
+				redRows++
+			}
+		}
+		if redRows != int(tc.want1px) {
+			t.Errorf("scale %.2f: rendered 1 DIP top border is %d px thick, want %d px", tc.scale, redRows, int(tc.want1px))
+		}
+	}
 }

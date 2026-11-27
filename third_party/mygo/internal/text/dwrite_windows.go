@@ -1042,6 +1042,9 @@ func (e *dwrite) settings() {
 		gray = method[func(uintptr) float32](p1, params1GetGrayscaleEnhancedContrast)(p1)
 		release(p1)
 	}
+	// DirectWrite's default grayscale contrast (1.0) doubles ClearType's (0.5)
+	// and thickens text on translucent/glass surfaces; cap it to match ClearType.
+	gray = min(gray, 0.5)
 	e.clearLevel = method[func(uintptr) float32](e.params, paramsGetClearTypeLevel)(e.params)
 	geometry := call(e.params, paramsGetPixelGeometry)
 	e.text = scene.TextParams{GammaRatios: scene.GammaRatios(gamma), Contrast: gray, SubpixelContrast: contrast}
