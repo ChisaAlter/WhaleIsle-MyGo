@@ -434,13 +434,14 @@ func TestBodyPreferenceFieldErrorIsolatedFromGlobalErrAndClearedOnLeave(t *testi
 }
 
 func TestRefreshDescribeErrorOnAlreadyDescribedHostPreservesWritability(t *testing.T) {
-	failDescribe := false
-	mutateCalls := 0
+	var failDescribe atomic.Bool
+	var mutateCalls atomic.Int32
+	describeFailed := make(chan struct{}, 2)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		if strings.HasSuffix(r.URL.Path, "/settings/mutate") {
-			mutateCalls++
+			mutateCalls.Add(1)
 			rpcOK(w, body["rpcId"], map[string]any{
 				"ns": "ui-chat", "revision": 2,
 				"value": map[string]any{"flag": true},
@@ -448,11 +449,15 @@ func TestRefreshDescribeErrorOnAlreadyDescribedHostPreservesWritability(t *testi
 			})
 			return
 		}
-		if failDescribe {
+		if failDescribe.Load() {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"type": "server-response", "rpcId": body["rpcId"],
 				"result": map[string]any{"ok": false, "error": map[string]any{"code": "unavailable", "message": "temporary outage"}},
 			})
+			select {
+			case describeFailed <- struct{}{}:
+			default:
+			}
 			return
 		}
 		rpcOK(w, body["rpcId"], map[string]any{
@@ -467,18 +472,24 @@ func TestRefreshDescribeErrorOnAlreadyDescribedHostPreservesWritability(t *testi
 	defer srv.Close()
 
 	st := New()
+	notified := make(chan struct{}, 16)
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
-	st.Attach(client, nil)
-	st.RefreshDescribe(context.Background())
-
-	waitLoadingDone := func() {
+	st.Attach(client, func() {
+		notified <- struct{}{}
+	})
+	waitFires := func(n int) {
 		t.Helper()
-		deadline := time.Now().Add(3 * time.Second)
-		for st.Snapshot().Value.Loading && time.Now().Before(deadline) {
-			time.Sleep(time.Millisecond)
+		for i := 0; i < n; i++ {
+			select {
+			case <-notified:
+			case <-time.After(3 * time.Second):
+				t.Fatalf("timed out waiting for store notify %d/%d", i+1, n)
+			}
 		}
 	}
-	waitLoadingDone()
+
+	st.RefreshDescribe(context.Background())
+	waitFires(2)
 	if snap := st.Snapshot().Value; !snap.Described || !snap.Writable {
 		t.Fatalf("expected initial describe to succeed: %+v", snap)
 	}
@@ -487,26 +498,31 @@ func TestRefreshDescribeErrorOnAlreadyDescribedHostPreservesWritability(t *testi
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
 	st.RefreshDescribe(canceled)
-	waitLoadingDone()
+	waitFires(2)
 	if snap := st.Snapshot().Value; !snap.Described || snap.Err != "" {
 		t.Fatalf("canceled RefreshDescribe poisoned already-described store: described=%v err=%q", snap.Described, snap.Err)
 	}
 
 	// 2) A transient RPC error during background refresh on an already-described
 	// Host keeps Described=true so global Err stays clean and Host writes stay alive.
-	failDescribe = true
+	failDescribe.Store(true)
 	st.RefreshDescribeBackground(context.Background())
-	waitLoadingDone()
+	select {
+	case <-describeFailed:
+	case <-time.After(3 * time.Second):
+		t.Fatal("background describe RPC did not execute")
+	}
+	waitFires(2)
 	if snap := st.Snapshot().Value; !snap.Described || snap.Err != "" {
 		t.Fatalf("background describe failure poisoned already-described store: described=%v err=%q", snap.Described, snap.Err)
 	}
 
 	st.PatchDescribedField(context.Background(), "ui-chat", "flag", "true")
 	deadline := time.Now().Add(3 * time.Second)
-	for (mutateCalls == 0 || len(st.Snapshot().Value.PreferencePending) > 0) && time.Now().Before(deadline) {
+	for (mutateCalls.Load() == 0 || len(st.Snapshot().Value.PreferencePending) > 0) && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if snap := st.Snapshot().Value; mutateCalls != 1 || snap.Err != "" || len(snap.PreferenceErrors) != 0 {
-		t.Fatalf("Host preference write broke after transient describe failure: calls=%d err=%q prefErrs=%v", mutateCalls, snap.Err, snap.PreferenceErrors)
+	if snap := st.Snapshot().Value; mutateCalls.Load() != 1 || snap.Err != "" || len(snap.PreferenceErrors) != 0 {
+		t.Fatalf("Host preference write broke after transient describe failure: calls=%d err=%q prefErrs=%v", mutateCalls.Load(), snap.Err, snap.PreferenceErrors)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 
@@ -195,8 +196,8 @@ func TestSkillRemovalReloadsComposerWinner(t *testing.T) {
 
 func TestRefreshSkillsFallsBackToGlobalInventoryWhenSessionNotAttached(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		scopedInvCalls := 0
-		globalInvCalls := 0
+		var scopedInvCalls atomic.Int32
+		var globalInvCalls atomic.Int32
 		s, _ := skillOwnerFixture(func(r *http.Request) (*http.Response, error) {
 			switch {
 			case strings.HasSuffix(r.URL.Path, "/skills/list"):
@@ -218,10 +219,10 @@ func TestRefreshSkillsFallsBackToGlobalInventoryWhenSessionNotAttached(t *testin
 				}
 				r.Body = io.NopCloser(strings.NewReader(string(raw)))
 				if body.Payload.Args.Request.SessionId != nil || body.Payload.Args.Request.Cwd != nil {
-					scopedInvCalls++
+					scopedInvCalls.Add(1)
 					return nil, &dsh.Error{Code: "session/not-found", Message: `session "session-whale-1" not found (not attached)`}
 				}
-				globalInvCalls++
+				globalInvCalls.Add(1)
 				return skillOwnerResponse(r, api.SkillInventorySnapshot{
 					Skills: []api.SkillInventorySnapshotSkillsItem{
 						{Name: "global-helper", Source: "user", UserInvocable: true, ModelInvocable: true},
@@ -236,8 +237,8 @@ func TestRefreshSkillsFallsBackToGlobalInventoryWhenSessionNotAttached(t *testin
 		synctest.Wait()
 
 		got := s.Snapshot()
-		if scopedInvCalls == 0 || globalInvCalls == 0 {
-			t.Fatalf("expected scoped -> global inventory fallback, got scoped=%d global=%d", scopedInvCalls, globalInvCalls)
+		if scopedInvCalls.Load() == 0 || globalInvCalls.Load() == 0 {
+			t.Fatalf("expected scoped -> global inventory fallback, got scoped=%d global=%d", scopedInvCalls.Load(), globalInvCalls.Load())
 		}
 		if got.SkillsErr != nil {
 			t.Fatalf("transient session/not-found leaked into SkillsErr: %+v", got.SkillsErr)
