@@ -174,11 +174,15 @@ const (
 	Vertical
 )
 
-// Separator is coss's Separator: a 1 DIP border-colored line.
+// Separator is coss's Separator: a 1 DIP layout slot drawing a pixel-aligned
+// hairline (1px at 100%-175% DPI, 2px at 200% DPI).
 func Separator(c *ui.Context, o Orientation) ui.Element {
-	t := tok(c)
-	e := ui.Box(c).Shrink(0).Background(t.Border)
-	if o == Vertical {
+	border := tok(c).Border
+	vertical := o == Vertical
+	e := ui.Box(c).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+		design.DrawHairline(p, r, vertical, border)
+	})
+	if vertical {
 		return e.Width(1).AlignSelf(ui.Stretch)
 	}
 	return e.Height(1).FillWidth()

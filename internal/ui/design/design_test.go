@@ -25,8 +25,12 @@ func TestAccentOverrideIsReadable(t *testing.T) {
 	} {
 		for _, s := range []Scheme{Light, Dark} {
 			tk := Resolve(s, accent, ui.Color{})
-			if tk.Primary != accent || tk.Ring != accent {
-				t.Fatalf("accent %v not applied: %v", accent, tk.Primary)
+			wantRing := accent.Alpha(0.36)
+			if s == Dark {
+				wantRing = accent.Alpha(0.42)
+			}
+			if tk.Primary != accent || tk.Ring != wantRing || tk.SidebarRing != wantRing {
+				t.Fatalf("scheme %d accent %v: primary=%v ring=%v sidebarRing=%v wantRing=%v", s, accent, tk.Primary, tk.Ring, tk.SidebarRing, wantRing)
 			}
 			if c := Contrast(tk.PrimaryForeground, tk.Primary); c < 4.5 {
 				t.Fatalf("accent %v foreground %v contrast %.2f", accent, tk.PrimaryForeground, c)

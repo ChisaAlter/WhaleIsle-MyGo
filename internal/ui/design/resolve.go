@@ -60,8 +60,13 @@ func Resolve(s Scheme, accent, onAccent ui.Color) Tokens {
 		if fg.A == 0 {
 			fg = ReadableOn(accent)
 		}
-		t.Primary, t.PrimaryForeground, t.Ring = accent, fg, accent
-		t.SidebarPrimary, t.SidebarPrimaryForeground, t.SidebarRing = accent, fg, accent
+		ringAlpha := float32(0.36)
+		if s == Dark {
+			ringAlpha = 0.42
+		}
+		ring := accent.Alpha(ringAlpha)
+		t.Primary, t.PrimaryForeground, t.Ring = accent, fg, ring
+		t.SidebarPrimary, t.SidebarPrimaryForeground, t.SidebarRing = accent, fg, ring
 	}
 	if g := glass.Load(); g != nil && g.enabled && g.filter != nil {
 		t.Glass = true

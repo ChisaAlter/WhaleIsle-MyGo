@@ -56,5 +56,8 @@ func DrawUpdateProgress(c *ui.Context, colors TitleBarColors, open bool, m Updat
 				ui.Text(c, m.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted).MaxLines(2)
 			}
 		})
-	ui.Box(c).FillWidth().Height(1).Shrink(0).Background(colors.Border)
+	border := colors.Border
+	ui.Box(c).FillWidth().Height(1).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+		design.DrawHairline(p, r, false, border)
+	})
 }

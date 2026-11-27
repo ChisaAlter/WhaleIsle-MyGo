@@ -26,9 +26,9 @@ func inspectorFont() string {
 	return "monospace"
 }
 
-var inspectorPickIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="4.5"/><path d="M8 0v5M8 11v5M0 8h5M11 8h5"/></svg>`))
-var inspectorFilterIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 3h12L9.5 8v5l-3-1.5V8L2 3Z"/></svg>`))
-var inspectorDownIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="m3 4.5 3 3 3-3"/></svg>`))
+var inspectorPickIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><circle cx="8" cy="8" r="4.5"/><path d="M8 0v5M8 11v5M0 8h5M11 8h5"/></svg>`))
+var inspectorFilterIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M2 3h12L9.5 8v5l-3-1.5V8L2 3Z"/></svg>`))
+var inspectorDownIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="0.75"><path d="m3 4.5 3 3 3-3"/></svg>`))
 
 func inspectorButton(c *ui.Context, label string) ui.Element {
 	return ui.ButtonBase(c).Label(label).BorderWidth(0).Radius(0).Padding(0).MinHeight(0).

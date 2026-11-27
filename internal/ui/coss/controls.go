@@ -394,7 +394,11 @@ func ToggleGroup(c *ui.Context, items []ToggleGroupItem, o ToggleGroupOptions) u
 	g.Children(func() {
 		for i, it := range items {
 			if i > 0 && o.Separators && o.Variant == ToggleOutline {
-				sep := ui.Box(c).Shrink(0).Background(t.Input)
+				sepCol := t.Input
+				verticalLine := o.Orientation != Vertical
+				sep := ui.Box(c).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+					design.DrawHairline(p, r, verticalLine, sepCol)
+				})
 				if o.Orientation == Vertical {
 					sep.Height(1).AlignSelf(ui.Stretch)
 				} else {
@@ -537,7 +541,13 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 			if dark {
 				a = 0.48
 			}
-			p.Shadow(k, size/2, 0, 0, 0, design.InputRingWidth, t.Ring.Alpha(a))
+			if t.Ring.A < 255 {
+				a = 0.50
+				if dark {
+					a = 0.65
+				}
+			}
+			p.Shadow(k, size/2, 0, 0, 1, design.InputRingWidth, t.Ring.Alpha(a))
 		} else if !dragging {
 			p.Shadow(k, size/2, 0, 1, 2, 0, black.Alpha(0.05))
 		}

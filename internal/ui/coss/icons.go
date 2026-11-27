@@ -47,7 +47,7 @@ const (
 	IconSmile
 	IconFile
 	// IconCheckboxCheck and IconCheckboxMinus are coss's own checkbox
-	// indicators, drawn at stroke width 3.
+	// indicators, drawn at stroke width 2.2.
 	IconCheckboxCheck
 	IconCheckboxMinus
 	// Page icons (Lucide, ISC) for the tool pages: plugins, market,
@@ -138,9 +138,9 @@ func (i Icon) SVG() *ui.SVG {
 
 func (i Icon) stroke() string {
 	if i == IconCheckboxCheck || i == IconCheckboxMinus {
-		return "3"
+		return "2.2"
 	}
-	return "2"
+	return "1.5"
 }
 
 // icon builds i at size in col, at the 80% opacity coss gives icons

@@ -5,7 +5,7 @@ import (
 	"whaleisle/internal/ui/design"
 )
 
-var rightDrawerChevronLeftSVG = ui.MustParseSVG([]byte(`<svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1.3"><path d="M10 3.5L5.5 8L10 12.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
+var rightDrawerChevronLeftSVG = ui.MustParseSVG([]byte(`<svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1"><path d="M10 3.5L5.5 8L10 12.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
 
 type paneDrag struct {
 	active      bool
@@ -151,7 +151,7 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func(), hasSha
 			if held || handle.Hovered() {
 				color = t.Primary
 			}
-			p.Fill(r, color, 0)
+			design.DrawHairline(p, r, true, color)
 		})
 		handle.Draw(func(p *ui.Painter, r ui.Rect) {
 			if div.FocusVisible() {
@@ -283,7 +283,7 @@ func centerTerminalColumnPtr(c *ui.Context, m *Model, chat, terminal func()) {
 			if held || handle.Hovered() {
 				color = t.Primary
 			}
-			p.Fill(r, color, 0)
+			design.DrawHairline(p, r, false, color)
 		})
 		handle.Draw(func(p *ui.Painter, r ui.Rect) {
 			if div.FocusVisible() {

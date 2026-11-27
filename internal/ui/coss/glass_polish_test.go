@@ -524,3 +524,73 @@ func TestMenuSecondClickClosesAndRadiiMatchSpec(t *testing.T) {
 		t.Fatal("DialogPanel failed to lay out")
 	}
 }
+
+func TestGlassRimAndSeparator150DPIPhysicalPixelPrecision(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, testGlassFilter)
+
+	// 1) Glass DialogPanel at 150% DPI has 1px outer border at topPx, seamless
+	// 1px specular rim at topPx+1, and clean interior at topPx+2 (zero gap, no 2px bar).
+	for _, dark := range []bool{false, true} {
+		name := "light"
+		if dark {
+			name = "dark"
+		}
+		t.Run("rim/"+name, func(t *testing.T) {
+			var sb ui.Rect
+			tt := ui.NewTester(func(c *ui.Context) {
+				setTheme(c, dark)
+				ui.Box(c).Fill().Background(ui.RGB(150, 156, 168)).Children(func() {
+					ui.Box(c).Absolute().Left(30).Top(20).Children(func() {
+						sb = DialogPanel(c, DialogOptions{NoClose: true}, func() {
+							ui.Box(c).Size(180, 60)
+						}).Width(220).Bounds()
+					})
+				})
+			}, 320, 200)
+			tt.SetScale(1.5)
+			tt.Frame()
+			img := tt.Image()
+			midX := int((sb.X + sb.W/2) * 1.5)
+			topPx := int(sb.Y * 1.5)
+			outerL := luma(img, midX, topPx)
+			rimL := luma(img, midX, topPx+1)
+			nextL := luma(img, midX, topPx+2)
+			bodyL := luma(img, midX, topPx+16)
+			if outerL >= bodyL {
+				t.Fatalf("%s 150%% outer border at y=%d not darker than body: outer=%.2f body=%.2f", name, topPx, outerL, bodyL)
+			}
+			if rimL <= bodyL+2 {
+				t.Fatalf("%s 150%% inner specular rim at y=%d missing or gapped: rim=%.2f body=%.2f", name, topPx+1, rimL, bodyL)
+			}
+			if nextL > bodyL+2 {
+				t.Fatalf("%s 150%% inner specular rim exceeded 1 physical px at y=%d: next=%.2f body=%.2f", name, topPx+2, nextL, bodyL)
+			}
+		})
+	}
+
+	// 2) Separator stays strictly 1 physical pixel at both even and odd DIPs at 150% DPI.
+	design.SetGlass(false, nil)
+	for _, y := range []float32{20, 21} {
+		tt := ui.NewTester(func(c *ui.Context) {
+			setTheme(c, false)
+			ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)).Children(func() {
+				ui.Box(c).Absolute().Left(10).Top(y).Width(80).Children(func() {
+					Separator(c, Horizontal)
+				})
+			})
+		}, 120, 60)
+		tt.SetScale(1.5)
+		tt.Frame()
+		img := tt.Image()
+		painted := 0
+		for py := 0; py < img.Bounds().Dy(); py++ {
+			if img.RGBAAt(60, py).R < 252 {
+				painted++
+			}
+		}
+		if painted != 1 {
+			t.Fatalf("Separator(Horizontal) at 150%% DPI y=%g painted %d physical rows, want 1", y, painted)
+		}
+	}
+}

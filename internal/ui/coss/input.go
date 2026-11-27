@@ -88,12 +88,16 @@ func controlLook(e ui.Element, t *design.Tokens, s State, radius float32) {
 	switch {
 	case invalid && focus:
 		bc = t.Destructive.Alpha(design.InvalidBorderAlpha)
-		sh.add(0, 0, 0, design.InputRingWidth, t.Destructive.Alpha(t.InvalidRingAlpha()))
+		sh.add(0, 0, 0.5, design.InputRingWidth, t.Destructive.Alpha(t.InvalidRingAlpha()))
 	case invalid:
 		bc = t.Destructive.Alpha(0.36)
 	case focus:
 		bc = t.Ring
-		sh.add(0, 0, 0, design.InputRingWidth, t.Ring.Alpha(design.InputRingAlpha))
+		halo := t.Ring.Alpha(design.InputRingAlpha)
+		if t.Ring.A < 255 {
+			halo = t.Ring.Alpha(0.50)
+		}
+		sh.add(0, 0, 1, design.InputRingWidth, halo)
 	case disabled:
 	default:
 		if !t.Glass {

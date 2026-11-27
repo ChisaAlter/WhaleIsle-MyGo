@@ -195,5 +195,8 @@ func TitleBarWithLeadingActions(c *ui.Context, title string, colors TitleBarColo
 			}
 		})
 	// Hairline under the bar (Height after Fill — Fill alone is 100% tall).
-	ui.Box(c).Fill().Height(1).Background(colors.Border)
+	border := colors.Border
+	ui.Box(c).Fill().Height(1).Draw(func(p *ui.Painter, r ui.Rect) {
+		design.DrawHairline(p, r, false, border)
+	})
 }

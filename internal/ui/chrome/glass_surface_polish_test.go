@@ -74,6 +74,52 @@ func TestApplyMenuSurfaceBlursAndFallsBackCleanly(t *testing.T) {
 	}
 }
 
+func TestDrawGlassRim150DPIZeroGapOnePhysicalPixel(t *testing.T) {
+	t.Cleanup(func() {
+		ConfigureBackdrop("", wallpapers.Defaults())
+		design.SetGlass(false, nil)
+	})
+	design.SetGlass(true, func(_ design.Scheme, p *design.Palette) {
+		p.Popover = p.Popover.Alpha(0.48)
+	})
+	for _, dark := range []bool{false, true} {
+		name := "light"
+		if dark {
+			name = "dark"
+		}
+		t.Run(name, func(t *testing.T) {
+			var box ui.Rect
+			tt := ui.NewTester(func(c *ui.Context) {
+				if dark {
+					c.SetTheme(ui.DarkTheme())
+				}
+				bg := ui.RGB(140, 150, 165)
+				ui.Box(c).Fill().Background(bg).Children(func() {
+					box = ApplyMenuSurface(ui.Box(c).Absolute().Left(30).Top(20).Width(120).Height(80), design.For(c), 12).Bounds()
+				})
+			}, 200, 140)
+			tt.SetScale(1.5)
+			tt.Frame()
+			img := tt.Image()
+			midX := int((box.X + box.W/2) * 1.5)
+			topPx := int(box.Y * 1.5)
+			outerLum := RelativeLuminance(pixel(img.RGBAAt(midX, topPx)))
+			rimLum := RelativeLuminance(pixel(img.RGBAAt(midX, topPx+1)))
+			nextLum := RelativeLuminance(pixel(img.RGBAAt(midX, topPx+2)))
+			bodyLum := RelativeLuminance(pixel(img.RGBAAt(midX, topPx+16)))
+			if outerLum >= bodyLum {
+				t.Fatalf("%s 150%% outer border at y=%d not darker than body: outer=%.4f body=%.4f", name, topPx, outerLum, bodyLum)
+			}
+			if rimLum <= bodyLum+0.02 {
+				t.Fatalf("%s 150%% inner specular rim at y=%d missing or gapped: rim=%.4f body=%.4f", name, topPx+1, rimLum, bodyLum)
+			}
+			if nextLum > bodyLum+0.02 {
+				t.Fatalf("%s 150%% inner rim bled into 2nd pixel y=%d: next=%.4f body=%.4f", name, topPx+2, nextLum, bodyLum)
+			}
+		})
+	}
+}
+
 func TestDialogMaskDimsWithoutFullscreenBlurUnderGlass(t *testing.T) {
 	t.Cleanup(func() {
 		ConfigureBackdrop("", wallpapers.Defaults())

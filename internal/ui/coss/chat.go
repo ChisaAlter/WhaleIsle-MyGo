@@ -295,10 +295,12 @@ func ChatDatePill(c *ui.Context, label string) ui.Element {
 // input-colored hairlines, 16 DIPs above and below.
 func ChatUnreadDivider(c *ui.Context, label string) ui.Element {
 	t := tok(c)
+	lineCol := t.Input
+	drawLine := func(p *ui.Painter, r ui.Rect) { design.DrawHairline(p, r, false, lineCol) }
 	return ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(design.Sp(3)).MarginY(design.Sp(4)).Children(func() {
-		ui.Box(c).Height(1).Grow(1).Background(t.Input)
+		ui.Box(c).Height(1).Grow(1).Draw(drawLine)
 		text(c, label, design.TextXS, design.WeightMedium, t.Foreground)
-		ui.Box(c).Height(1).Grow(1).Background(t.Input)
+		ui.Box(c).Height(1).Grow(1).Draw(drawLine)
 	})
 }
 

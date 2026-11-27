@@ -37,8 +37,8 @@ const (
 	// a 2 DIP ring.
 	RingWidth  float32 = 2
 	RingOffset float32 = 1
-	// InputRingWidth is ring-[3px] on text controls, at InputRingAlpha.
-	InputRingWidth float32 = 3
+	// InputRingWidth is a restrained 2 DIP outer focus ring on text controls, at InputRingAlpha.
+	InputRingWidth float32 = 2
 	InputRingAlpha float32 = 0.24
 	// InvalidBorderAlpha is the destructive/64 border of an invalid control;
 	// InvalidRingAlphaLight/Dark its destructive/16 (/24 dark) focus ring.
