@@ -94,7 +94,6 @@ func (s *mainState) queueHostTierB(ctx context.Context, gen uint64, client *dsh.
 	setStore, usageStore, coldDir := s.settings, s.usage, s.coldStoresDir
 	s.mu.Unlock()
 	plan.AfterWorkbench(ctx, gen, "model.catalog", func() {
-		sessions.InitializeDefaultModel(ctx)
 		sessions.RefreshModelCatalog(ctx)
 	})
 	plan.AfterWorkbench(ctx, gen, "agent.presets", func() { sessions.RefreshAgentPresets(ctx) })
@@ -205,11 +204,13 @@ func reportDesktopReady(client *dsh.Client) {
 }
 
 // bootPageCovers reports whether the cold-start boot page is the window's
-// content (paintColdLoading's own condition), so store notifications need
-// no frame of their own.
+// content and still waiting for the workspace baseline, so early store
+// notifications need no frame of their own. Once coldHandoffArmed is set,
+// store completions must redraw so paintColdLoading can finish the handoff
+// promptly even under ReduceMotion.
 func (s *mainState) bootPageCovers() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.coldLoading && s.mainRoute == routeConversation && !s.quitting &&
+	return s.coldLoading && !s.coldHandoffArmed && s.mainRoute == routeConversation && !s.quitting &&
 		!(!s.settingsLaunchHandled && slices.Contains(os.Args, "--settings"))
 }

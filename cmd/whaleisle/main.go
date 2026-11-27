@@ -252,6 +252,8 @@ type mainState struct {
 	bootStatus              harness.Status
 	bootLogs                appstate.Published[[]string] // immutable; replace or appendBootLogLocked, never edit in place
 	coldLoading             bool                         // first automatic launch, until the workbench can open
+	coldHandoffArmed        bool                         // WorkbenchBaseline (or workspace/list error) reached; boot page can complete visual handoff
+	coldHandoffSince        time.Time                    // first UI-clock timestamp observed after WorkbenchBaseline; bounds handoff wait
 	hadColdLoading          bool                         // armed once cold boot paints, so handoff triggers the 62% horizon reveal
 	lastColdDark            bool
 	lastColdFailed          bool
@@ -1864,7 +1866,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		terminalEdge := prevStreaming && !streaming
 		hasError := v.HistoryError != nil || v.ListErr != nil || v.WorkspaceError != nil
 		hasPendingInter := inter != nil && len(inter.Snapshot().Value.Pending) > 0
-		coalescer.Notify(terminalEdge || hasError || hasPendingInter)
+		coalescer.Notify(terminalEdge || hasError || hasPendingInter || s.coldHandoffActive())
 	}
 	sessions.Attach(client, refresh)
 	retireStaleInlineVisualPages()
@@ -1982,6 +1984,8 @@ func (s *mainState) stopDSHLocked() *accountPlatformLease {
 	s.dshMux = nil
 	s.dshMuxReady = false
 	s.dshMuxLost = false
+	s.coldHandoffArmed = false
+	s.coldHandoffSince = time.Time{}
 	s.dshBootstrapError = ""
 	s.dshNetworkOffline = false
 	s.mu.Unlock()
@@ -2068,11 +2072,15 @@ func (s *mainState) runDSH(ctx context.Context, startupGen uint64, client *dsh.C
 						startuptrace.Mark("connection.events_ready")
 						tracker.Reach(startupGen, startup.EventsReady)
 						s.marketCoordinator().HostEventsReady(client)
+						if setStore != nil {
+							setStore.EnsureLoaded(ctx)
+						}
 						if schedStore != nil {
 							schedStore.OnEventsReady(scheduleEventsOwner)
 						}
 						if sessions != nil {
 							sessions.InitializeDefaultWorkspace(ctx)
+							sessions.InitializeDefaultModel(ctx)
 							sessions.OnEventsReady(eventsOwner)
 							// Tier B for this events generation: after the list baseline.
 							plan.AfterWorkbench(ctx, startupGen, "speech.catalog", func() { sessions.WatchSpeechCatalogForEvents(eventsOwner) })

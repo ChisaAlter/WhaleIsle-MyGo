@@ -238,17 +238,52 @@ func (s *Store) DiscoverLLMProviders(ctx context.Context) {
 	}()
 }
 
+// ModelCatalogPending reports whether a default-model bootstrap or initial
+// model catalog refresh is currently in flight for the attached client.
+func (s *Store) ModelCatalogPending() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.client == nil || s.modelState.CatalogReady || s.modelsFault != nil {
+		return false
+	}
+	return s.modelState.BootstrapPending || s.modelState.CatalogLoading
+}
+
 // InitializeDefaultModel calls session/initializeDefaultModel (Electron first-run model seed).
 func (s *Store) InitializeDefaultModel(ctx context.Context) {
 	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil {
+	client, generation := s.client, s.eventsGeneration
+	if client == nil || ctx.Err() != nil {
+		s.mu.Unlock()
 		return
 	}
+	s.modelState.BootstrapPending = true
+	s.mu.Unlock()
 	go func() {
 		var out api.InitializeDefaultModelResult
 		_ = client.Call(ctx, "session/initializeDefaultModel", map[string]any{}, &out)
+		s.mu.Lock()
+		same := s.client == client && s.eventsGeneration == generation
+		if same {
+			if ctx.Err() != nil {
+				s.modelState.BootstrapPending = false
+			} else {
+				// Keep the pending window contiguous until RefreshModelCatalog
+				// takes ownership under CatalogLoading.
+				s.modelState.CatalogLoading = true
+				s.modelState.BootstrapPending = false
+			}
+		}
+		s.mu.Unlock()
+		if !same || ctx.Err() != nil {
+			if same {
+				s.fire()
+			}
+			return
+		}
 		s.RefreshModelCatalog(ctx)
 	}()
 }
@@ -258,20 +293,27 @@ func (s *Store) InitializeDefaultModel(ctx context.Context) {
 func (s *Store) RefreshModelCatalog(ctx context.Context) {
 	s.mu.Lock()
 	client, generation := s.client, s.eventsGeneration
+	if client == nil || ctx.Err() != nil {
+		s.modelState.CatalogLoading = false
+		s.mu.Unlock()
+		return
+	}
+	s.modelState.CatalogLoading = true
 	s.modelState.CatalogRequest++
 	request := s.modelState.CatalogRequest
 	s.mu.Unlock()
-	if client == nil || ctx.Err() != nil {
-		return
-	}
 	go func() {
 		var cat api.ModelCatalog
 		err := client.Call(ctx, "session/modelCatalog", map[string]any{}, &cat)
 		s.mu.Lock()
 		if s.client != client || s.eventsGeneration != generation || request != s.modelState.CatalogRequest || ctx.Err() != nil {
+			if s.client == client && s.eventsGeneration == generation && request == s.modelState.CatalogRequest {
+				s.modelState.CatalogLoading = false
+			}
 			s.mu.Unlock()
 			return
 		}
+		s.modelState.CatalogLoading = false
 		changed := s.setModelsErrLocked(err)
 		if err == nil {
 			options := flattenModelCatalog(cat)
