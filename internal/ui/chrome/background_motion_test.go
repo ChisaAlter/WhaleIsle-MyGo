@@ -8,6 +8,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/renderpolicy"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 func TestAmbientGradientAnimatesLiveAcrossAllVariants(t *testing.T) {
@@ -375,4 +377,122 @@ func TestAmbientGradientPacedAt24FPSAndFreezesDuringOverlay(t *testing.T) {
 		t.Fatal("SetBackdropOverlayActive(true) did not freeze ambient gradient")
 	}
 	SetBackdropOverlayActive(false)
+}
+
+func TestAmbientGradientFreezesDuringCossOverlays(t *testing.T) {
+	prevGlass := renderpolicy.Glass()
+	prevMinimal := renderpolicy.Minimal()
+	renderpolicy.SetMinimal(false)
+	renderpolicy.SetGlass(true)
+	design.SetGlass(true, func(_ design.Scheme, p *design.Palette) {
+		p.Popover = p.Popover.Alpha(0.48)
+	})
+	t.Cleanup(func() {
+		design.SetGlass(false, nil)
+		renderpolicy.SetGlass(prevGlass)
+		renderpolicy.SetMinimal(prevMinimal)
+		resetBackdropPowerForTest()
+		ConfigureBackdrop("", wallpapers.Defaults())
+	})
+
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Preset = "aurora"
+	prefs.Variant = "chaos"
+	prefs.Speed = 240
+	prefs.Count = 5
+
+	for _, tc := range []struct {
+		name string
+		kind string
+	}{
+		{"coss-dialog", "dialog"},
+		{"coss-menu", "menu"},
+		{"coss-select", "select"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetBackdropPowerForTest()
+			setBackdropWindowActiveHook(func() bool { return true })
+			mainAmbientClock.reset()
+
+			open := false
+			selected := "a"
+			now := time.Unix(20000, 0)
+			NoteBackdropActivity(now)
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(ui.DarkTheme())
+				design.Bind(c, design.Dark, ui.Color{}, ui.Color{})
+				paint := WallpaperBackgroundPainter("", prefs, false)
+				ui.Box(c).Fill().Draw(paint).Children(func() {
+					switch tc.kind {
+					case "dialog":
+						coss.Dialog(c, &open, coss.DialogOptions{Title: "Test", NoClose: true}, func() {
+							ui.Box(c).Size(60, 24)
+						})
+					case "menu":
+						trigger := coss.Button(c, "MenuTrigger", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM})
+						coss.Menu(c, trigger, &open, []coss.MenuItem{{ID: "a", Label: "Alpha"}}, coss.MenuOptions{})
+					case "select":
+						coss.Select(c, &selected, []coss.SelectOption{{Value: "a", Label: "Alpha"}, {Value: "b", Label: "Beta"}}, coss.SelectOptions{Label: "SelectTrigger"})
+					}
+				})
+			}, 240, 180)
+			tt.SetTime(now)
+
+			// Advance without overlay: gradient animates normally.
+			t1 := now.Add(2 * time.Second)
+			NoteBackdropActivity(t1)
+			tt.SetTime(t1)
+			cropEdge := func(pix []byte) []byte { return bytes.Clone(pix[140*240*4:]) }
+
+			// Open overlay.
+			if tc.kind == "select" {
+				if err := tt.Click("SelectTrigger"); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				open = true
+			}
+			tOpen := t1.Add(100 * time.Millisecond)
+			NoteBackdropActivity(tOpen)
+			tt.SetTime(tOpen)
+			// Let any dialog backdrop scrim enter transition settle before
+			// asserting pixel-identical frozen ambient output across frames.
+			tSettled := tOpen.Add(600 * time.Millisecond)
+			NoteBackdropActivity(tSettled)
+			tt.SetTime(tSettled)
+			frozenBg := cropEdge(tt.Image().Pix)
+
+			for _, dt := range []time.Duration{500 * time.Millisecond, 2 * time.Second, 4 * time.Second} {
+				ts := tSettled.Add(dt)
+				NoteBackdropActivity(ts)
+				tt.SetTime(ts)
+				if !bytes.Equal(frozenBg, cropEdge(tt.Image().Pix)) {
+					t.Fatalf("%s did not freeze ambient gradient at +%v", tc.name, dt)
+				}
+			}
+
+			// Close overlay and confirm gradient resumes.
+			if tc.kind == "select" {
+				tt.Key(0, ui.KeyEscape)
+			} else {
+				open = false
+			}
+			tClose := tSettled.Add(5 * time.Second)
+			NoteBackdropActivity(tClose)
+			tt.SetTime(tClose)
+			// Let any exit transition finish before comparing post-close progression.
+			tCloseSettled := tClose.Add(600 * time.Millisecond)
+			NoteBackdropActivity(tCloseSettled)
+			tt.SetTime(tCloseSettled)
+			resumedStart := cropEdge(tt.Image().Pix)
+			tResume := tCloseSettled.Add(3 * time.Second)
+			NoteBackdropActivity(tResume)
+			tt.SetTime(tResume)
+			if bytes.Equal(resumedStart, cropEdge(tt.Image().Pix)) {
+				t.Fatalf("%s did not resume ambient gradient after closing", tc.name)
+			}
+		})
+	}
 }

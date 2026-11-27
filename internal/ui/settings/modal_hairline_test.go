@@ -1,12 +1,15 @@
 package settings
 
 import (
+	"bytes"
 	"image/color"
 	"testing"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
@@ -161,6 +164,109 @@ func TestSettingsModalGlassClarityAndSingleHairline(t *testing.T) {
 				if int(px.B)-int(px.R) < 12 {
 					t.Fatalf("%s %q lost backdrop translucency (stacked opaque t.Card?): px=%v pane=%v", tc.name, label, px, inside)
 				}
+			}
+		})
+	}
+}
+
+func TestSettingsModalAndConfirmDialogFreezeAmbientBackdrop(t *testing.T) {
+	prevGlass := renderpolicy.Glass()
+	prevMinimal := renderpolicy.Minimal()
+	renderpolicy.SetMinimal(false)
+	renderpolicy.SetGlass(true)
+	t.Cleanup(func() {
+		renderpolicy.SetGlass(prevGlass)
+		renderpolicy.SetMinimal(prevMinimal)
+		chrome.SetBackdropOverlayActive(false)
+		chrome.ConfigureBackdrop("", wallpapers.Defaults())
+		design.SetGlass(false, nil)
+	})
+
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Preset = "aurora"
+	prefs.Variant = "chaos"
+	prefs.Speed = 240
+	prefs.Count = 5
+
+	for _, tc := range []struct {
+		name    string
+		confirm bool
+	}{
+		{"settings-modal", false},
+		{"confirm-dialog", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			show := false
+			now := time.Unix(30000, 0)
+			chrome.NoteBackdropActivity(now)
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(ui.DarkTheme())
+				design.Bind(c, design.Dark, ui.Color{}, ui.Color{})
+				paint := chrome.WallpaperBackgroundPainter("", prefs, false)
+				ui.Box(c).Fill().Draw(paint).Children(func() {
+					if !show {
+						return
+					}
+					if tc.confirm {
+						ConfirmDialog(c, ConfirmOptions{
+							Title:        "Confirm",
+							Body:         "Proceed?",
+							ConfirmLabel: "OK",
+							CancelLabel:  "Cancel",
+						})
+					} else {
+						ModalView(c, Model{
+							ActiveSection: SectionGeneral,
+							SectionContent: func(c *ui.Context) {
+								ui.Box(c).Size(20, 20)
+							},
+							OnClose: func() {},
+						})
+					}
+				})
+			}, 360, 240)
+			tt.SetTime(now)
+
+			// Strip along the very top edge outside the centered dialog scrim/panel.
+			cropStrip := func(pix []byte) []byte { return bytes.Clone(pix[:12*360*4]) }
+
+			t1 := now.Add(2 * time.Second)
+			chrome.NoteBackdropActivity(t1)
+			tt.SetTime(t1)
+
+			show = true
+			tOpen := t1.Add(100 * time.Millisecond)
+			chrome.NoteBackdropActivity(tOpen)
+			tt.SetTime(tOpen)
+			// Let the dialog reveal animation finish, then verify the ambient
+			// gradient behind it stays completely frozen across further frames.
+			tSettled := tOpen.Add(600 * time.Millisecond)
+			chrome.NoteBackdropActivity(tSettled)
+			tt.SetTime(tSettled)
+			frozen := cropStrip(tt.Image().Pix)
+
+			for _, dt := range []time.Duration{500 * time.Millisecond, 2 * time.Second, 4 * time.Second} {
+				ts := tSettled.Add(dt)
+				chrome.NoteBackdropActivity(ts)
+				tt.SetTime(ts)
+				if !bytes.Equal(frozen, cropStrip(tt.Image().Pix)) {
+					t.Fatalf("%s failed to freeze ambient gradient at +%v", tc.name, dt)
+				}
+			}
+
+			// Closing resumes ambient backdrop progression cleanly.
+			show = false
+			tClose := tSettled.Add(5 * time.Second)
+			chrome.NoteBackdropActivity(tClose)
+			tt.SetTime(tClose)
+			resumedStart := cropStrip(tt.Image().Pix)
+			tResume := tClose.Add(3 * time.Second)
+			chrome.NoteBackdropActivity(tResume)
+			tt.SetTime(tResume)
+			if bytes.Equal(resumedStart, cropStrip(tt.Image().Pix)) {
+				t.Fatalf("%s failed to resume ambient gradient after closing", tc.name)
 			}
 		})
 	}

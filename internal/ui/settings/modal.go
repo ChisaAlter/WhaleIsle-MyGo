@@ -29,6 +29,7 @@ func ModalView(c *ui.Context, m Model) {
 	topInset, bottomInset, sideInset := settingsModalInsets(vw, vh, bar)
 	w, h := settingsModalSizeFor(vw, vh, bar)
 	ui.DialogBase(c.Key("settings-modal"), &open, func(backdrop, panel ui.Element) {
+		chrome.NoteBackdropOverlayActive()
 		ui.ShortcutModalScope(panel, "settings")
 		if topInset > design.Sp(4) {
 			backdrop.Padding(topInset, sideInset, bottomInset, sideInset)
@@ -39,7 +40,7 @@ func ModalView(c *ui.Context, m Model) {
 		borderColor := t.Border
 		if glassActive {
 			borderWidth = design.BorderWidth / 2
-			borderColor = settingsGlassOuterBorder(t.IsDark())
+			borderColor = chrome.GlassOuterBorder(t.IsDark())
 		}
 		dlgRadius := theme.ContextRadii(c).Dialog
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
@@ -50,10 +51,13 @@ func ModalView(c *ui.Context, m Model) {
 			Border(borderWidth, borderColor).TextColor(t.PopoverForeground)
 		chrome.RevealDialogPanel(c, panel, progress)
 		if glassActive {
-			// Single GPU OpEffect blur on the outer modal frame; left rail and
-			// right options pane paint their layered translucent fills over it.
-			panel.Material(chrome.MenuGlassMaterial())
-			panel.DrawOver(drawSettingsGlassRim(t.IsDark(), dlgRadius))
+			// Single GPU OpEffect modal blur on the outer frame (R=24/26,
+			// high vibrancy saturation); left rail and right options pane
+			// paint their disjoint layered translucent fills over it.
+			panel.Material(chrome.ModalGlassMaterial())
+			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				chrome.DrawGlassRim(p, r, dlgRadius)
+			})
 			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)

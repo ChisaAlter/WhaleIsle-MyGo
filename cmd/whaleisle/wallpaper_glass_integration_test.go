@@ -543,10 +543,10 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 			}
 
 			dlg := findDialogRect()
-			// Left rail background vs right content pane background across the
-			// 208-DIP rail divider (both over the main canvas, away from the app's
-			// outer left sidebar): both must sit on the unified glass panel with no
-			// double-layered seam.
+			// macOS-style layered frosted glass across the 208-DIP rail divider:
+			// both regions stay genuinely translucent over the blue wallpaper, the
+			// left rail lets noticeably more backdrop color through than the right
+			// options pane, and the step stays gentle (no opaque double-layer seam).
 			railPx := img.RGBAAt(int(dlg.X)+196, int(dlg.Y+dlg.H)-24)
 			panePx := img.RGBAAt(int(dlg.X)+220, int(dlg.Y+dlg.H)-24)
 			channelDiff := max(
@@ -556,22 +556,38 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 					int(math.Abs(float64(railPx.B)-float64(panePx.B))),
 				),
 			)
-			if channelDiff > 22 {
+			if channelDiff > 48 {
 				t.Fatalf("%s settings modal rail vs pane seam too strong (rail=%+v pane=%+v maxDiff=%d)", tc.name, railPx, panePx, channelDiff)
 			}
-
-			// Single crisp outer hairline border on top edge of settings modal.
-			midX := int(dlg.X + dlg.W/2)
-			outerBorder := img.RGBAAt(midX, int(dlg.Y))
-			interior := img.RGBAAt(midX, int(dlg.Y)+16)
 			if tc.dark {
-				if outerBorder.R <= interior.R {
-					t.Fatalf("dark modal outer border not visible over interior: border=%+v interior=%+v", outerBorder, interior)
+				railChroma := int(railPx.B) - int(railPx.R)
+				paneChroma := int(panePx.B) - int(panePx.R)
+				if railChroma <= paneChroma+2 || railPx.R >= panePx.R {
+					t.Fatalf("dark settings rail should retain more backdrop chroma than right pane: rail=%+v (B-R=%d) pane=%+v (B-R=%d)", railPx, railChroma, panePx, paneChroma)
+				}
+				if paneChroma < 12 {
+					t.Fatalf("dark settings right pane lost blue backdrop translucency: pane=%+v", panePx)
 				}
 			} else {
-				if outerBorder.R >= interior.R {
-					t.Fatalf("light modal outer border not visible over interior: border=%+v interior=%+v", outerBorder, interior)
+				if railPx.R >= panePx.R-6 {
+					t.Fatalf("light settings rail should be more translucent than right pane: rail=%+v pane=%+v", railPx, panePx)
 				}
+				if int(panePx.B)-int(panePx.R) < 40 {
+					t.Fatalf("light settings right pane lost blue backdrop translucency: pane=%+v", panePx)
+				}
+			}
+
+			// Frosted modal edge optics: 0.5 DIP dark/slate outer bevel border at
+			// dlg.Y plus bright 1px inner specular rim & top highlight at dlg.Y+1.
+			midX := int(dlg.X + dlg.W/2)
+			outerBorder := img.RGBAAt(midX, int(dlg.Y))
+			innerRim := img.RGBAAt(midX, int(dlg.Y)+1)
+			interior := img.RGBAAt(midX, int(dlg.Y)+16)
+			if outerBorder.R >= interior.R {
+				t.Fatalf("%s modal outer bevel border not darker than interior: border=%+v interior=%+v", tc.name, outerBorder, interior)
+			}
+			if innerRim.R <= interior.R {
+				t.Fatalf("%s modal inner specular top rim not brighter than interior: rim=%+v interior=%+v", tc.name, innerRim, interior)
 			}
 
 			// Turning GlassTheme OFF restores 100% original opaque coss tokens & rail/pane contrast.

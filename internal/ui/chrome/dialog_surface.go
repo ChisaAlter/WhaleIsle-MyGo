@@ -40,12 +40,19 @@ func DialogSurfaceSized(c *ui.Context, backdrop, panel ui.Element, t *ui.Theme, 
 	return dialogSurface(c, backdrop, panel, t.Background, t.Border, box)
 }
 
-func dialogMaskColor(bg ui.Color) ui.Color {
+func dialogMaskColor(c *ui.Context, bg ui.Color) ui.Color {
 	luminance := (0.2126*float32(bg.R) + 0.7152*float32(bg.G) + 0.0722*float32(bg.B)) / 255
+	glass := backgroundState.active || design.For(c).Glass
 	if luminance < .5 {
-		return design.TW.Black.Alpha(0.32)
+		if glass {
+			return design.TW.Black.Alpha(0.32)
+		}
+		return design.TW.Black.Alpha(0.50)
 	}
-	return ui.RGBA(18, 22, 30, 0.12)
+	if glass {
+		return ui.RGBA(18, 22, 30, 0.12)
+	}
+	return design.TW.Black.Alpha(0.24)
 }
 
 // dialogGlassBaseFill returns the modal panel tint base for dark and light
@@ -162,7 +169,7 @@ func applyDialogGlassSurface(c *ui.Context, panel ui.Element, bg, border ui.Colo
 
 func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Color, box DialogSurfaceBox) ui.Element {
 	progress := Reveal(c, backdrop, OverlayDuration)
-	ApplyDialogBackdropMask(c, backdrop, dialogMaskColor(bg), progress)
+	ApplyDialogBackdropMask(c, backdrop, dialogMaskColor(c, bg), progress)
 	panel.Width(box.Width).MaxWidthPercent(94).Padding(box.Padding).Radius(box.Radius).Clip()
 	RevealDialogPanel(c, panel, progress)
 	if box.Height > 0 {

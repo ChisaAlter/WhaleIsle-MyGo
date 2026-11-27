@@ -138,6 +138,7 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 		dismissal = options[0]
 	}
 	ui.DialogBaseWithOptions(c, open, dismissal, func(backdrop, panel ui.Element) {
+		chrome.NoteBackdropOverlayActive()
 		t := tk(c)
 		w, h := c.Size()
 		inset := design.Sp(4)
@@ -149,7 +150,7 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 		borderColor := t.Border
 		if glassActive {
 			borderWidth = design.BorderWidth / 2
-			borderColor = settingsGlassOuterBorder(t.IsDark())
+			borderColor = chrome.GlassOuterBorder(t.IsDark())
 		}
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
 		chrome.ApplyDialogBackdropMask(c, backdrop, scrim, progress)
@@ -157,14 +158,16 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 			Border(borderWidth, borderColor).TextColor(t.PopoverForeground).Role(ui.RoleDialog)
 		chrome.RevealDialogPanel(c, panel, progress)
 		if glassActive {
-			panel.Material(chrome.MenuGlassMaterial())
+			panel.Material(chrome.ModalGlassMaterial())
 			fill := settingsDialogGlassFill(t.IsDark())
 			panel.Draw(func(p *ui.Painter, r ui.Rect) {
 				if r.W > 0 && r.H > 0 {
 					p.Fill(r, fill, dlgRadius)
 				}
 			})
-			panel.DrawOver(drawSettingsGlassRim(t.IsDark(), dlgRadius))
+			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				chrome.DrawGlassRim(p, r, dlgRadius)
+			})
 			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)

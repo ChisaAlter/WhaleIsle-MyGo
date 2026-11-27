@@ -244,15 +244,6 @@ func settingsGlassInnerCard(dark bool) (fill, border ui.Color) {
 	return design.TW.White.Alpha(0.26), design.TW.Black.Alpha(0.06)
 }
 
-// settingsGlassOuterBorder returns the subtle 0.5 DIP outer hairline border
-// around a glass modal frame.
-func settingsGlassOuterBorder(dark bool) ui.Color {
-	if dark {
-		return design.TW.Black.Alpha(0.45)
-	}
-	return design.TW.Gray900.Alpha(0.09)
-}
-
 // settingsGlassListWash returns the light translucent hover, pressed, and
 // selected pill fills for list/rail items in glass mode.
 func settingsGlassListWash(dark bool) (hover, pressed, selected ui.Color) {
@@ -260,28 +251,6 @@ func settingsGlassListWash(dark bool) (hover, pressed, selected ui.Color) {
 		return design.TW.White.Alpha(0.07), design.TW.White.Alpha(0.095), design.TW.White.Alpha(0.12)
 	}
 	return design.TW.Black.Alpha(0.065), design.TW.Black.Alpha(0.08), design.TW.Black.Alpha(0.095)
-}
-
-// drawSettingsGlassRim paints a restrained 1px inner specular rim and top
-// highlight along a frosted glass modal's perimeter without extra OpEffect.
-func drawSettingsGlassRim(dark bool, radius float32) func(*ui.Painter, ui.Rect) {
-	rim := design.TW.White.Alpha(0.58)
-	top := design.TW.White.Alpha(0.86)
-	if dark {
-		rim = design.TW.White.Alpha(0.13)
-		top = design.TW.White.Alpha(0.22)
-	}
-	return func(p *ui.Painter, r ui.Rect) {
-		if r.W <= 2 || r.H <= 2 {
-			return
-		}
-		inner := ui.Rect{X: r.X + 0.5, Y: r.Y + 0.5, W: r.W - 1, H: r.H - 1}
-		p.Stroke(inner, rim, max(0, radius-0.5), 1)
-		inset := min(radius, r.W/2)
-		if span := r.W - 2*inset; span > 0 {
-			p.Fill(ui.Rect{X: r.X + inset, Y: r.Y + 0.5, W: span, H: 1}, top, 0)
-		}
-	}
 }
 
 // settingsPaneWidthHintState keeps the known inner width of the right options

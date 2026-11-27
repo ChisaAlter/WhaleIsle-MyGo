@@ -3664,6 +3664,7 @@ func mainView(c *ui.Context) {
 		trajDetailTab = "overview"
 	}
 	imageLightboxPath := state.imageLightboxPath
+	dirPickOpen := state.dirPickOpen
 	wbStart := mainViewWritebackSnapshot{
 		revs:                 state.writebackRevs,
 		layout:               layout,
@@ -3911,6 +3912,15 @@ func mainView(c *ui.Context) {
 		}
 	}
 	appendBackdropLog("view: scheme=%q systemDark=%v darkCanvas=%v path=%q flat=%v bg=%q fill=%v", th.Scheme, systemDark, darkCanvas, state.resolvedWallpaperPath(wallpaperPath), flatCanvas, colors.BG, canvasFill)
+	modalOverlayActive := (settingsOpen && setStore != nil) ||
+		confirmAskPending ||
+		closingOverlay ||
+		minimalOfferOpen ||
+		dirPickOpen ||
+		imageLightboxPath != "" ||
+		state.accountLogin.Snapshot().Visible ||
+		state.accountSignOut.Snapshot().Open
+	chrome.SetBackdropOverlayActive(modalOverlayActive)
 	wallpaperDraw := state.wallpaperPainter(wallpaperPath, true, c.Preferences().ReduceMotion)
 	ui.Column(c).Fill().Background(canvasFill).Draw(func(p *ui.Painter, r ui.Rect) {
 		// Opaque window-layer fill: a Transparent DirectComposition window
@@ -5808,13 +5818,6 @@ func mainView(c *ui.Context) {
 					// is not ready: the strip, the sidebar's empty list and the
 					// composer cannot disagree about why there are no sessions.
 					hostReport := hoststate.Of(st)
-					modalOverlayActive := (settingsOpen && setStore != nil) ||
-						confirmAskPending ||
-						closingOverlay ||
-						minimalOfferOpen ||
-						imageLightboxPath != "" ||
-						state.accountLogin.Snapshot().Visible ||
-						state.accountSignOut.Snapshot().Open
 					frameModel := frame.Model{
 						ModalOverlayActive:    modalOverlayActive,
 						Media:                 mediaOwner,

@@ -121,6 +121,9 @@ func RevealMask(backdrop ui.Element, mask ui.Color, progress float32) {
 // together over the overlay token: the hand-run enter of a DialogBase panel that
 // keeps its own metrics, without the shared DialogSurface look.
 func RevealOverlay(c *ui.Context, backdrop, panel ui.Element, mask ui.Color) float32 {
+	if backgroundState.active || design.GlassEnabled() {
+		NoteBackdropOverlayActive()
+	}
 	if !BackdropActive() {
 		return widgets.RevealOverlay(c, backdrop, panel, mask)
 	}
@@ -147,6 +150,9 @@ func RevealOverlay(c *ui.Context, backdrop, panel ui.Element, mask ui.Color) flo
 // frame (a keyed menu inside a column that stays), which an overlay panel never
 // does; this runs that enter by hand for one that does not.
 func PopoverReveal(c *ui.Context, panel ui.Element) ui.Element {
+	if backgroundState.active || design.GlassEnabled() {
+		NoteBackdropOverlayActive()
+	}
 	progress := Reveal(c, panel, PopoverDuration)
 	if BackdropActive() {
 		if progress < 1 {
@@ -159,13 +165,21 @@ func PopoverReveal(c *ui.Context, panel ui.Element) ui.Element {
 	return panel.Opacity(progress)
 }
 
-// DialogMask is the dim layer under a modal card: light rgba(18,22,30,0.12)
-// and dark black/0.32 so wallpapers stay luminous instead of turning muddy.
+// DialogMask is the dim layer under a modal card: in glass/backdrop mode it
+// uses light rgba(18,22,30,0.12) and dark black/0.32 so wallpapers stay
+// luminous; in solid mode it keeps the reference 0.24 / 0.50 scrim.
 func DialogMask(c *ui.Context) ui.Color {
+	glass := backgroundState.active || design.For(c).Glass
 	if c.Theme().Dark {
-		return design.TW.Black.Alpha(0.32)
+		if glass {
+			return design.TW.Black.Alpha(0.32)
+		}
+		return design.TW.Black.Alpha(0.50)
 	}
-	return ui.RGBA(18, 22, 30, 0.12)
+	if glass {
+		return ui.RGBA(18, 22, 30, 0.12)
+	}
+	return design.TW.Black.Alpha(0.24)
 }
 
 // DialogReveal fades a hand-run DialogBase overlay in over the reference modal's
