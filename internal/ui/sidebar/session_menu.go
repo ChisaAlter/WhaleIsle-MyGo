@@ -31,7 +31,7 @@ func sessionRowAction(c *ui.Context, key string, art *ui.SVG, label, tip string,
 		Label:   label,
 		Key:     "session-action-" + key,
 		Content: func() {},
-	}).Tooltip(tip).Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).Center()
+	}).Tooltip(tip).Size(design.Sp(6), design.Sp(6)).Padding(0).BorderWidth(0).Center()
 	button.Children(func() { ui.Icon(c, art).Size(design.IconXS, design.IconXS).TextColor(ink) })
 	if button.Clicked() {
 		run()
@@ -53,51 +53,75 @@ func sessionPinTip(pinned bool) string {
 }
 
 func pinAction(m Model, it session.Item) func() {
+	return pinActionPtr(&m, it)
+}
+
+func pinActionPtr(m *Model, it session.Item) func() {
+	id := it.SessionID
 	if it.Pinned {
-		if m.OnUnpin == nil {
+		fn := m.OnUnpin
+		if fn == nil {
 			return nil
 		}
-		return func() { m.OnUnpin(it.SessionID) }
+		return func() { fn(id) }
 	}
-	if m.OnPin == nil {
+	fn := m.OnPin
+	if fn == nil {
 		return nil
 	}
-	return func() { m.OnPin(it.SessionID) }
+	return func() { fn(id) }
 }
 
 func archiveAction(m Model, it session.Item) func() {
-	if m.OnArchive == nil {
+	return archiveActionPtr(&m, it)
+}
+
+func archiveActionPtr(m *Model, it session.Item) func() {
+	fn := m.OnArchive
+	if fn == nil {
 		return nil
 	}
-	return func() { m.OnArchive(it.SessionID) }
+	id := it.SessionID
+	return func() { fn(id) }
 }
 
 // The native menu handles pointer dismissal, arrows, Escape and focus return.
 // Bind actions to the row's ID, never to whichever session is currently open.
 func sessionRowMenu(m Model, it session.Item) func(*ui.Menu) {
+	return sessionRowMenuPtr(&m, it)
+}
+
+func sessionRowMenuPtr(m *Model, it session.Item) func(*ui.Menu) {
+	onPin := m.OnPin
+	onUnpin := m.OnUnpin
+	onBeginRename := m.OnBeginRename
+	onFork := m.OnFork
+	onArchive := m.OnArchive
+	onCopySessionID := m.OnCopySessionID
+	shortcutLabels := m.MenuShortcutLabels
 	return func(menu *ui.Menu) {
 		menu.CloseOnPointerLeave(true)
 		if it.Blank {
 			return
 		}
 		if it.Pinned {
-			if m.OnUnpin != nil && menu.Item(i18n.T(i18n.KeySidebarUnpin)).Key("native:pin").Icon(sessionPinArtwork).Chosen() {
-				m.OnUnpin(it.SessionID)
+			if onUnpin != nil && menu.Item(i18n.T(i18n.KeySidebarUnpin)).Key("native:pin").Icon(sessionPinArtwork).Chosen() {
+				onUnpin(it.SessionID)
 			}
-		} else if m.OnPin != nil && menu.Item(i18n.T(i18n.KeySidebarPin)).Key("native:pin").Icon(menuPinArtwork).Chosen() {
-			m.OnPin(it.SessionID)
+		} else if onPin != nil && menu.Item(i18n.T(i18n.KeySidebarPin)).Key("native:pin").Icon(menuPinArtwork).Chosen() {
+			onPin(it.SessionID)
 		}
-		if m.OnBeginRename != nil && menu.Item(i18n.T(i18n.KeySidebarRename)).Key("native:rename").Icon(menuEditArtwork).ShortcutLabel(m.MenuShortcutLabels["session.rename"]).Chosen() {
-			m.OnBeginRename(it.SessionID, it.Title)
+		if onBeginRename != nil && menu.Item(i18n.T(i18n.KeySidebarRename)).Key("native:rename").Icon(menuEditArtwork).ShortcutLabel(shortcutLabels["session.rename"]).Chosen() {
+			onBeginRename(it.SessionID, it.Title)
 		}
-		if m.OnFork != nil && menu.Item(i18n.T(i18n.KeySidebarFork)).Key("native:fork").Icon(menuBranchArtwork).ShortcutLabel(m.MenuShortcutLabels["session.fork"]).Chosen() {
-			m.OnFork(it.SessionID)
+		if onFork != nil && menu.Item(i18n.T(i18n.KeySidebarFork)).Key("native:fork").Icon(menuBranchArtwork).ShortcutLabel(shortcutLabels["session.fork"]).Chosen() {
+			onFork(it.SessionID)
 		}
-		if m.OnArchive != nil && menu.Item(i18n.T(i18n.KeySidebarArchive)).Key("native:archive").Icon(menuArchiveArtwork).ShortcutLabel(m.MenuShortcutLabels["session.archive"]).Chosen() {
-			m.OnArchive(it.SessionID)
+		if onArchive != nil && menu.Item(i18n.T(i18n.KeySidebarArchive)).Key("native:archive").Icon(menuArchiveArtwork).ShortcutLabel(shortcutLabels["session.archive"]).Chosen() {
+			onArchive(it.SessionID)
 		}
-		if m.OnCopySessionID != nil && menu.Item(i18n.T(i18n.KeySidebarCopyID)).Key("native:session-id").Icon(menuCopyArtwork).Chosen() {
-			m.OnCopySessionID(it.SessionID)
+		if onCopySessionID != nil && menu.Item(i18n.T(i18n.KeySidebarCopyID)).Key("native:session-id").Icon(menuCopyArtwork).Chosen() {
+			onCopySessionID(it.SessionID)
 		}
 	}
 }
@@ -167,8 +191,8 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 			Label:   sessionActionsLabel(id, title),
 			Key:     "archived-session-menu-" + id,
 			Content: func() {},
-		}).Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).TextColor(muted).Center().Menu(menu)
-		more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.IconSM, design.IconSM).TextColor(muted) })
+		}).Size(design.Sp(6), design.Sp(6)).Padding(0).BorderWidth(0).TextColor(muted).Center().Menu(menu)
+		more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.Sp(3.5), design.Sp(3.5)).TextColor(muted) })
 		if !showActions && !more.Focused() {
 			more.Absolute().Right(design.Sp(2)).Opacity(0)
 		}

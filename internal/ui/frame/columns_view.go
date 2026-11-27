@@ -162,6 +162,10 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func(), hasSha
 // terminal is mounted or hidden. It never requests focus unless its divider
 // itself is being dragged, so an existing input selection survives toggles.
 func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
+	centerTerminalColumnPtr(c, &m, chat, terminal)
+}
+
+func centerTerminalColumnPtr(c *ui.Context, m *Model, chat, terminal func()) {
 	col := ui.Column(c).Fill().MinWidth(0).MinHeight(0).AlignItems(ui.Stretch)
 	_, viewportHeight := viewportDIP(c)
 	previousViewportHeight := ui.Local(col, "terminal-viewport-height", func() float32 { return 0 })

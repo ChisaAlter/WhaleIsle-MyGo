@@ -3,7 +3,6 @@ package frame
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/design"
 )
 
 // ConversationSessionHeader hides actions/utilities only for the authoritative
@@ -24,8 +23,12 @@ func conversationHeaderHidden(snap session.ViewState, activeTarget bool) bool {
 // Blank headers preserve the two slots that the original header still renders.
 // The explicit native plugin operation also remains in the selected row menu.
 func conversationBlankHeader(c *ui.Context, m Model, snap session.ViewState) {
+	conversationBlankHeaderPtr(c, &m, snap)
+}
+
+func conversationBlankHeaderPtr(c *ui.Context, m *Model, snap session.ViewState) {
 	ui.Row(c.Key("conversation-blank-caption")).Label("Blank conversation caption").FillWidth().Height(workspaceCaptionContent).
-		Padding(0, m.captionRightInset, 0, design.Sp(5)).AlignItems(ui.Center).Children(func() {
+		Padding(0, m.captionRightInset, 0, m.Sizes.headerLeftInset()).AlignItems(ui.Center).Children(func() {
 		if m.ConversationContributions != nil {
 			m.ConversationContributions(c, snap, "conversation.session.header.leading")
 		}

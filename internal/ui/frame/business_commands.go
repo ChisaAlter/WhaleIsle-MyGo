@@ -7,85 +7,39 @@ import (
 	"whaleisle/internal/store/session"
 )
 
-// Business commands reuse existing stores and callbacks, including archive confirmation.
-func addBusinessCommands(c *ui.Context, m Model, actions map[string]func()) {
-	actions["page.close"] = func() { closeFocusedWorkspacePage(c, m) }
-	actions["page.refresh"] = func() { refreshFocusedWorkspacePage(c, m) }
-	actions["sidebar.right.toggle"] = m.OnToggleTools
-	actions["pane.split"] = func() { splitFocusedWorkspacePage(c, m) }
-	actions["pane.splitDown"] = func() { SplitWorkspacePane(m, true) }
-	actions["pane.fullscreen.toggle"] = func() { maximizeFocusedWorkspacePage(c, m) }
-	actions["workspace.add"] = m.OnBrowseWorkspace
-	actions["workspace.openLocal"] = m.OnOpenWorkspaceLocal
-	actions["browser.open"] = m.OnOpenBrowserPreview
-	actions["terminal.host"] = m.OnOpenHostTerminal
-	actions["terminal.new"] = m.OnNewHostTerminal
-	actions["market.open"] = m.OnOpenMarket
-	actions["schedule.open"] = m.OnOpenSchedule
-	actions["assistant.open"] = m.OnOpenAssistant
-	actions["launcher.open"] = m.OnOpenDesktopSettings
-	actions["workspace.files"] = m.OnOpenWorkspaceFiles
-	actions["session.search"] = func() {
-		if m.Sizes != nil && m.Sizes.sidebarPreference() <= 0 {
-			m.Sizes.ToggleSidebar()
-		}
-		if m.SessionSearchFocus != nil {
-			*m.SessionSearchFocus = true
-		}
-		c.Invalidate()
-	}
+func selectNeighborSession(m *Model, delta int) {
 	if m.Store == nil {
 		return
 	}
-	actions["sessions.refresh"] = func() { m.Store.RefreshList(context.Background()) }
-	actions["session.rename"] = func() {
-		snap := m.Store.Published().Value
-		for _, item := range snap.Items {
-			if item.SessionID == snap.SelectedID {
-				beginConversationRename(m, item.SessionID, item.Title)
+	snap := m.Store.Published().Value
+	for i, item := range snap.Items {
+		if item.SessionID == snap.SelectedID {
+			target := i + delta
+			if target < 0 || target >= len(snap.Items) {
 				return
 			}
-		}
-	}
-	actions["session.fork"] = func() {
-		id := m.Store.SelectedSessionID()
-		if item, ok := conversationActionItem(m, id); ok && !routeProjectConversationAction(m, item, "fork") {
-			m.Store.ForkSession(context.Background(), id)
-		}
-	}
-	actions["session.archive"] = func() {
-		id := m.Store.SelectedSessionID()
-		archiveConversation(m, id, false)
-	}
-	selectNeighbor := func(delta int) {
-		snap := m.Store.Published().Value
-		for i, item := range snap.Items {
-			if item.SessionID == snap.SelectedID {
-				target := i + delta
-				if target < 0 || target >= len(snap.Items) {
-					return
-				}
-				id := snap.Items[target].SessionID
-				if routeRegisteredSessionOpen(m, snap.Items[target]) {
-					return
-				}
-				if m.OnSelectSession != nil {
-					m.OnSelectSession(id)
-				} else {
-					m.Store.Select(id)
-				}
+			id := snap.Items[target].SessionID
+			if routeRegisteredSessionOpenPtr(m, snap.Items[target]) {
 				return
 			}
+			if m.OnSelectSession != nil {
+				m.OnSelectSession(id)
+			} else {
+				m.Store.Select(id)
+			}
+			return
 		}
 	}
-	actions["session.previous"] = func() { selectNeighbor(-1) }
-	actions["session.next"] = func() { selectNeighbor(1) }
 }
 
 // Retain the existing package-private helper used by existing callers.
 func nativePageChord(chord shortcuts.Chord) (ui.Modifiers, ui.Key) { return NativeCommandChord(chord) }
 
 func conversationActionItem(m Model, id string) (session.Item, bool) {
+	return conversationActionItemPtr(&m, id)
+}
+
+func conversationActionItemPtr(m *Model, id string) (session.Item, bool) {
 	if m.Store == nil || id == "" {
 		return session.Item{}, false
 	}
@@ -100,6 +54,10 @@ func conversationActionItem(m Model, id string) (session.Item, bool) {
 // Owner-specific presentation is not a generic Session mutation permission.
 // A Project whose catalog is still loading must not fall through to Session.
 func routeProjectConversationAction(m Model, item session.Item, action string) bool {
+	return routeProjectConversationActionPtr(&m, item, action)
+}
+
+func routeProjectConversationActionPtr(m *Model, item session.Item, action string) bool {
 	if p := item.Presentation; p != nil && p.Owner != "" && p.Owner != "project" && p.Owner != "whaleisle" {
 		// Withdrawing a source revokes its actions, not its ownership.
 		return true
@@ -134,26 +92,38 @@ func routeProjectConversationAction(m Model, item session.Item, action string) b
 }
 
 func routeRegisteredSessionOpen(m Model, item session.Item) bool {
+	return routeRegisteredSessionOpenPtr(&m, item)
+}
+
+func routeRegisteredSessionOpenPtr(m *Model, item session.Item) bool {
 	p := item.Presentation
 	if p == nil || p.Owner == "" || p.Owner == "project" || p.Owner == "whaleisle" {
 		return false
 	}
-	return routeProjectConversationAction(m, item, "open")
+	return routeProjectConversationActionPtr(m, item, "open")
 }
 
 func beginConversationRename(m Model, id, title string) {
-	item, ok := conversationActionItem(m, id)
-	if !ok || routeProjectConversationAction(m, item, "rename") {
+	beginConversationRenamePtr(&m, id, title)
+}
+
+func beginConversationRenamePtr(m *Model, id, title string) {
+	item, ok := conversationActionItemPtr(m, id)
+	if !ok || routeProjectConversationActionPtr(m, item, "rename") {
 		return
 	}
 	m.Store.BeginSessionRename(id, title)
 }
 
 func archiveConversation(m Model, id string, restore bool) {
+	archiveConversationPtr(&m, id, restore)
+}
+
+func archiveConversationPtr(m *Model, id string, restore bool) {
 	if m.Store == nil || id == "" {
 		return
 	}
-	item, ok := conversationActionItem(m, id)
+	item, ok := conversationActionItemPtr(m, id)
 	if !ok {
 		if !restore {
 			return
@@ -166,7 +136,7 @@ func archiveConversation(m Model, id string, restore bool) {
 	if restore {
 		action = "restore"
 	}
-	if routeProjectConversationAction(m, item, action) {
+	if routeProjectConversationActionPtr(m, item, action) {
 		return
 	}
 	if restore {

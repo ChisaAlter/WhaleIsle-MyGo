@@ -69,13 +69,15 @@ func BindStopRegion(area ui.Element, client *DraftClient, m Model, transcript bo
 	if !area.FocusWithin() || !valid || sequence.target != target {
 		sequence.reset()
 	}
+	stopWindow := time.Duration(m.Snapshot.StopSequenceMS) * time.Millisecond
+	onStop := m.OnStop
 	area.ObserveUnhandledEscape(func(eligible bool) bool {
 		if !eligible || !valid {
 			sequence.reset()
 			return false
 		}
-		if sequence.press(target, time.Now(), time.Duration(m.Snapshot.StopSequenceMS)*time.Millisecond) {
-			m.OnStop()
+		if sequence.press(target, time.Now(), stopWindow) {
+			onStop()
 		}
 		return true
 	})

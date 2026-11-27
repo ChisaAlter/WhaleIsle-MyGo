@@ -237,3 +237,36 @@ func BenchmarkChatStreamingToolCallFrame(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkSpliceTurnPrefixTailUpdate(b *testing.B) {
+	messages := buildStreamingChatMessages(2000)
+	expanded := map[string]bool{}
+	snap := session.New().Snapshot()
+	snap.SelectedID = "bench-tail-splice"
+	snap.PlanHistoryBinding = "bench-binding"
+	snap.Messages = messages
+	m := Model{Snapshot: snap, ThinkingExpanded: &expanded}
+	var viewMemo transcriptViewMemo
+	_, controls, _, _ := viewMemo.resolve(m)
+	if len(viewMemo.turnPrefix.chunks) < 2 {
+		b.Fatalf("expected multiple prefix chunks, got %d", len(viewMemo.turnPrefix.chunks))
+	}
+	lastChunk := viewMemo.turnPrefix.chunks[len(viewMemo.turnPrefix.chunks)-1]
+	var toggleKey string
+	for k := range lastChunk.controls {
+		toggleKey = k
+		break
+	}
+	if toggleKey == "" {
+		for k := range controls {
+			toggleKey = k
+			break
+		}
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		expanded[toggleKey] = i%2 == 0
+		_, _, _, _ = viewMemo.resolve(m)
+	}
+}

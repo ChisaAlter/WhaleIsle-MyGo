@@ -454,30 +454,35 @@ func workspaceFullscreen(m Model) bool {
 }
 
 func workspaceColumns(c *ui.Context, m Model, center func(), header ...func()) {
+	workspaceColumnsPtr(c, &m, center, header...)
+}
+
+func workspaceColumnsPtr(c *ui.Context, m *Model, center func(), header ...func()) {
 	if m.Sizes.Workspace == nil {
-		prepareWorkspace(m)
+		prepareWorkspace(*m)
 	}
 	w := m.Sizes.Workspace
 	w.syncRoute(derefString(m.RightPaneTab))
+	rightTab := m.RightPaneTab
 	defer func() {
 		if w.pending != nil {
 			action := w.pending
 			w.pending = nil
 			action()
 		}
-		if m.RightPaneTab != nil {
-			*m.RightPaneTab = w.Root.find(w.Active).Kind
+		if rightTab != nil {
+			*rightTab = w.Root.find(w.Active).Kind
 		}
 	}()
-	defer workspaceFloating(c, m)
-	defer workspaceMiniPlayers(c, m)
+	defer workspaceFloating(c, *m)
+	defer workspaceMiniPlayers(c, *m)
 	w.conversationBounds = mygo.Rectangle{}
 	render := func() {
 		dock := ui.Box(c).Key("workspace-dock-drop-surface").Label("Workspace resource dock").Fill().MinWidth(0).MinHeight(0)
 		workspaceDockDropBarrier(dock)
-		dock.Children(func() { workspaceDockNode(c, m, w.Root) })
+		dock.Children(func() { workspaceDockNode(c, *m, w.Root) })
 	}
-	if m.RightPaneOpen && workspaceFullscreen(m) && w.Root.dockedLeaf() != nil {
+	if m.RightPaneOpen && workspaceFullscreen(*m) && w.Root.dockedLeaf() != nil {
 		// SidebarRight keeps one DockLayout tree in both push and fullscreen
 		// modes. Retain every split and resource occurrence, and reuse the
 		// existing native-safe main area rather than stacking a canvas overlay
@@ -493,7 +498,7 @@ func workspaceColumns(c *ui.Context, m Model, center func(), header ...func()) {
 	if w.Root.dockedLeaf() == nil {
 		m.RightPaneOpen = false
 	}
-	centerRightColumns(c, m, center, render, header...)
+	centerRightColumns(c, *m, center, render, header...)
 }
 func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 	box := ui.Box(c).Key(n.ID).Fill().MinWidth(0).MinHeight(0).Clip()
@@ -569,14 +574,17 @@ func workspacePaneControls(c *ui.Context, m Model) {
 
 func workspacePaneClose(m Model, n *WorkspacePane) {
 	w := m.Sizes.Workspace
+	rightPaneOpen := m.RightPaneOpen
+	onToggleTools := m.OnToggleTools
+	id := n.ID
 	w.pending = func() {
-		if !w.close(n.ID) {
+		if !w.close(id) {
 			return
 		}
 		onlyGuide := true
 		w.Root.eachResource(func(tab *WorkspacePane) { onlyGuide = onlyGuide && tab.Kind == "guide" })
-		if onlyGuide && m.RightPaneOpen && m.OnToggleTools != nil {
-			m.OnToggleTools()
+		if onlyGuide && rightPaneOpen && onToggleTools != nil {
+			onToggleTools()
 		}
 	}
 }

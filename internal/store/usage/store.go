@@ -48,16 +48,17 @@ type ViewState struct {
 
 // Store fetches account stats and optional session job list from dsh RPC.
 type Store struct {
-	notices        NoticeState
-	details        accountdetails.State
-	accountEpoch   uint64
-	accountRead    uint64
-	ranking        rankingState
-	projectRanking projectRankingState
-	repair         repairState
-	billing        billingState
-	stats          statsState
-	statsCachePath string
+	notices            NoticeState
+	details            accountdetails.State
+	accountEpoch       uint64
+	accountRead        uint64
+	ranking            rankingState
+	projectRanking     projectRankingState
+	repair             repairState
+	billing            billingState
+	billingSettingsRev uint64
+	stats              statsState
+	statsCachePath     string
 	// attach is the Host-attachment lease (formerly statsEpoch): renewed on
 	// Attach/Detach, its generation fences every stats, billing, ranking,
 	// repair and job-kill completion.

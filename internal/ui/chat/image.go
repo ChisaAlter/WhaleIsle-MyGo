@@ -412,17 +412,17 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 	if displayPath == "" || onClose == nil {
 		return
 	}
-	bmp, _ := cachedChatBitmap(displayPath, c.Services().Invalidate)
-	if bmp == nil {
-		return
-	}
+	bmp, pending := cachedChatBitmap(displayPath, c.Services().Invalidate)
 	t := design.For(c)
 	width, height := c.Size()
 	border := t.Border
 	titleBar := c.TitleBar()
 	caption := titleBar.Height
 	closeRight := max(float32(20), titleBar.Right+12)
-	pw, ph := imageLightboxSize(bmp, width, height-caption)
+	var pw, ph float32
+	if bmp != nil {
+		pw, ph = imageLightboxSize(bmp, width, height-caption)
+	}
 	open := true
 	ui.DialogBase(c.Key("image-lightbox"), &open, func(backdrop, panel ui.Element) {
 		progress := float32(1)
@@ -437,10 +437,34 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 			p.Fill(ui.Rect{X: r.X, Y: r.Y + caption, W: r.W, H: max(0, r.H-caption)}, mask.Alpha(progress), 0)
 		})
 		backdrop.Padding(design.Sp(10)+caption, design.Sp(10), design.Sp(10), design.Sp(10))
-		chatPopupSurface(c, panel.Label(i18n.T(i18n.KeyToolImagePreview)).Size(pw, ph).Padding(0).
-			Background(t.Card).Opacity(progress), design.RadiusXL2).Children(func() {
-			ui.Image(c, bmp).Fill().Fit(ui.Contain).Radius(design.RadiusXL2).Label(filepath.Base(displayPath))
-		})
+		if bmp != nil {
+			chatPopupSurface(c, panel.Label(i18n.T(i18n.KeyToolImagePreview)).Size(pw, ph).Padding(0).
+				Background(t.Card).Opacity(progress), design.RadiusXL2).Children(func() {
+				ui.Image(c, bmp).Fill().Fit(ui.Contain).Radius(design.RadiusXL2).Label(filepath.Base(displayPath))
+			})
+		} else {
+			statusLabel := i18n.T(i18n.KeyChatImageFailed)
+			if pending {
+				statusLabel = i18n.T(i18n.KeyChatImageLoading)
+			}
+			chatPopupSurface(c, panel.Label(statusLabel).MinWidth(design.Sp(60)).MaxWidth(design.Sp(100)).
+				Padding(design.Sp(6)).Gap(design.Sp(3)).AlignItems(ui.Center).Justify(ui.Center).
+				Background(t.Card).Opacity(progress), design.RadiusXL2).Children(func() {
+				if pending {
+					coss.Spinner(c, coss.SpinnerOptions{Size: design.IconMD, Color: t.MutedForeground})
+					ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(design.TextSM.Size).TextColor(t.MutedForeground)
+				} else {
+					ui.Text(c, i18n.T(i18n.KeyChatImageFailed)).FontSize(design.TextSM.Size).TextColor(t.DestructiveForeground)
+					if coss.Button(c, i18n.T(i18n.KeyToolImageClosePreview), coss.ButtonOptions{
+						Variant: coss.ButtonOutline,
+						Size:    coss.ButtonSM,
+						Key:     "image-lightbox-error-close",
+					}).Clicked() {
+						open = false
+					}
+				}
+			})
+		}
 		// A sibling of the centered image stays anchored to the window, and the
 		// modal scope keeps Tab on this sole control and restores the opener.
 		backdrop.Children(func() {

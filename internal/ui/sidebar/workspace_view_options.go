@@ -23,30 +23,40 @@ func workspaceViewOptionsItems(m Model) ([]coss.MenuItem, func(string)) {
 		order = "updated"
 	}
 	filter := sharedArchiveFilter(m)
+	onGrouping := m.OnWorkspaceGrouping
+	onOrdering := m.OnWorkspaceOrdering
+	onArchivedFilter := m.OnArchivedFilter
+	browseFilter := m.BrowseArchivedFilter
+	searchFilter := m.SearchArchivedFilter
+	canFilter := canSetArchiveFilter(m)
 	groupPick := func(value string) func() {
 		return func() {
-			if m.OnWorkspaceGrouping != nil {
-				m.OnWorkspaceGrouping(value)
+			if onGrouping != nil {
+				onGrouping(value)
 			}
 		}
 	}
 	orderPick := func(value string) func() {
 		return func() {
-			if m.OnWorkspaceOrdering != nil {
-				m.OnWorkspaceOrdering(value)
+			if onOrdering != nil {
+				onOrdering(value)
 			}
 		}
 	}
-	filterPick := func(value string) func() { return func() { setArchiveFilter(m, value) } }
+	filterPick := func(value string) func() {
+		return func() {
+			setArchiveFilter(Model{OnArchivedFilter: onArchivedFilter, BrowseArchivedFilter: browseFilter, SearchArchivedFilter: searchFilter}, value)
+		}
+	}
 	choices := []workspaceViewChoice{
-		{"workspace", workspaceText("按工作区", "By workspace"), i18n.T(i18n.KeyWSGroupByLabel), group == "workspace", groupPick("workspace"), m.OnWorkspaceGrouping == nil},
-		{"workspace-tree", workspaceText("按工作区树", "Workspace tree"), "", group == "workspace-tree", groupPick("workspace-tree"), m.OnWorkspaceGrouping == nil},
-		{"flat", workspaceText("单列表", "Single list"), "", group == "flat", groupPick("flat"), m.OnWorkspaceGrouping == nil},
-		{"manual", workspaceText("手动排序", "Manual order"), i18n.T(i18n.KeyWSOrderByLabel), order == "manual", orderPick("manual"), m.OnWorkspaceOrdering == nil},
-		{"updated", workspaceText("最近更新", "Recently updated"), "", order == "updated", orderPick("updated"), m.OnWorkspaceOrdering == nil},
-		{"default", i18n.T(i18n.KeyWSViewOptionsHideArchived), i18n.T(i18n.KeyWSFilterByLabel), filter == "default", filterPick("default"), !canSetArchiveFilter(m)},
-		{"show", i18n.T(i18n.KeyWSViewOptionsShowArchived), "", filter == "show", filterPick("show"), !canSetArchiveFilter(m)},
-		{"only", workspaceText("仅显示已归档", "Only archived"), "", filter == "only", filterPick("only"), !canSetArchiveFilter(m)},
+		{"workspace", workspaceText("按工作区", "By workspace"), i18n.T(i18n.KeyWSGroupByLabel), group == "workspace", groupPick("workspace"), onGrouping == nil},
+		{"workspace-tree", workspaceText("按工作区树", "Workspace tree"), "", group == "workspace-tree", groupPick("workspace-tree"), onGrouping == nil},
+		{"flat", workspaceText("单列表", "Single list"), "", group == "flat", groupPick("flat"), onGrouping == nil},
+		{"manual", workspaceText("手动排序", "Manual order"), i18n.T(i18n.KeyWSOrderByLabel), order == "manual", orderPick("manual"), onOrdering == nil},
+		{"updated", workspaceText("最近更新", "Recently updated"), "", order == "updated", orderPick("updated"), onOrdering == nil},
+		{"default", i18n.T(i18n.KeyWSViewOptionsHideArchived), i18n.T(i18n.KeyWSFilterByLabel), filter == "default", filterPick("default"), !canFilter},
+		{"show", i18n.T(i18n.KeyWSViewOptionsShowArchived), "", filter == "show", filterPick("show"), !canFilter},
+		{"only", workspaceText("仅显示已归档", "Only archived"), "", filter == "only", filterPick("only"), !canFilter},
 	}
 	items := make([]coss.MenuItem, 0, len(choices)+5)
 	runners := make(map[string]func(), len(choices))

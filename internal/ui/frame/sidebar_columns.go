@@ -87,6 +87,16 @@ func (sizes *LayoutSizes) drawerMode() bool {
 	return r != nil && r.viewport > 0 && r.viewport < phoneMax && (!r.orientationKnown || !r.landscape)
 }
 
+// headerLeftInset returns the leading horizontal padding for conversation
+// headers so they clear the floating drawer button (Left(10) + 36 = 46 DIP)
+// when drawerMode is active.
+func (sizes *LayoutSizes) headerLeftInset() float32 {
+	if sizes != nil && sizes.drawerMode() {
+		return design.Sp(12)
+	}
+	return design.Sp(5)
+}
+
 // drawerWidth is the installed min(320, max(264, viewport-48)). Below 312
 // the navigation keeps its 264 DIP minimum; the shell clips it at tiny widths.
 func (sizes *LayoutSizes) drawerWidth() float32 {
@@ -223,44 +233,48 @@ func sidebarDrawer(c *ui.Context, sizes *LayoutSizes, sidebar, center func(), vi
 	width := sizes.drawerWidth()
 	animate := !c.Preferences().ReduceMotion
 	shell := ui.Box(c).Key("sidebar-drawer-shell").Grow(1).MinWidth(0).MinHeight(0).Clip()
+	wasOpen := ui.Local(shell, "sidebar-drawer-was-open", func() bool { return false })
 	shell.Children(func() {
 		main := ui.Box(c).Key("main-column").Fill().MinWidth(0).MinHeight(0).Clip()
 		main.Children(center)
 
 		if open {
-			backdrop := ui.Box(c).Key("sidebar-drawer-backdrop").Absolute().Top(0).Bottom(0).Left(0).Right(0)
-			backdrop.Background(design.TW.Black.Alpha(0.28)).Label(i18n.T(i18n.KeySidebarCollapse)).Cursor(ui.CursorDefault)
-			if backdrop.Clicked() {
-				sizes.ToggleSidebar()
-			}
+			*wasOpen = true
+			ui.Overlay(c, func() {
+				modal := ui.Box(c).Key("sidebar-drawer-modal").Absolute().Top(0).Bottom(0).Left(0).Right(0).Modal()
+				if modal.OverlayShortcut(0, ui.KeyEscape) {
+					sizes.ToggleSidebar()
+				}
+				modal.Children(func() {
+					backdrop := ui.Box(c).Key("sidebar-drawer-backdrop").Absolute().Top(0).Bottom(0).Left(0).Right(0).
+						Background(design.TW.Black.Alpha(0.28)).Label(i18n.T(i18n.KeySidebarCollapse)).Cursor(ui.CursorDefault)
+					if backdrop.Clicked() {
+						sizes.ToggleSidebar()
+					}
+					drawer := ui.Box(c).Key("sidebar-drawer").Absolute().Top(0).Bottom(0).Left(0).Width(width).Clip()
+					if animate {
+						drawer.Transition(shellTrackTransition)
+					}
+					drawer.Children(sidebar)
+				})
+			})
+			return
 		}
 
-		left := float32(0)
-		if !open {
-			left = -width
+		// AppFrame .phoneMenu: the only way back into navigation once the
+		// drawer has left the grid.
+		t := tk(c)
+		openBtn := ui.ButtonBase(c.Key("sidebar-drawer-open")).Absolute().Left(10).Top(10).Size(36, 36).
+			Radius(design.RadiusLG).Padding(0).BorderWidth(0).Background(frameInsetBg(t)).
+			Shadow(0, 2, 8, 0, design.TW.Black.Alpha(0.14)).Center().
+			Label(i18n.T(i18n.KeySidebarExpand)).Tooltip(i18n.T(i18n.KeySidebarExpand))
+		openBtn.Children(func() { ui.Icon(c, drawerMenuArtwork).Size(18, 18).TextColor(t.Foreground) })
+		if *wasOpen {
+			*wasOpen = false
+			openBtn.Focus()
 		}
-		drawer := ui.Box(c).Key("sidebar-drawer").Absolute().Top(0).Bottom(0).Left(left).Width(width).Clip()
-		if animate {
-			drawer.Transition(shellTrackTransition)
-		}
-		// Closed drawers stop building immediately: no off-canvas keyboard owner
-		// or focusable control survives behind the conversation.
-		if open {
-			drawer.Children(sidebar)
-		}
-
-		if !open {
-			// AppFrame .phoneMenu: the only way back into navigation once the
-			// drawer has left the grid.
-			t := tk(c)
-			open := ui.ButtonBase(c.Key("sidebar-drawer-open")).Absolute().Left(10).Top(10).Size(36, 36).
-				Radius(design.RadiusLG).Padding(0).BorderWidth(0).Background(frameInsetBg(t)).
-				Shadow(0, 2, 8, 0, design.TW.Black.Alpha(0.14)).Center().
-				Label(i18n.T(i18n.KeySidebarExpand)).Tooltip(i18n.T(i18n.KeySidebarExpand))
-			open.Children(func() { ui.Icon(c, drawerMenuArtwork).Size(18, 18).TextColor(t.Foreground) })
-			if open.Clicked() {
-				sizes.ToggleSidebar()
-			}
+		if openBtn.Clicked() {
+			sizes.ToggleSidebar()
 		}
 	})
 }

@@ -482,7 +482,7 @@ func View(c *ui.Context, m Model) {
 		m.invalidate = c.Services().Invalidate
 	}
 	prepareWorkspace(m)
-	m = m.Sizes.Workspace.beginFileProjection(m)
+	m.Sizes.Workspace.beginFileProjectionPtr(&m)
 	defer m.Sizes.Workspace.finishFileProjection(m)
 	if !workspaceVisible(m, "browser") && m.OnHideBrowser != nil {
 		m.OnHideBrowser()
@@ -503,7 +503,8 @@ func View(c *ui.Context, m Model) {
 	m.ViewportW, m.ViewportH = viewport, viewportHeight
 	m.Sizes.observeSidebarGeometry(c, viewport, viewportHeight)
 	m.Sizes.ObserveSidebarSessionSelection(m.Store.Published().Value)
-	registerPageCommands(c, m)
+	mp := &m
+	registerPageCommandsPtr(c, mp)
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	t := tk(c)
@@ -534,19 +535,21 @@ func View(c *ui.Context, m Model) {
 	// At larger widths an explicit delivery still needs a visible fallback if
 	// the normal details track cannot fit. Failed previews never change mode.
 	if preview := m.OnPreviewDeliverable; preview != nil {
+		sizes := m.Sizes
+		reserve := m.RightOverlayReserve
 		m.OnPreviewDeliverable = func(path string) error {
 			if err := preview(path); err != nil {
 				return err
 			}
 			// Compute against a copy: opening the drawer updates responsive state,
 			// but this check must not mutate the live frame's layout preferences.
-			proposed := *m.Sizes
-			if m.Sizes.Responsive != nil {
-				responsive := *m.Sizes.Responsive
+			proposed := *sizes
+			if sizes.Responsive != nil {
+				responsive := *sizes.Responsive
 				proposed.Responsive = &responsive
 			}
-			if viewport >= workspaceAutoFullscreenWidth && proposed.resolveColumnsWithReserve(viewport, m.RightOverlayReserve, true).Details == 0 {
-				w := m.Sizes.Workspace
+			if viewport >= workspaceAutoFullscreenWidth && proposed.resolveColumnsWithReserve(viewport, reserve, true).Details == 0 {
+				w := sizes.Workspace
 				if w != nil && w.Fullscreen == "" && w.Root != nil && w.Root.find(w.Active) != nil {
 					w.Fullscreen = w.Active
 				}
@@ -568,18 +571,18 @@ func View(c *ui.Context, m Model) {
 	if !m.ExternalNavigation {
 		shell.Background(frameCanvasFill(t))
 	}
-	workspaceFloatDropSurface(c, m, shell)
+	workspaceFloatDropSurfacePtr(c, mp, shell)
 	_, height := viewportDIP(c)
 	// The titlebar is above this shell. Its previous-frame origin remains
 	// stable during a window resize; preserve a visible terminal below it.
 	m.centerHeight = maxf(0, height-shell.Bounds().Y)
 	shell.Children(func() {
-		mainRow(c, m, snap, colors, border, muted)
+		mainRowPtr(c, mp, snap, colors, border, muted)
 	})
 	if !jobsMounted && m.Store != nil {
 		m.Store.UnmountNativeJobs()
 	}
-	workflowMemberDialog(c, m)
+	workflowMemberDialog(c, mp)
 }
 
 func clampSidebarWidth(w float32) float32 {
@@ -661,32 +664,46 @@ func resolveNavigationAccount(m Model) sidebar.Account {
 // navigationView is shared by chat and the global main panels. Its owning
 // shell stays mounted while only the center content changes.
 func navigationView(c *ui.Context, m Model, snap session.ViewState) {
+	navigationViewPtr(c, &m, snap)
+}
+
+func navigationViewPtr(c *ui.Context, m *Model, snap session.ViewState) {
+	store := m.Store
+	sizes := m.Sizes
+	projectsCopy := m.Projects
 	selectSession := m.OnSelectSession
 	if selectSession == nil {
-		selectSession = m.Store.Select
+		selectSession = store.Select
 	}
 	selectRoot := selectSession
 	selectSession = func(id string) {
-		for _, item := range m.Store.Published().Value.Items {
-			if item.SessionID == id && routeRegisteredSessionOpen(m, item) {
+		for _, item := range store.Published().Value.Items {
+			if item.SessionID == id && routeRegisteredSessionOpenPtr(&Model{Store: store, Projects: projectsCopy}, item) {
 				return
 			}
 		}
-		if m.Sizes != nil && m.Sizes.Workspace != nil {
-			m.Sizes.Workspace.closeMainChild()
+		if sizes != nil && sizes.Workspace != nil {
+			sizes.Workspace.closeMainChild()
 		}
-		m.Store.MarkMainConversationViewed(id)
+		store.MarkMainConversationViewed(id)
 		selectRoot(id)
 	}
 	createSession := m.OnCreateSession
 	if createSession == nil {
-		createSession = func() { m.Store.CreateSession(context.Background()) }
+		createSession = func() { store.CreateSession(context.Background()) }
 	}
-	rename := m.Store.SessionRename()
-	projectModel := m.Projects
+	rename := store.SessionRename()
+	projectModel := projectsCopy
 	projectModel.SearchQuery = derefString(m.SessionSearch)
 	projectModel.OnResolvedFile = m.OnOpenDeliverable
-	projectModel.OnObserver = func(id string) { openProjectObserver(m, id) }
+	if sizes != nil || m.OnToggleTools != nil {
+		onToggleTools := m.OnToggleTools
+		rightPaneOpen := m.RightPaneOpen
+		rightPaneTab := m.RightPaneTab
+		projectModel.OnObserver = func(id string) {
+			openProjectObserver(Model{Store: store, Sizes: sizes, Projects: projectsCopy, RightPaneOpen: rightPaneOpen, RightPaneTab: rightPaneTab, OnToggleTools: onToggleTools}, id)
+		}
+	}
 	schedules := schedstore.ViewState{}
 	if m.ScheduleStore != nil {
 		m.ScheduleStore.EnsureContext(context.Background(), snap.SelectedID, nil)
@@ -694,49 +711,50 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	}
 	menuShortcutLabels := resolvedMenuShortcutLabels(m.PageShortcutBindings)
 	newSessionShortcut := menuShortcutLabels["session.new"]
-	m.Store.SetSessionBatchScope(sidebar.BatchSelectionScope(sidebar.Model{Snapshot: snap, Collapsed: m.Sizes.sidebarCollapsed(), SearchQuery: m.SessionSearch}))
+	store.SetSessionBatchScope(sidebar.BatchSelectionScope(sidebar.Model{Snapshot: snap, Collapsed: sizes.sidebarCollapsed(), SearchQuery: m.SessionSearch}))
 	activePanel := m.ActivePanel
 	if activePanel == "" && isWhaleAssistantSession(snap) {
 		activePanel = "assistant"
 	}
 	var onCreatePlugin func()
-	if m.OnCreatePluginDraft != nil {
-		onCreatePlugin = func() { m.OnCreatePluginDraft("leftbar") }
+	if fn := m.OnCreatePluginDraft; fn != nil {
+		onCreatePlugin = func() { fn("leftbar") }
 	}
+	hostGen := snap.WorkspaceLayout.HostGeneration
 	sidebar.View(c, sidebar.Model{
 		ActivePanel:          activePanel,
 		NewSessionShortcut:   newSessionShortcut,
 		MenuShortcutLabels:   menuShortcutLabels,
-		PendingStatuses:      sidebarPendingStatuses(m),
-		Batch:                m.Store.SessionBatch(),
-		OnBatchEdit:          m.Store.EditSessionBatch,
-		OnBatchRequest:       m.Store.RequestSessionBatch,
-		OnBatchConfirm:       func(token uint64) { m.Store.ConfirmSessionBatch(context.Background(), token) },
-		OnBatchCancel:        m.Store.CancelSessionBatch,
-		ArchiveUndo:          m.Store.ArchiveUndoNotice(),
-		OnUndoArchive:        m.Store.UndoArchive,
+		PendingStatuses:      sidebarPendingStatuses(*m),
+		Batch:                store.SessionBatch(),
+		OnBatchEdit:          store.EditSessionBatch,
+		OnBatchRequest:       store.RequestSessionBatch,
+		OnBatchConfirm:       func(token uint64) { store.ConfirmSessionBatch(context.Background(), token) },
+		OnBatchCancel:        store.CancelSessionBatch,
+		ArchiveUndo:          store.ArchiveUndoNotice(),
+		OnUndoArchive:        store.UndoArchive,
 		HideArchivedList:     m.HideArchivedList,
-		Account:              resolveNavigationAccount(m),
+		Account:              resolveNavigationAccount(*m),
 		Schedules:            schedules,
 		Projects:             projectModel,
-		Collapsed:            m.Sizes.sidebarCollapsed(),
+		Collapsed:            sizes.sidebarCollapsed(),
 		ViewportW:            m.ViewportW,
 		ViewportH:            m.ViewportH,
-		OnToggle:             m.Sizes.ToggleSidebar,
+		OnToggle:             sizes.ToggleSidebar,
 		Snapshot:             snap,
 		ThemeID:              m.ThemeID,
 		SystemDark:           m.SystemDark,
 		SearchQuery:          m.SessionSearch,
 		SearchFocus:          m.SessionSearchFocus,
-		WorkspaceLabel:       m.Store.WorkspaceCwd(),
+		WorkspaceLabel:       store.WorkspaceCwd(),
 		RenameSessionID:      rename.SessionID,
 		RenameDraft:          &rename.Draft,
 		RenameBusy:           rename.Busy,
 		RenameError:          rename.Error,
-		OnRenameDraftChanged: m.Store.EditSessionRename,
+		OnRenameDraftChanged: store.EditSessionRename,
 		OnSelect:             selectSession,
 		OnRefresh: func() {
-			m.Store.RefreshList(context.Background())
+			store.RefreshList(context.Background())
 		},
 		OnCreate:              createSession,
 		OnOpenMarket:          m.OnOpenMarket,
@@ -755,23 +773,23 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		DesktopUpdateInstalling: m.DesktopUpdateInstalling,
 		DesktopUpdatePhase:      m.DesktopUpdatePhase, DesktopUpdateDetail: m.DesktopUpdateDetail, OnOpenDesktopUpdate: m.OnOpenDesktopUpdate,
 		OnContactAccount:            m.OnContactAccount,
-		OnRetryWorkspacePreferences: m.Store.RetryWorkspacePreferences,
+		OnRetryWorkspacePreferences: store.RetryWorkspacePreferences,
 		OnDropWorkspaceBefore: func(generation uint64, id, before string) {
-			m.Store.InsertWorkspaceBeforeForHost(context.Background(), generation, id, before)
+			store.InsertWorkspaceBeforeForHost(context.Background(), generation, id, before)
 		},
 		OnSelectWorkspace:        m.OnSelectWorkspace,
 		OnCreateWorkspaceSession: m.OnCreateWorkspaceSession,
-		OnManageWorkspace:        m.Store.BeginWorkspaceManagement,
-		OnBeginWorkspaceRename:   m.Store.BeginWorkspaceRename,
-		OnBeginWorkspaceRemoval:  m.Store.BeginWorkspaceRemoval,
-		OnWorkspaceGrouping:      m.Store.SetWorkspaceGrouping,
-		OnWorkspaceOrdering:      m.Store.SetWorkspaceOrdering,
-		OnArchivedFilter:         m.Store.SetWorkspaceArchivedFilter,
-		OnToggleWorkspaceGroup:   m.Store.ToggleWorkspaceGroup,
-		OnMoveWorkspaceBefore:    func(id, before string) { m.Store.InsertWorkspaceBefore(context.Background(), id, before) },
-		OnMoveLocalSessionBefore: m.Store.InsertLocalSessionBefore,
+		OnManageWorkspace:        store.BeginWorkspaceManagement,
+		OnBeginWorkspaceRename:   store.BeginWorkspaceRename,
+		OnBeginWorkspaceRemoval:  store.BeginWorkspaceRemoval,
+		OnWorkspaceGrouping:      store.SetWorkspaceGrouping,
+		OnWorkspaceOrdering:      store.SetWorkspaceOrdering,
+		OnArchivedFilter:         store.SetWorkspaceArchivedFilter,
+		OnToggleWorkspaceGroup:   store.ToggleWorkspaceGroup,
+		OnMoveWorkspaceBefore:    func(id, before string) { store.InsertWorkspaceBefore(context.Background(), id, before) },
+		OnMoveLocalSessionBefore: store.InsertLocalSessionBefore,
 		OnMoveWorkspaceSessionBefore: func(workspaceID, id, before string) {
-			m.Store.InsertSessionBeforeForHost(snap.WorkspaceLayout.HostGeneration, workspaceID, id, before)
+			store.InsertSessionBeforeForHost(hostGen, workspaceID, id, before)
 		},
 		OnBrowseWorkspace:    m.OnBrowseWorkspace,
 		DirectoryActions:     m.DirectoryActions,
@@ -782,19 +800,21 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnMoveSessionBefore:  m.OnMoveSessionBefore,
 		WorkspaceRenameDraft: m.WorkspaceRenameDraft,
 		WorkspaceMenuOpen:    m.WorkspaceMenuOpen,
-		OnBeginRename:        func(id, title string) { beginConversationRename(m, id, title) },
-		OnCommitRename:       m.Store.SubmitSessionRename,
-		OnCancelRename:       m.Store.CancelSessionRename,
+		OnBeginRename: func(id, title string) {
+			beginConversationRenamePtr(&Model{Store: store, Projects: projectsCopy}, id, title)
+		},
+		OnCommitRename: store.SubmitSessionRename,
+		OnCancelRename: store.CancelSessionRename,
 		OnArchive: func(sessionID string) {
-			archiveConversation(m, sessionID, false)
+			archiveConversationPtr(&Model{Store: store, Projects: projectsCopy}, sessionID, false)
 		},
 		OnUnarchive: func(sessionID string) {
-			archiveConversation(m, sessionID, true)
+			archiveConversationPtr(&Model{Store: store, Projects: projectsCopy}, sessionID, true)
 		},
 		OnDelete: func(sessionID string) {
 			// Electron session delete: confirm before session/delete.
 			title := sessionID
-			for _, item := range m.Store.Published().Value.Items {
+			for _, item := range store.Published().Value.Items {
 				if item.SessionID == sessionID && item.Title != "" {
 					title = item.Title
 					break
@@ -811,23 +831,23 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 			if err != nil || choice.Button != 0 {
 				return
 			}
-			m.Store.DeleteSession(context.Background(), sessionID)
+			store.DeleteSession(context.Background(), sessionID)
 		},
 		OnPin: func(sessionID string) {
-			m.Store.PinSession(context.Background(), sessionID)
+			store.PinSession(context.Background(), sessionID)
 		},
 		OnUnpin: func(sessionID string) {
-			m.Store.UnpinSession(context.Background(), sessionID)
+			store.UnpinSession(context.Background(), sessionID)
 		},
 		OnCopySessionID: func(sessionID string) {
 			if strings.TrimSpace(sessionID) != "" {
 				mygo.Clipboard.WriteText(sessionID)
-				m.Store.SetLastAction(i18n.T(i18n.KeySidebarCopyID) + ": " + sessionID)
+				store.SetLastAction(i18n.T(i18n.KeySidebarCopyID) + ": " + sessionID)
 			}
 		},
 		OnFork: func(sessionID string) {
-			if item, ok := conversationActionItem(m, sessionID); ok && !routeProjectConversationAction(m, item, "fork") {
-				m.Store.ForkSession(context.Background(), sessionID)
+			if item, ok := conversationActionItemPtr(&Model{Store: store}, sessionID); ok && !routeProjectConversationActionPtr(&Model{Store: store, Projects: projectsCopy}, item, "fork") {
+				store.ForkSession(context.Background(), sessionID)
 			}
 		},
 	})
@@ -837,22 +857,26 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 }
 
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {
+	mainRowPtr(c, &m, snap, colors, border, muted)
+}
+
+func mainRowPtr(c *ui.Context, m *Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {
 	inspectToolCall := toolCallNavigationFrame(c, m, snap)
 	withNavigation := func(body func()) {
-		if m.ExternalNavigation || workspaceAutoFullscreen(m) {
+		if m.ExternalNavigation || workspaceAutoFullscreen(*m) {
 			body()
 			return
 		}
 		sidebarColumns(c, m.Sizes, func() {
 			ui.Column(c.Key("frame-sidebar-pane")).Fill().MinWidth(0).MinHeight(0).Children(func() {
-				navigationView(c, m, snap)
+				navigationViewPtr(c, m, snap)
 			})
 		}, body)
 	}
 	withNavigation(func() {
 		hero := conversationPhase(snap, hasSessionInteractions(m.Interactions, snap.SelectedID)) == conversationHero
 		paintHeader := func() {
-			headerHeight := workspaceSharedCaption(c, m, snap, colors, hero)
+			headerHeight := workspaceSharedCaptionPtr(c, m, snap, colors, hero)
 			m.centerHeight = max(float32(0), m.centerHeight-headerHeight)
 		}
 		// Electron desktop defaults to 2-column (rail | chat). Files/diff mounts
@@ -872,7 +896,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				conversationArea.Background(theme.Color(skinLayout.ChatBackground)).Radius(0).Padding(0)
 			}
 			enter := conversationEnterLazy(c, conversationArea, conversationEnterOwner(snap), emptyHero, snap.PromptAttempted, func() string {
-				return conversationEnterStructure(m, snap, phase, takeover)
+				return conversationEnterStructure(*m, snap, phase, takeover)
 			})
 			if takeover || phase == conversationSettling {
 				enter.cancel()
@@ -889,10 +913,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				state         composer.ComposerCollapseState
 				prevScrollTop float32
 				prevScrollH   float32
+				lastViewportH float32
 			}
 			collapseTracker := ui.Local(conversationArea, "composer-collapse:"+snap.SelectedID, func() frameCollapseTracker { return frameCollapseTracker{} })
 			pendingSubmission := (m.ComposerState != nil && m.ComposerState.Sending) || len(snap.PlanBoard.Pending) > 0
-			scrollH := enterScroll.scroll.MaxY + enterViewport.H
+			viewportH := collapseTracker.lastViewportH
+			scrollH := enterScroll.scroll.MaxY + viewportH
 			followingTail := m.ChatList == nil || m.ChatList.AtEnd()
 			editing := m.ComposerState != nil && m.ComposerState.EditSeq > 0
 			collapseGuards := composer.ComposerCollapseGuards{
@@ -909,11 +935,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				collapseTracker.state = composer.ComposerCollapseState{}
 				collapseTracker.prevScrollTop = enterScroll.scroll.Y
 				collapseTracker.prevScrollH = scrollH
-			} else if enterViewport.H > 0 && (enterScroll.scroll.Y != collapseTracker.prevScrollTop || scrollH != collapseTracker.prevScrollH) {
+			} else if viewportH > 0 && (enterScroll.scroll.Y != collapseTracker.prevScrollTop || scrollH != collapseTracker.prevScrollH) {
 				collapseTracker.state = composer.ReduceComposerScroll(collapseTracker.state, composer.ComposerScrollSample{
 					ScrollTop:        enterScroll.scroll.Y,
 					ScrollHeight:     scrollH,
-					ClientHeight:     enterViewport.H,
+					ClientHeight:     viewportH,
 					PrevScrollTop:    collapseTracker.prevScrollTop,
 					PrevScrollHeight: collapseTracker.prevScrollH,
 					FollowingTail:    followingTail,
@@ -925,14 +951,14 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			}
 			composerCollapsed := composer.IsComposerCollapsed(collapseTracker.state, collapseGuards)
 			conversationArea.Children(func() {
-				if mainSubagentConversationBody(c, m) {
+				if mainSubagentConversationBodyPtr(c, m) {
 					enter.cancel()
 					return
 				}
-				if conversationTabsShown(m, snap) {
-					conversationViewTabs(c, m, colors, false)
+				if conversationTabsShownPtr(m, snap) {
+					conversationViewTabs(c, *m, colors, false)
 				}
-				conversationFileDrop(c, m, conversationArea, snap.SelectedID)
+				conversationFileDropPtr(c, m, conversationArea, snap.SelectedID)
 				m.Store.MarkMainConversationViewed(snap.SelectedID)
 				// Prefer live commands/list from main; do not invent stub slash rows.
 				slashCatalog := m.ComposerSlash
@@ -992,7 +1018,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnOpenReference:      m.OnOpenDeliverable,
 						OnAttachFiles:        m.OnAttachComposerFiles,
 						OnRetryAttachment:    m.OnRetryComposerFile,
-						OnWorkspaceReference: func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
+						OnWorkspaceReference: func(ref filelink.Reference) error { return insertWorkspaceReference(*m, ref) },
 						OnPasteImage:         m.OnPasteComposerImage,
 						Editing:              editing,
 						OnCancelEdit: func() {
@@ -1055,7 +1081,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							}
 						},
 						StopBlocked: hasPendingStopInteraction(m.Interactions, snap.SelectedID),
-						OnStop:      func() { cancelCapturedResponse(m, snap) },
+						OnStop:      func() { cancelCapturedResponseStore(m.Store, snap) },
 						OnModelChange: func(label string) {
 							if choice, ok := snap.ModelChoices[label]; ok {
 								m.Store.SelectModelSelectionForSessionID(context.Background(), snap.SelectedID, choice)
@@ -1197,11 +1223,15 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					Snapshot: snap, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
 					ConnectionBanner: m.ConnectionBanner, OnReconnect: m.OnReconnect,
 				})
-				conversationHistoryStatus(c, m, snap, muted)
+				conversationHistoryStatus(c, *m, snap, muted)
 				// ConversationRoot: same chatContent column for transcript + docked composer.
 				chatRegion := ui.Column(c).Key("conversation-body").Label("Conversation body").Grow(1).MinHeight(0)
 				chatRegion.ObserveLayout(func(r ui.Rect) {
 					enterViewport = r
+					if r.H > 0 && r.H != collapseTracker.lastViewportH {
+						collapseTracker.lastViewportH = r.H
+						c.Invalidate()
+					}
 				})
 				bindChatStopRegion(chatRegion, m, snap)
 				chatRegion.Children(func() {
@@ -1282,9 +1312,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										})
 									} else {
 										var navigation *chat.InspectorNavigation
-										inspectorActive := hasVisibleInspectorPane(m)
+										inspectorActive := hasVisibleInspectorPane(*m)
 										if inspectorActive {
-											navigation = sessionInspectorChatNavigation(m)
+											navigation = sessionInspectorChatNavigation(*m)
 										}
 										chat.View(c, chat.Model{
 											OnPreviewDeliverablePresentation: m.OnPreviewDeliverablePresentation,
@@ -1354,7 +1384,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											OnOpenImageLightbox:          m.OnOpenImageLightbox,
 											OnCloseImageLightbox:         m.OnCloseImageLightbox,
 											OnOpenCitationURL:            m.OnOpenCitationURL,
-											OnOpenChangesReview:          func(scope session.TurnFileScope, target session.TurnFileTarget) { OpenChangesReview(m, scope, target) },
+											OnOpenChangesReview:          func(scope session.TurnFileScope, target session.TurnFileTarget) { OpenChangesReview(*m, scope, target) },
 											OnOpenPlanResource:           m.OnOpenPlanResource,
 											OnOpenDeliverable:            m.OnOpenDeliverable,
 											OnPreviewDeliverable:         m.OnPreviewDeliverable,
@@ -1366,14 +1396,14 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											OnInlineVisualReply:          m.OnInlineVisualReply,
 											OpenUIParent:                 m.OpenUIParent,
 											OpenUIWindow:                 m.OpenUIWindow,
-											OpenUIMediaOcclusions:        openUIMediaOcclusions(m),
+											OpenUIMediaOcclusions:        openUIMediaOcclusions(*m),
 											OnStopInteractiveVisualReply: m.OnStopInteractiveVisualReply,
 											OnReadVisualReply:            m.OnReadVisualReply,
 											OnSaveVisualReply:            m.OnSaveVisualReply,
 											OnCloseVisualReply:           m.OnCloseVisualReply,
 										})
 										if inspectorActive {
-											syncInspectorChatProjection(m, navigation)
+											syncInspectorChatProjection(*m, navigation)
 										}
 									}
 								})
@@ -1395,7 +1425,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								})
 							}
-							paintConversationWidthControls(c, m, transcript, contentAxis, paneTab != "trajectory", &enterScroll.scroll)
+							if paneTab != "trajectory" && len(snap.Messages) > 0 && m.ChatList != nil && !m.ChatList.AtEnd() {
+								chat.JumpToLatestButton(c, m.ChatList)
+							}
+							paintConversationWidthControlsPtr(c, m, transcript, contentAxis, paneTab != "trajectory", &enterScroll.scroll)
 						})
 						if paneTab != "trajectory" && m.PlanBoardOpen == nil && m.TodoPanelCollapsed == nil && !m.UseComposerTextInput && (snap.PlanBoard.PlanMode || snap.PlanBoard.Goal != nil || len(snap.PlanBoard.Todos) > 0) {
 							// Goal/todo/takeover cards share the transcript content axis.
@@ -1465,14 +1498,14 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								// The unknown page settles on the Hero shell: same fish,
 								// title slot and input-card geometry, no blank box and no
 								// jump when the composer mounts.
-								ui.Column(c.Key("frame-settling-memo")).FillWidth().Memo(settlingSkeletonMemoVersion(m)).Children(func() {
+								ui.Column(c.Key("frame-settling-memo")).FillWidth().Memo(settlingSkeletonMemoVersion(*m)).Children(func() {
 									conversationSettlingSkeleton(c, colors)
 								})
 								return
 							}
 							if emptyHero {
-								ui.Column(c.Key("frame-hero-headline-memo")).FillWidth().Memo(heroHeadlineMemoVersion(m)).Children(func() {
-									conversationHeroHeadline(c, m, colors)
+								ui.Column(c.Key("frame-hero-headline-memo")).FillWidth().Memo(heroHeadlineMemoVersion(*m)).Children(func() {
+									conversationHeroHeadline(c, *m, colors)
 								})
 							}
 							chat.GoalDockView(c, chat.PlanBoardModel{
@@ -1567,7 +1600,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			})
 		}
 		paintCenter := func() {
-			centerTerminalColumn(c, m, paintChat, func() {
+			centerTerminalColumnPtr(c, m, paintChat, func() {
 				termui.View(c, termui.Model{
 					Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
 					ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal, OnClose: m.OnCloseTerminal,
@@ -1576,7 +1609,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				})
 			})
 		}
-		workspaceColumns(c, m, paintCenter, paintHeader)
+		workspaceColumnsPtr(c, m, paintCenter, paintHeader)
 	})
 }
 

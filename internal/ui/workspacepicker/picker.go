@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
@@ -88,11 +89,31 @@ func registrationFailureText(raw string) string {
 	return text("添加工作区没有完成，请重试。", "Adding the workspace did not finish. Try again.")
 }
 
+// managementFailureText maps Host-side workspace rename/removal/pick errors to
+// localized user-facing copy. Raw Host English stays in logs, never on screen.
+func managementFailureText(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	lower := strings.ToLower(raw)
+	switch {
+	case strings.Contains(lower, "workspace list is ready"), strings.Contains(lower, "no dsh client"), strings.Contains(lower, "connect a host"):
+		return text("Host 尚未就绪，请先启动 Host 后重试。", "The Host is not ready yet. Start it and try again.")
+	case strings.Contains(lower, "incomplete workspace"):
+		return text("Host 没有返回完整的工作区信息，请重试。", "The Host did not return a complete workspace. Try again.")
+	case strings.Contains(lower, "no longer registered"):
+		return text("该工作区已不在列表中，请重新选择。", "That workspace is no longer listed. Choose another one.")
+	case strings.Contains(lower, "config"), strings.Contains(lower, "persist"), strings.Contains(lower, "save"):
+		return text("无法保存工作区设置，请检查配置目录是否可写后重试。", "The workspace setting could not be saved. Check that the config folder is writable and try again.")
+	}
+	return errcopy.SentenceText(raw)
+}
+
 func View(c *ui.Context, m Model) {
 	if m.Store == nil || !m.Store.WorkspaceNavigationPending() {
 		return
 	}
-	snap := m.Store.Snapshot()
+	snap := m.Store.Published().Value
 	request := snap.WorkspaceNavigation
 	if request == nil {
 		return
@@ -168,7 +189,7 @@ func registrationDialog(c *ui.Context, m Model, request *session.WorkspaceNaviga
 // opened by the pinned add action, just as in WorkspacePickFlow.
 func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.WorkspaceNavigationState, colors theme.Colors) {
 	open := true
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	muted := chrome.Color(colors.Muted)
 	_, height := c.Size()
 	bg := chrome.Color(colors.BG)
 	dark := bg.R < 128 && bg.G < 128 && bg.B < 128
@@ -274,7 +295,7 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 				})
 			}
 			if request.Error != "" {
-				ui.Text(c, request.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg).Padding(6, 8)
+				ui.Text(c, registrationFailureText(request.Error)).FontSize(theme.InterfaceSize(12)).TextColor(design.For(c).DestructiveForeground).Padding(6, 8)
 			}
 			*hovered = hoveredItem
 			*first = false
@@ -342,7 +363,7 @@ func drawIcon(p *ui.Painter, r ui.Rect, kind string, ink ui.Color) {
 func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *session.WorkspaceNavigationState, colors theme.Colors) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	borderL2 := chrome.Color(colors.Border)
-	danger := design.For(c).Destructive
+	danger := design.For(c).DestructiveForeground
 	title := text("工作区", "Workspace")
 	switch request.Mode {
 	case "rename":
@@ -365,7 +386,7 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 			submitted := false
 			blocked := request.Busy
 			draft := request.Draft
-			feedback := request.Error
+			feedback := managementFailureText(request.Error)
 			targetTitle := session.WorkspaceDisplayTitle(request.TargetTitle, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
 			ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {

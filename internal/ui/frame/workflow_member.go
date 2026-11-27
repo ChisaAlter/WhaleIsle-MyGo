@@ -10,7 +10,7 @@ import (
 	"whaleisle/internal/ui/design"
 )
 
-func workflowMemberDialog(c *ui.Context, m Model) {
+func workflowMemberDialog(c *ui.Context, m *Model) {
 	if m.Store == nil {
 		return
 	}

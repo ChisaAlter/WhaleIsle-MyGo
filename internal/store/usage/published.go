@@ -78,6 +78,7 @@ func (s *Store) buildViewsLocked() views {
 	if s.projectRanking.card != nil {
 		v.ProjectCard = s.projectRanking.card.ProjectRanking
 	}
+	v.Billing.SettingsVersion = s.billingSettingsRev + 1
 	v.Notices.Generation = s.accountEpoch
 	return v
 }

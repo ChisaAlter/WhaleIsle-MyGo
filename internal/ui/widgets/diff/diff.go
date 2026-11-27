@@ -66,6 +66,7 @@ func Spans(source string, st Style) []ui.Span {
 	if size <= 0 {
 		size = 12
 	}
+	fontFamily := theme.RenderPreferences().Code.Family
 	fg := st.FG
 	add := st.Add
 	del := st.Del
@@ -74,7 +75,7 @@ func Spans(source string, st Style) []ui.Span {
 	if file.R == 0 && file.G == 0 && file.B == 0 {
 		file = st.Muted
 	}
-	var out []ui.Span
+	out := make([]ui.Span, 0, strings.Count(source, "\n")+1)
 	for _, line := range strings.Split(source, "\n") {
 		color := fg
 		switch {
@@ -87,22 +88,44 @@ func Spans(source string, st Style) []ui.Span {
 		case strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---"):
 			color = del
 		}
-		out = append(out, ui.Span{Text: line + "\n", Size: size, Color: color, Font: theme.RenderPreferences().Code.Family})
+		out = append(out, ui.Span{Text: line + "\n", Size: size, Color: color, Font: fontFamily})
 	}
 	return out
 }
 
+type diffSpanCache struct {
+	ready  bool
+	source string
+	style  Style
+	font   string
+	size   float32
+	spans  []ui.Span
+}
+
 // View renders unified diff inside RichText.
 func View(c *ui.Context, source string, st Style) {
-	patch := ExtractPatchText(source)
-	if patch == "" {
-		patch = source
+	fontFamily := theme.RenderPreferences().Code.Family
+	codeSize := theme.CurrentPreferences().Code.Size
+	host := ui.Box(c).FillWidth().MinWidth(0)
+	cache := ui.Local(host, "diff-spans-cache", func() diffSpanCache { return diffSpanCache{} })
+	if !cache.ready || cache.source != source || cache.style != st || cache.font != fontFamily || cache.size != codeSize {
+		patch := ExtractPatchText(source)
+		if patch == "" {
+			patch = source
+		}
+		cache.spans = Spans(patch, st)
+		cache.source = source
+		cache.style = st
+		cache.font = fontFamily
+		cache.size = codeSize
+		cache.ready = true
 	}
-	spans := Spans(patch, st)
-	if len(spans) == 0 {
+	if len(cache.spans) == 0 {
 		return
 	}
-	ui.RichText(c, spans...).Font(theme.RenderPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG).Selectable()
+	host.Children(func() {
+		ui.RichText(c, cache.spans...).Font(fontFamily).FontSize(codeSize).TextColor(st.FG).Selectable()
+	})
 }
 
 // LineDiff produces a unified-style patch string between a and b using go-diff.

@@ -95,29 +95,180 @@ func physicalBindingSpec(chord shortcuts.Chord) (ui.Modifiers, string, string, b
 // registerPageCommands reuses existing actions. PageShortcut retains text/IME,
 // terminal, guest, popup and modal ownership for both defaults and custom keys.
 func registerPageCommands(c *ui.Context, m Model) {
-	var toggleSidebar func()
-	if m.Sizes != nil {
-		toggleSidebar = m.Sizes.ToggleSidebar
-	}
-	create := m.OnCreateSession
-	if create == nil && m.Store != nil {
-		create = func() { m.Store.CreateSession(context.Background()) }
-	}
-	actions := map[string]func(){
-		"sidebar.toggle": toggleSidebar, "session.new": create, "workspace.open": m.OnBrowseWorkspace,
-		"settings.open": m.OnOpenSettings, "tools.toggle": m.OnToggleTools,
-		"tools.toggle.alternate": m.OnToggleTools, "terminal.toggle": m.OnToggleTerminal,
-	}
-	addBusinessCommands(c, m, actions)
-	guardMainChildCommands(m, actions)
+	registerPageCommandsPtr(c, &m)
+}
+
+func registerPageCommandsPtr(c *ui.Context, m *Model) {
+	mainChildActive := m.Sizes != nil && m.Sizes.Workspace != nil && m.Sizes.Workspace.currentMainChildPtr(m) != nil
 	for _, entry := range resolvedPageCommands(m.PageShortcutBindings) {
-		run := actions[entry.id]
-		if run == nil {
+		if !pageCommandEnabled(m, mainChildActive, entry.id) {
 			continue
 		}
 		if c.PhysicalShortcut(entry.mods, entry.code, entry.secondCode, entry.identity, entry.region) {
-			run()
+			dispatchPageCommand(c, m, entry.id)
 		}
+	}
+}
+
+func pageCommandEnabled(m *Model, mainChildActive bool, id string) bool {
+	if mainChildActive {
+		switch id {
+		case "session.rename", "session.fork", "session.archive":
+			return false
+		}
+	}
+	switch id {
+	case "sidebar.toggle":
+		return m.Sizes != nil
+	case "session.new":
+		return m.OnCreateSession != nil || m.Store != nil
+	case "workspace.open", "workspace.add":
+		return m.OnBrowseWorkspace != nil
+	case "settings.open":
+		return m.OnOpenSettings != nil
+	case "tools.toggle", "tools.toggle.alternate", "sidebar.right.toggle":
+		return m.OnToggleTools != nil
+	case "terminal.toggle":
+		return m.OnToggleTerminal != nil
+	case "page.close", "page.refresh", "pane.split", "pane.splitDown", "pane.fullscreen.toggle", "session.search":
+		return true
+	case "workspace.openLocal":
+		return m.OnOpenWorkspaceLocal != nil
+	case "browser.open":
+		return m.OnOpenBrowserPreview != nil
+	case "terminal.host":
+		return m.OnOpenHostTerminal != nil
+	case "terminal.new":
+		return m.OnNewHostTerminal != nil
+	case "market.open":
+		return m.OnOpenMarket != nil
+	case "schedule.open":
+		return m.OnOpenSchedule != nil
+	case "assistant.open":
+		return m.OnOpenAssistant != nil
+	case "launcher.open":
+		return m.OnOpenDesktopSettings != nil
+	case "workspace.files":
+		return m.OnOpenWorkspaceFiles != nil
+	case "sessions.refresh", "session.rename", "session.fork", "session.archive", "session.previous", "session.next":
+		return m.Store != nil
+	default:
+		return false
+	}
+}
+
+func dispatchPageCommand(c *ui.Context, m *Model, id string) {
+	switch id {
+	case "sidebar.toggle":
+		if m.Sizes != nil {
+			m.Sizes.ToggleSidebar()
+		}
+	case "session.new":
+		if m.OnCreateSession != nil {
+			m.OnCreateSession()
+		} else if m.Store != nil {
+			m.Store.CreateSession(context.Background())
+		}
+	case "workspace.open", "workspace.add":
+		if m.OnBrowseWorkspace != nil {
+			m.OnBrowseWorkspace()
+		}
+	case "settings.open":
+		if m.OnOpenSettings != nil {
+			m.OnOpenSettings()
+		}
+	case "tools.toggle", "tools.toggle.alternate", "sidebar.right.toggle":
+		if m.OnToggleTools != nil {
+			m.OnToggleTools()
+		}
+	case "terminal.toggle":
+		if m.OnToggleTerminal != nil {
+			m.OnToggleTerminal()
+		}
+	case "page.close":
+		closeFocusedWorkspacePage(c, *m)
+	case "page.refresh":
+		refreshFocusedWorkspacePage(c, *m)
+	case "pane.split":
+		splitFocusedWorkspacePage(c, *m)
+	case "pane.splitDown":
+		SplitWorkspacePane(*m, true)
+	case "pane.fullscreen.toggle":
+		maximizeFocusedWorkspacePage(c, *m)
+	case "workspace.openLocal":
+		if m.OnOpenWorkspaceLocal != nil {
+			m.OnOpenWorkspaceLocal()
+		}
+	case "browser.open":
+		if m.OnOpenBrowserPreview != nil {
+			m.OnOpenBrowserPreview()
+		}
+	case "terminal.host":
+		if m.OnOpenHostTerminal != nil {
+			m.OnOpenHostTerminal()
+		}
+	case "terminal.new":
+		if m.OnNewHostTerminal != nil {
+			m.OnNewHostTerminal()
+		}
+	case "market.open":
+		if m.OnOpenMarket != nil {
+			m.OnOpenMarket()
+		}
+	case "schedule.open":
+		if m.OnOpenSchedule != nil {
+			m.OnOpenSchedule()
+		}
+	case "assistant.open":
+		if m.OnOpenAssistant != nil {
+			m.OnOpenAssistant()
+		}
+	case "launcher.open":
+		if m.OnOpenDesktopSettings != nil {
+			m.OnOpenDesktopSettings()
+		}
+	case "workspace.files":
+		if m.OnOpenWorkspaceFiles != nil {
+			m.OnOpenWorkspaceFiles()
+		}
+	case "session.search":
+		if m.Sizes != nil && m.Sizes.sidebarPreference() <= 0 {
+			m.Sizes.ToggleSidebar()
+		}
+		if m.SessionSearchFocus != nil {
+			*m.SessionSearchFocus = true
+		}
+		c.Invalidate()
+	case "sessions.refresh":
+		if m.Store != nil {
+			m.Store.RefreshList(context.Background())
+		}
+	case "session.rename":
+		if m.Store != nil {
+			snap := m.Store.Published().Value
+			for _, item := range snap.Items {
+				if item.SessionID == snap.SelectedID {
+					beginConversationRenamePtr(m, item.SessionID, item.Title)
+					return
+				}
+			}
+		}
+	case "session.fork":
+		if m.Store != nil {
+			id := m.Store.SelectedSessionID()
+			if item, ok := conversationActionItemPtr(m, id); ok && !routeProjectConversationActionPtr(m, item, "fork") {
+				m.Store.ForkSession(context.Background(), id)
+			}
+		}
+	case "session.archive":
+		if m.Store != nil {
+			id := m.Store.SelectedSessionID()
+			archiveConversationPtr(m, id, false)
+		}
+	case "session.previous":
+		selectNeighborSession(m, -1)
+	case "session.next":
+		selectNeighborSession(m, 1)
 	}
 }
 

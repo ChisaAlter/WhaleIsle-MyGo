@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -176,5 +178,89 @@ func TestSessionCostPopoverParityRowsZHAndEN(t *testing.T) {
 		if !strings.Contains(enText, want) {
 			t.Fatalf("en sessioncost popover missing %q in:\n%s", want, enText)
 		}
+	}
+}
+
+func TestSessionCostIdleZeroInvalidateOver5Seconds(t *testing.T) {
+	oldNow := nowFunc
+	defer func() { nowFunc = oldNow }()
+	// Fixed Beijing weekday 10:00:00 (2 hours before phase switch at 12:00:00).
+	cst := time.FixedZone("CST", 8*3600)
+	nowFunc = func() time.Time { return time.Date(2026, 6, 1, 10, 0, 0, 0, cst) }
+
+	var renders atomic.Int64
+	st := &State{SessionID: "root"}
+	prefs := settings.ViewState{
+		Namespaces: []settings.Namespace{
+			{NS: "ui-conversation", Value: json.RawMessage(`{"statsLine":true,"sessionCost":true,"officialPeakValley":true}`)},
+		},
+	}
+	usageStore := usage.New()
+	m := Model{
+		Snapshot: session.ViewState{
+			SelectedID:       "root",
+			SelectedProvider: "deepseek",
+			SelectedModel:    "deepseek-chat",
+			ClientReady:      true,
+		},
+		Billing:     usageStore.Billing(),
+		Preferences: prefs,
+		State:       st,
+	}
+	if m.Billing.SettingsVersion == 0 {
+		t.Fatal("expected monotonic SettingsVersion from usage.Store")
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		renders.Add(1)
+		View(c, m, ui.RGB(0x81, 0x85, 0x8c))
+	}, 900, 240)
+	_ = tt
+	beforeIdle := renders.Load()
+
+	// Wait 5 real seconds while idle: raw time.AfterFunc must be gone so 0 invalidates/re-renders fire.
+	time.Sleep(5 * time.Second)
+	if got := renders.Load() - beforeIdle; got != 0 {
+		t.Fatalf("expected 0 idle re-renders during 5s idle, got %d", got)
+	}
+	// Verify minute-granularity delay outside final 60s and 1s delay inside final 60s.
+	t0 := time.Date(2026, 6, 1, 10, 0, 0, 0, cst)
+	_, next := cost.Phase(t0)
+	if gotNext := st.NextTick.Sub(t0); gotNext != time.Minute {
+		t.Fatalf("NextTick delta = %v, want 1m", gotNext)
+	}
+	if d := phaseRefreshDelay(t0, next); d != time.Minute {
+		t.Fatalf("delay outside final 60s = %v, want 1m", d)
+	}
+	tFinal := next.Add(-45 * time.Second)
+	if d := phaseRefreshDelay(tFinal, next); d != time.Second {
+		t.Fatalf("delay inside final 60s = %v, want 1s", d)
+	}
+	// Verify cachedCalculate uses SettingsVersion without reflection.
+	store := session.New()
+	snap := store.Published().Value
+	snap.SelectedID = "root"
+	snap.CostSources = []cost.Source{{
+		ID: "root",
+		Usage: &cost.Projection{Models: []cost.Route{{
+			Provider: "deepseek", Model: "deepseek-chat",
+			Peak: &cost.Bucket{Hit: 1000, Miss: 1000, Output: 500}, OffPeak: &cost.Bucket{},
+		}}},
+	}}
+	b1 := usage.BillingView{
+		SettingsVersion: 100,
+		Settings: usage.BillingSettings{
+			Prices: map[string]usage.ModelPrice{"deepseek/deepseek-chat": {PriceRates: usage.PriceRates{InputCacheHit: 1, InputCacheMiss: 2, Output: 3}}},
+		},
+	}
+	r1 := cachedCalculate(snap, b1)
+	b2 := usage.BillingView{
+		SettingsVersion: 101,
+		Settings: usage.BillingSettings{
+			Prices: map[string]usage.ModelPrice{"deepseek/deepseek-chat": {PriceRates: usage.PriceRates{InputCacheHit: 10, InputCacheMiss: 20, Output: 30}}},
+		},
+	}
+	r2 := cachedCalculate(snap, b2)
+	if r2.Cents <= r1.Cents {
+		t.Fatalf("expected updated SettingsVersion to invalidate cache: r1=%v r2=%v", r1.Cents, r2.Cents)
 	}
 }

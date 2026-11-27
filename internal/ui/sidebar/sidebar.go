@@ -34,6 +34,13 @@ func whaleAssistantNavLabel(m Model) string {
 	return fallback
 }
 
+func sidebarToggleTooltip(m Model, label string) string {
+	if shortcut := strings.TrimSpace(m.MenuShortcutLabels["sidebar.toggle"]); shortcut != "" {
+		return label + " (" + shortcut + ")"
+	}
+	return label
+}
+
 func sidebarUpdatePhase(m Model) string {
 	if m.DesktopUpdateInstalling {
 		return "installing"
@@ -453,7 +460,7 @@ func View(c *ui.Context, m Model) {
 							Label:   i18n.T(i18n.KeySidebarCollapse),
 							Key:     "sidebar-collapse",
 							Content: func() {},
-						}).Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse)+" (Ctrl+B)").
+						}).Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(sidebarToggleTooltip(m, i18n.T(i18n.KeySidebarCollapse))).
 							Size(28, 28).Shrink(0).Padding(0).Radius(design.RadiusMD).BorderWidth(0).Center()
 						collapseInk := t.MutedForeground
 						if collapse.Hovered() {
@@ -557,12 +564,12 @@ func View(c *ui.Context, m Model) {
 						showArchived := (filter == "default" && !m.HideArchivedList) || len(archivedItems) > 0
 						m.sidebarBodyFill = true
 						ui.Column(c.Key("sidebar-tree-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
-							workspaceRowsView(c, m, items, fg, muted, border)
+							workspaceRowsViewPtr(c, &m, items, fg, muted, border)
 							workspaceListFeedback(c, m, items, fg, muted)
 							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
 							// projects.View(c, m.Projects)
 							if showArchived {
-								archivedSection(c, m, archivedItems, sectionInk, muted)
+								archivedSectionPtr(c, &m, archivedItems, sectionInk, muted)
 							}
 						})
 					}
@@ -588,10 +595,10 @@ func View(c *ui.Context, m Model) {
 		})
 	})
 	renderSessionHover(c, m, root, m.sessionHover.dragging)
-	sessionRenameDialog(c, m)
+	sessionRenameDialogPtr(c, &m)
 	sessionArchiveConfirmDialog(c, m)
 	sessionDeleteConfirmDialog(c, m)
-	batchDialog(c, m)
+	batchDialogPtr(c, &m)
 }
 
 func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, border ui.Color) {
@@ -635,7 +642,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	} else {
 		row.Background(ui.Transparent)
 	}
-	menu := sessionRowMenu(m, it)
+	menu := sessionRowMenuPtr(&m, it)
 	if !it.Blank && !renaming {
 		row.ContextMenu(menu)
 	}
@@ -680,7 +687,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 						}
 					}
 				}
-				actions := ui.Row(c).Key("session-actions-" + it.SessionID).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(3.75))
+				actions := ui.Row(c).Key("session-actions-" + it.SessionID).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(0.5))
 				if !showActions {
 					actions.Absolute().Right(design.Sp(1)).Opacity(0)
 				}
@@ -691,18 +698,18 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 						Label:   sessionActionsLabel(it.SessionID, label),
 						Key:     "session-menu-" + it.SessionID,
 						Content: func() {},
-					}).Tooltip(workspaceText("会话操作", "Session actions")).Size(design.IconSM, design.IconSM).Padding(0).
+					}).Tooltip(workspaceText("会话操作", "Session actions")).Size(design.Sp(6), design.Sp(6)).Padding(0).
 						BorderWidth(0).TextColor(muted).Center().Menu(menu)
-					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.IconSM, design.IconSM).TextColor(muted) })
+					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.Sp(3.5), design.Sp(3.5)).TextColor(muted) })
 					if showActions {
 						sessionRowAction(c, "archive-"+it.SessionID, menuArchiveArtwork, i18n.T(i18n.KeySidebarArchive),
-							i18n.T(i18n.KeySidebarArchive), muted, archiveAction(m, it))
+							i18n.T(i18n.KeySidebarArchive), muted, archiveActionPtr(&m, it))
 						pinArt := menuPinArtwork
 						if it.Pinned {
 							pinArt = sessionPinArtwork
 						}
 						sessionRowAction(c, "pin-"+it.SessionID, pinArt, sessionPinLabel(it.Pinned),
-							sessionPinTip(it.Pinned), muted, pinAction(m, it))
+							sessionPinTip(it.Pinned), muted, pinActionPtr(&m, it))
 					}
 				})
 			}

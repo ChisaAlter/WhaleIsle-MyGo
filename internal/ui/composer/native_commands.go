@@ -369,8 +369,12 @@ func nativePopupRows(p *nativeCommandPopup) []NativeCommandOption {
 	}
 	return out
 }
-func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element) {
+func paintNativeCommandPopup(c *ui.Context, m *Model, card ui.Element) {
 	if m.State == nil {
+		return
+	}
+	if !m.State.ModelCommand.Open && m.State.ModelCommand.popup == nil &&
+		!m.State.PermissionCommand.Open && m.State.PermissionCommand.popup == nil {
 		return
 	}
 	t := design.For(c)
@@ -395,7 +399,7 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element) {
 			continue
 		}
 		if !p.started {
-			p.load(m)
+			p.load(*m)
 		}
 		visible := nativePopupRows(p)
 		if p.active < 0 || p.active >= len(visible) {
@@ -413,7 +417,7 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element) {
 			c.Services().Invalidate()
 		}
 		if p.confirmation != nil {
-			paintNativePermissionConfirmation(c, m, p)
+			paintNativePermissionConfirmation(c, *m, p)
 			continue
 		}
 		height := float32(320)
@@ -459,7 +463,7 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element) {
 					return true
 				case ui.KeyEnter, ui.KeyTab:
 					if len(visible) > 0 {
-						p.settle(m, visible[p.active])
+						p.settle(*m, visible[p.active])
 						return true
 					}
 					return false
@@ -475,7 +479,7 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element) {
 					Variant: coss.ButtonOutline,
 					Size:    coss.ButtonXS,
 				}).Clicked() {
-					p.load(m)
+					p.load(*m)
 				}
 			}
 			if !p.loading && len(visible) == 0 {
@@ -533,7 +537,7 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element) {
 						})
 						if button.Clicked() {
 							p.active = i
-							p.settle(m, row)
+							p.settle(*m, row)
 						}
 					}
 				})

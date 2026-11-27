@@ -41,6 +41,7 @@ type PriceDraft struct {
 type BillingView struct {
 	NewKey              string
 	Settings            BillingSettings
+	SettingsVersion     uint64
 	Drafts              map[string]PriceDraft
 	Loaded, Busy, Dirty bool
 	Err                 *state.Fault
@@ -76,6 +77,7 @@ func (s *Store) resetBillingLocked() {
 		s.billing.modelsCancel()
 	}
 	s.billing = billingState{}
+	s.billingSettingsRev++
 }
 func clonePrices(p map[string]ModelPrice) map[string]ModelPrice {
 	out := make(map[string]ModelPrice, len(p))
@@ -285,6 +287,7 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 		} else {
 			s.resetRankingLocked()
 			s.billing.Settings = settings
+			s.billingSettingsRev++
 			s.billing.Drafts = priceDrafts(settings.Prices)
 			s.billing.Loaded = true
 			s.billing.Dirty = false

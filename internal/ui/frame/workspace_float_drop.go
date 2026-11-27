@@ -9,6 +9,10 @@ import (
 // lies outside that surface's root rectangle (DockSurface.tsx:239-243). This is
 // an application-content drop, not a global OS pointer hook or a native window.
 func workspaceFloatDropSurface(c *ui.Context, m Model, surface ui.Element) {
+	workspaceFloatDropSurfacePtr(c, &m, surface)
+}
+
+func workspaceFloatDropSurfacePtr(c *ui.Context, m *Model, surface ui.Element) {
 	if m.Sizes == nil || m.Sizes.Workspace == nil {
 		return
 	}

@@ -354,13 +354,18 @@ func (w *WorkspacePanes) legacyFileOwner() *WorkspacePane {
 }
 
 func (w *WorkspacePanes) beginFileProjection(m Model) Model {
+	w.beginFileProjectionPtr(&m)
+	return m
+}
+
+func (w *WorkspacePanes) beginFileProjectionPtr(m *Model) {
 	if previous := w.Root.find(w.legacyFileID); previous != nil && previous.Files != nil && previous.Files.ProjectTarget == nil {
-		previous.Files.capture(m)
+		previous.Files.capture(*m)
 	}
 	if diffPane := w.nonProjectActivePane(); diffPane != nil {
 		actual := w.Active
 		w.Active = diffPane.ID
-		w.beginDiffProjection(m)
+		w.beginDiffProjection(*m)
 		w.Active = actual
 	}
 	active := w.legacyFileOwner()
@@ -368,26 +373,28 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 	w.Root.eachResource(func(n *WorkspacePane) { hasFiles = hasFiles || n.Files != nil })
 	var state *WorkspaceFileState
 	if active != nil {
-		state = w.fileState(active, m)
+		state = w.fileState(active, *m)
 	} else {
-		state = &WorkspaceFileState{}
-		state.capture(m)
+		var tmp WorkspaceFileState
+		tmp.capture(*m)
+		state = &tmp
 	}
 	if !hasFiles {
-		state.capture(m)
+		state.capture(*m)
 	}
 	// First-frame recovery may create this state after BeginContentFrame's
 	// binding sweep. Bind before publishing so restored drafts participate in
 	// the same-owner preview gate immediately; Bind keeps those drafts intact.
 	state.Tabs.Bind(m.FileBindingID, m.WorkspaceRoot)
 	state.previewBinding, state.previewRoot = m.FileBindingID, m.WorkspaceRoot
-	state.publish(m)
+	state.publish(*m)
 	w.legacyFileID = ""
 	if active != nil {
 		w.legacyFileID = active.ID
 	}
 
 	if trailing := m.WorkspaceTrailing; trailing != nil {
+		captured := *m
 		m.WorkspaceTrailing = func(c *ui.Context, density string) {
 			owner := w.Root.find(w.legacyDiffID)
 			if owner == nil {
@@ -398,26 +405,30 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 			// their changes before a pane renders or the end-of-frame projection
 			// would replace a newly opened review with the pane's earlier copy.
 			if owner != nil && w.Root.find(owner.ID) == owner {
-				w.diffState(owner).capture(m)
+				w.diffState(owner).capture(captured)
 			}
 		}
 	}
 
+	if m.OnPreviewDeliverable == nil && m.OnPreviewDeliverablePresentation == nil {
+		return
+	}
+	captured := *m
 	wrapPreview := func(preview func(string) error) func(string) error {
 		return func(path string) error {
 			previousID, previousLegacy := w.Active, w.legacyFileID
 			previousRoute, previousFocus, previousFullscreen, previousPending := w.route, w.focusPending, w.Fullscreen, w.pending
-			adapterRoute := derefString(m.RightPaneTab)
+			adapterRoute := derefString(captured.RightPaneTab)
 			if owner := w.Root.find(previousLegacy); owner != nil && owner.Files != nil {
-				owner.Files.capture(m)
+				owner.Files.capture(captured)
 			}
-			if w.deliveryPreviewHasUnsavedFile(m, path) {
+			if w.deliveryPreviewHasUnsavedFile(captured, path) {
 				return fmt.Errorf("%s", paneLabel("文件有未保存的草稿；请先保存后再预览", "The file has an unsaved draft; save it before previewing"))
 			}
 			var target *WorkspacePane
-			relative, inWorkspace := files.WorkspaceRelativePath(m.WorkspaceRoot, path)
+			relative, inWorkspace := files.WorkspaceRelativePath(captured.WorkspaceRoot, path)
 			w.Root.eachResource(func(n *WorkspacePane) {
-				if inWorkspace && n.Kind == "files" && n.Files != nil && n.Files.ResourcePath == relative && n.Files.previewBinding == m.FileBindingID && n.Files.previewRoot == m.WorkspaceRoot {
+				if inWorkspace && n.Kind == "files" && n.Files != nil && n.Files.ResourcePath == relative && n.Files.previewBinding == captured.FileBindingID && n.Files.previewRoot == captured.WorkspaceRoot {
 					target = n
 				}
 			})
@@ -435,23 +446,23 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 			if target == nil {
 				target = w.leaf("files")
 				if inWorkspace {
-					w.fileState(target, m).ResourcePath = relative
+					w.fileState(target, captured).ResourcePath = relative
 				}
 				w.placeDockResource(target, w.Root.find(previousID), false)
 			}
 			w.activateDockTab(target.ID)
-			state := w.fileState(target, m)
+			state := w.fileState(target, captured)
 			// A first-frame preview can arrive before the Files body renders.
 			// Publish the intended occurrence with its real binding, so the normal
 			// reader validates its existing drafts rather than a fresh adapter.
-			state.Tabs.Bind(m.FileBindingID, m.WorkspaceRoot)
-			state.previewBinding, state.previewRoot = m.FileBindingID, m.WorkspaceRoot
-			if m.Store != nil {
-				state.Tabs.SyncPlanSession(m.Store.SelectedSessionID())
+			state.Tabs.Bind(captured.FileBindingID, captured.WorkspaceRoot)
+			state.previewBinding, state.previewRoot = captured.FileBindingID, captured.WorkspaceRoot
+			if captured.Store != nil {
+				state.Tabs.SyncPlanSession(captured.Store.SelectedSessionID())
 			}
-			state.publish(m)
+			state.publish(captured)
 			err := preview(path)
-			state.capture(m)
+			state.capture(captured)
 			if err != nil {
 				if added {
 					w.disposeWorkspaceResource(target.ID)
@@ -459,17 +470,17 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 				w.pending, w.focusPending, w.Fullscreen = previousPending, previousFocus, previousFullscreen
 				w.activateDockTab(previousID)
 				w.route, w.legacyFileID = previousRoute, previousLegacy
-				if m.RightPaneTab != nil {
-					*m.RightPaneTab = adapterRoute
+				if captured.RightPaneTab != nil {
+					*captured.RightPaneTab = adapterRoute
 				}
 				if owner := w.Root.find(previousLegacy); owner != nil && owner.Files != nil {
-					owner.Files.publish(m)
+					owner.Files.publish(captured)
 				}
 				return err
 			}
 			// The callback selects browser only after accepting a document route.
 			// Text/image previews remain in the addressed Files occurrence.
-			if m.RightPaneTab != nil && *m.RightPaneTab == "browser" {
+			if captured.RightPaneTab != nil && *captured.RightPaneTab == "browser" {
 				state.ResourcePath = ""
 				w.selectKind(target, "browser")
 			} else {
@@ -477,8 +488,8 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 				if target.Float != nil && target.Float.Minimized {
 					w.MinimizeWorkspaceFloat(target.ID, false)
 				}
-				if m.RightPaneTab != nil {
-					*m.RightPaneTab = "files"
+				if captured.RightPaneTab != nil {
+					*captured.RightPaneTab = "files"
 				}
 			}
 			if guide := w.Root.find(previousID); guide != nil && guide.Kind == "guide" {
@@ -496,7 +507,6 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 			return wrapPreview(func(path string) error { return presentation(path, mode) })(path)
 		}
 	}
-	return m
 }
 
 // Only the same saved file under the current binding blocks a delivery preview;
