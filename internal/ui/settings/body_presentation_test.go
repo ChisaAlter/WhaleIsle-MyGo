@@ -95,7 +95,7 @@ func TestSettingsBodySourcePagesAndStates(t *testing.T) {
 				locale, scheme, wallpaperPath := "en", "system", ""
 				enabled := true
 				prefs := theme.NewEditor(theme.Defaults(), func(theme.Preferences) error { return nil })
-				prefs.OnImport = func() (string, error) { return "", nil }
+				prefs.OnImport = func(deliver func(string, error)) { deliver("", nil) }
 				background := NewWallpaperEditor(wallpapers.Defaults(), "", func(wallpapers.Preferences) error { return nil }, nil, nil)
 				companion := &pet.Companion{Enabled: true, Behavior: config.DefaultPetBehavior()}
 				desktop := &DesktopAccess{Host: h, Preferences: prefs, Version: "0.0.0-fixture", Fields: DesktopFields{Locale: &locale, CloseToTray: &enabled}, OnSave: func() {}, OnSetLocale: func(v string) (string, error) { return v, nil }, OnSetCloseToTray: func(v bool) (bool, error) { return v, nil }}

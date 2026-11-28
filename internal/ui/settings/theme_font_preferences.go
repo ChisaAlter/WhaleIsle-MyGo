@@ -44,12 +44,13 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 					importButton.Tooltip(providerCopy("此构建未接入主题文件导入", "Theme file import is not wired in this build"))
 				}
 				if !importDisabled && importButton.Clicked() {
-					raw, err := e.OnImport()
-					if err != nil {
-						e.Status = errcopy.Sentence(err)
-					} else if raw != "" {
-						e.ImportLibraryFamily(raw)
-					}
+					e.OnImport(func(raw string, err error) {
+						if err != nil {
+							e.Status = errcopy.Sentence(err)
+						} else if raw != "" {
+							e.ImportLibraryFamily(raw)
+						}
+					})
 				}
 			})
 		})

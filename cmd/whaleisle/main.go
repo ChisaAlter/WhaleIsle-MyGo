@@ -5209,9 +5209,18 @@ func mainView(c *ui.Context) {
 						if path == "" {
 							return
 						}
-						if err = os.WriteFile(path, data, 0600); err != nil {
-							mygo.Dialog.Error(i18n.T(i18n.KeyCmdMarketExportErrorTitle), errcopy.Sentence(err))
-						}
+						// The write leaves the UI thread: a network drive or a
+						// scanning antivirus must not freeze input and paint.
+						go func() {
+							writeErr := os.WriteFile(path, data, 0600)
+							if writeErr != nil {
+								mygo.RunOnMain(func() {
+									if !win.IsDestroyed() {
+										mygo.Dialog.Error(i18n.T(i18n.KeyCmdMarketExportErrorTitle), errcopy.Sentence(writeErr))
+									}
+								})
+							}
+						}()
 					},
 					OnCopyInstallLog: func(log string) {
 						if strings.TrimSpace(log) != "" {
@@ -5549,9 +5558,19 @@ func mainView(c *ui.Context) {
 						if path == "" {
 							return
 						}
-						if err = os.WriteFile(path, data, 0600); err != nil {
-							*exportFailure = errcopy.Sentence(err)
-						}
+						// The write leaves the UI thread; the failure state is
+						// only ever mutated back on it.
+						go func() {
+							writeErr := os.WriteFile(path, data, 0600)
+							mygo.RunOnMain(func() {
+								if writeErr != nil {
+									*exportFailure = errcopy.Sentence(writeErr)
+								}
+								if win != nil && !win.IsDestroyed() {
+									win.Invalidate()
+								}
+							})
+						}()
 					},
 					OnOpenSession: func(id string) {
 						if sessions == nil {

@@ -16,8 +16,12 @@ type Editor struct {
 	Status            string
 	StatusDetail      string
 	Preview           bool
-	OnSave            func(Preferences) error
-	OnImport          func() (string, error)
+	OnSave func(Preferences) error
+	// OnImport starts a theme-file import and must call deliver exactly once
+	// on the UI thread: reading the picked file is disk I/O, which never runs
+	// inside the click handler itself. Empty content with a nil error means
+	// the user cancelled.
+	OnImport          func(deliver func(content string, err error))
 	Pending           func() bool
 	FlushWrites       func()
 	pendingSave       *Preferences
