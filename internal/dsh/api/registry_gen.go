@@ -3136,6 +3136,15 @@ var Registry = map[string]Endpoint{
 		Kind:             KindDirect,
 		ResultTypeSymbol: "@deepseek-ai/dsh-cua/types#CuaSystemPermissionState",
 	},
+	"deepseekChatImport/limits": {
+		Package:          "dsh-deepseek-chat-import",
+		ID:               "@deepseek-ai/dsh-deepseek-chat-import#deepseekChatImport/limits",
+		Method:           "deepseekChatImport/limits",
+		Mode:             ModeDirect,
+		Kind:             KindDirect,
+		Cancellation:     "signal",
+		ResultTypeSymbol: "@deepseek-ai/dsh-deepseek-chat-import/types#DeepseekChatImportLimits",
+	},
 	"liveshareShares/addSessions": {
 		Package: "dsh-experimental-liveshare",
 		ID:      "@deepseek-ai/dsh-experimental-liveshare#liveshareShares/addSessions",
