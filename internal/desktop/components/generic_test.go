@@ -459,6 +459,7 @@ func TestPureGoGenericCrashSupervisionCapsAndShutdownCancels(t *testing.T) {
 		}
 		return false
 	}
+	firstStartReturned := make(chan struct{})
 	deps.spawn = func(genericSpawnSpec) (genericChildHandle, error) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -467,7 +468,7 @@ func TestPureGoGenericCrashSupervisionCapsAndShutdownCancels(t *testing.T) {
 		children = append(children, c)
 		go func(ch *fakeGenericChild, first bool) {
 			if first {
-				time.Sleep(25 * time.Millisecond)
+				<-firstStartReturned
 			} else {
 				time.Sleep(8 * time.Millisecond)
 			}
@@ -492,6 +493,7 @@ func TestPureGoGenericCrashSupervisionCapsAndShutdownCancels(t *testing.T) {
 	if !svc.start("notes").OK {
 		t.Fatal("start failed")
 	}
+	close(firstStartReturned)
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
