@@ -118,6 +118,7 @@ type qaModel struct {
 	lastText  atomic.Value
 	gatedTool atomic.Value
 	toolNames atomic.Value
+	wfSchema  atomic.Value
 }
 
 func newQAModel() (*qaModel, error) {
@@ -240,10 +241,14 @@ func newQAModel() (*qaModel, error) {
 			// spawns a child run, emitting the tool-workflow/ journal events
 			// that project as WorkflowRuns.
 			chosenTool := -1
-			for i, tool := range body.Tools {
-				n := strings.ToLower(tool.Name)
-				if strings.Contains(n, "agent") || strings.Contains(n, "task") || strings.Contains(n, "delegate") || strings.Contains(n, "spawn") || strings.Contains(n, "goal") {
-					chosenTool = i
+			for _, want := range []string{"workflow", "agent", "task", "delegate", "spawn", "goal"} {
+				for i, tool := range body.Tools {
+					if strings.Contains(strings.ToLower(tool.Name), want) {
+						chosenTool = i
+						break
+					}
+				}
+				if chosenTool >= 0 {
 					break
 				}
 			}
@@ -260,7 +265,17 @@ func newQAModel() (*qaModel, error) {
 				return
 			}
 			tool := body.Tools[chosenTool]
+			if rawSchema, e := json.Marshal(tool.InputSchema); e == nil {
+				m.wfSchema.Store(tool.Name + " " + string(rawSchema))
+			}
 			args := map[string]any{}
+			if tool.Name == "workflow" {
+				// Trivial script probe: even without delegations a completed run
+				// should emit the run lifecycle events the desktop projects.
+				args["script"] = "return { ok: true }"
+				args["meta"] = map[string]any{"name": "qa-probe-run", "description": "QA workflow probe"}
+				args["args"] = map[string]any{}
+			}
 			if tool.Name == "create_goal" {
 				// Exact replication beats shape inference: the vendor schema
 				// requires activation as an armed/disarmed enum member.
@@ -286,6 +301,8 @@ func newQAModel() (*qaModel, error) {
 					continue
 				}
 				switch propType {
+				case "array":
+					args[key] = []any{map[string]any{"objective": "CHILDROUND: reply briefly and finish.", "prompt": "CHILDROUND: reply briefly and finish.", "goal": "CHILDROUND: reply briefly and finish.", "task": "CHILDROUND: reply briefly and finish.", "name": "qa-phase"}}
 				case "number", "integer":
 					args[key] = 1
 				case "boolean":
@@ -586,6 +603,9 @@ func runComposerFlowQA() error {
 			}
 			v := sessions.Snapshot()
 			probe := map[string]any{"messages": []probeMessage{}, "workflowRuns": len(v.WorkflowRuns)}
+			if schema, ok := model.wfSchema.Load().(string); ok {
+				probe["workflowToolSchema"] = schema
+			}
 			for _, m := range v.Messages {
 				body := m.Body
 				if len(body) > 120 {
