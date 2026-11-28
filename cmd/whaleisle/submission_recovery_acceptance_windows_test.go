@@ -365,6 +365,7 @@ func recoveryWait(ctx context.Context, what string, check func() (bool, error)) 
 		}
 	}
 }
+
 // recoveryJournalCountWait retries the follow-snapshot count because every new
 // subscription starts from a fresh durable baseline: admission journaling can
 // still be in flight when the desktop first observes ownership, so a single
