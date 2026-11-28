@@ -568,11 +568,54 @@ func runSubmissionRecoveryDesktop(phase string) (failure error) {
 			before := sessions.SelectedSessionID()
 			mygo.RunOnMain(func() { sessions.CreateSession(ctx) })
 			e := recoveryWait(ctx, "create recovery session", func() (bool, error) {
-				return sessions.SelectedSessionID() != "" && sessions.SelectedSessionID() != before && sessions.Snapshot().HistoryReady, nil
+				snap := sessions.Snapshot()
+				sel := sessions.SelectedSessionID()
+				// Blank-reuse is a correct create outcome: the gesture over an
+				// untouched blank session adopts it instead of proliferating
+				// empty identities, so the selected id legitimately stays put.
+				reused := sel == before && snap.LastAction == "blank session reused"
+				return sel != "" && (sel != before || reused) && snap.HistoryReady, nil
 			})
 			return sessions.SelectedSessionID(), e
 		}
 		if expected.A, err = create(); err != nil {
+			finish(err)
+			return
+		}
+		// A second create gesture while A is still blank would correctly reuse
+		// A again and collapse the two fixture identities into one. Send one
+		// real loopback message first so the Host no longer considers A blank.
+		// The composer drops hero-state submits until the workspace roster
+		// owns the session, and workspace registration lands asynchronously
+		// after boot, so the roster membership is a hard precondition here.
+		if err = recoveryWait(ctx, "workspace roster owns A", func() (bool, error) {
+			for _, ws := range sessions.Snapshot().Workspaces {
+				for _, id := range ws.SessionIDs {
+					if id == expected.A {
+						return true, nil
+					}
+				}
+			}
+			return false, nil
+		}); err != nil {
+			finish(err)
+			return
+		}
+		mygo.RunOnMain(func() {
+			state.mu.Lock()
+			draft := state.composerDraftLocked(expected.A)
+			draft.Text = "QA_SEED_A"
+			state.mu.Unlock()
+			state.submitComposer(win, sessions, draft, expected.A, workspace, false, sessions.Snapshot().ComposerHostGeneration)
+		})
+		if err = recoveryWait(ctx, "seed message confirmed in A", func() (bool, error) {
+			v := recoveryObserve(sessions, expected)
+			snap := sessions.Snapshot()
+			// The Host list authority is the same signal the next create
+			// gesture consults: once A is non-blank there, reuse cannot fire.
+			nonBlank := snap.SelectedID == expected.A && !snap.SelectedSummaryBlank
+			return v.PendingA == 0 && v.ErrorA == "" && nonBlank, nil
+		}); err != nil {
 			finish(err)
 			return
 		}
@@ -672,7 +715,7 @@ func runSubmissionRecoveryDesktop(phase string) (failure error) {
 		calls := wire.promptCalls
 		wire.mu.Unlock()
 		report["promptDispatches"] = calls
-		if calls != 2 {
+		if calls != 3 {
 			finish(fmt.Errorf("prompt replay before restart: %d", calls))
 			return
 		}
