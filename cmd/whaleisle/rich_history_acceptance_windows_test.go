@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -78,6 +79,7 @@ func nativeRichHistory() error {
 	go func() {
 		deadline := time.Now().Add(105 * time.Second)
 		selected, revealed, seededThinking, seededWorkflow := false, false, false, false
+		iter := 0
 		ctx := context.Background()
 		for time.Now().Before(deadline) {
 			state.mu.Lock()
@@ -96,6 +98,10 @@ func nativeRichHistory() error {
 				revealed = true
 			}
 			snap := sessions.Snapshot()
+			iter++
+			if iter%50 == 0 {
+				log.Printf("rich-qa heartbeat: iter=%d listLoading=%v wsReady=%v sel=%q requiresWs=%v seededT=%v seededW=%v msgs=%d wfruns=%d busy=%v", iter, snap.ListLoading, snap.WorkspaceReady, snap.SelectedID, composer.RequiresWorkspace(snap, true), seededThinking, seededWorkflow, len(snap.Messages), len(snap.WorkflowRuns), snap.PromptBusy)
+			}
 			if snap.ListLoading || snap.ListErr != nil || !snap.WorkspaceReady {
 				time.Sleep(100 * time.Millisecond)
 				continue
@@ -103,15 +109,24 @@ func nativeRichHistory() error {
 			// Seed-then-verify: the fixture is built in this run through the
 			// loopback model rather than requiring pre-existing Host sessions.
 			if !selected {
-				if !(snap.WorkspaceReady && !composer.RequiresWorkspace(snap, true)) {
-					time.Sleep(100 * time.Millisecond)
-					continue
-				}
+				// Creation must not wait on workspace evidence: ownership
+				// evidence is downstream of having a session at all. Only the
+				// seed submit is gated, mirroring the composer flow order.
 				if snap.SelectedID == "" {
+					log.Printf("rich-qa: issuing create session")
 					sessions.CreateSession(ctx)
+					time.Sleep(300 *time.Millisecond)
+					continue
+				}
+				if !snap.HistoryReady || snap.HistoryLoading {
 					time.Sleep(100 * time.Millisecond)
 					continue
 				}
+				if composer.RequiresWorkspace(snap, true) {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				log.Printf("rich-qa: selected session %q, seeding thinking", snap.SelectedID)
 				selected = true
 				continue
 			}
