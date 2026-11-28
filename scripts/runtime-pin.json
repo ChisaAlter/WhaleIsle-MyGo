@@ -1,0 +1,5 @@
+{
+  "version": "0.2.2-rc.5",
+  "comment": "Single source of truth for the product Host runtime pin. package.ps1, perf-interaction.ps1 and ui-compare read this; update the staged runtime directories and this file in the same commit.",
+  "stageDirNames": ["runtime-0.2.2-rc5", "runtime-0.2.2-rc2"]
+}

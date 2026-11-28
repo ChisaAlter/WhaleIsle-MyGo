@@ -101,12 +101,14 @@ if ($env:WHALEISLE_INCLUDE_PET_ASSETS -eq '1') {
 # Host runtime is required unless explicitly producing a shell-only development package.
 if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     # Refuse incomplete phone runtime before copying or writing .runtime-staged.
+    # The pin file owns the runtime contract: newest staged pin runtime wins,
+    # later entries stay the fallback so a machine that has only an older
+    # stage keeps packaging.
+    $Pin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'runtime-pin.json') -Raw | ConvertFrom-Json
     $VendorSrc = $env:WHALEISLE_VENDOR
     if ($RuntimeRoot) { $VendorSrc = Join-Path ([System.IO.Path]::GetFullPath($RuntimeRoot)) 'vendor' }
     if (-not $VendorSrc) {
-        # Newest staged 0.2.2 runtime wins; rc.2 stays the fallback so a machine
-        # that has only the older stage keeps packaging.
-        foreach ($name in @('runtime-0.2.2-rc5', 'runtime-0.2.2-rc2')) {
+        foreach ($name in $Pin.stageDirNames) {
             $candidate = Join-Path $ProjectRoot $name
             if (Test-Path -LiteralPath (Join-Path $candidate 'vendor') -PathType Container) { $VendorSrc = Join-Path $candidate 'vendor'; break }
         }
@@ -171,7 +173,9 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     }
     if (-not $NodeSrc) {
         $pathNode = Get-Command node -ErrorAction SilentlyContinue
+        $pinNodeCandidates = @($Pin.stageDirNames) | ForEach-Object { Join-Path (Join-Path $ProjectRoot $_) 'node' }
         $NodeSrc = @(
+            $pinNodeCandidates,
             (Join-Path $ProjectRoot 'runtime-rc4\node'),
             (Join-Path $ProjectRoot 'runtime\node'),
             (Join-Path $ProjectRoot '.toolchain\node'),
