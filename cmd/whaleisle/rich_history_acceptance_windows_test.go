@@ -4,11 +4,15 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,6 +21,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/composer"
 )
 
 var richHistoryError error
@@ -48,6 +53,16 @@ func nativeRichHistory() error {
 	}); err != nil {
 		return err
 	}
+	model, err := newRichQaModel()
+	if err != nil {
+		return err
+	}
+	defer model.server.Close()
+	os.Setenv("DEEPSEEK_BASE_URL", "http://"+model.addr+"/anthropic")
+	os.Setenv("DEEPSEEK_API_KEY", "qa-loopback-only")
+	for _, key := range []string{"WHALEISLE_API_KEY", "DSH_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"} {
+		os.Unsetenv(key)
+	}
 	result := make(chan error, 1)
 	finish := func(err error) {
 		result <- err
@@ -62,7 +77,8 @@ func nativeRichHistory() error {
 	}
 	go func() {
 		deadline := time.Now().Add(105 * time.Second)
-		selected, revealed := false, false
+		selected, revealed, seededThinking, seededWorkflow := false, false, false, false
+		ctx := context.Background()
 		for time.Now().Before(deadline) {
 			state.mu.Lock()
 			win, status, sessions, ready := state.win, state.bootStatus, state.sessions, state.dshMuxReady
@@ -84,16 +100,64 @@ func nativeRichHistory() error {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
+			// Seed-then-verify: the fixture is built in this run through the
+			// loopback model rather than requiring pre-existing Host sessions.
 			if !selected {
-				sessions.Select(id)
+				if !(snap.WorkspaceReady && !composer.RequiresWorkspace(snap, true)) {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				if snap.SelectedID == "" {
+					sessions.CreateSession(ctx)
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
 				selected = true
 				continue
 			}
-			if snap.SelectedID != id || !snap.HistoryReady || snap.HistoryLoading {
+			if !seededThinking {
+				seededThinking = true
+				mygo.RunOnMain(func() {
+					state.mu.Lock()
+					draft := state.composerDraftLocked(snap.SelectedID)
+					draft.Text = "QA_THINKING rich fixture"
+					pngPath := filepath.Join(workspace, "qa-rich.png")
+					pngRaw, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+					_ = os.MkdirAll(workspace, 0755)
+					_ = os.WriteFile(pngPath, pngRaw, 0600)
+					draft.Attachments = []session.ComposerAttachment{{Path: pngPath, Name: "qa-rich.png"}}
+					state.mu.Unlock()
+					state.submitComposer(win, sessions, draft, snap.SelectedID, workspace, false, sessions.Snapshot().ComposerHostGeneration)
+				})
+				continue
+			}
+			thinkingReady := false
+			for _, m := range snap.Messages {
+				if m.Kind == session.MessageKindThinking && strings.Contains(m.Body, "QA_THINKING_TRACE") {
+					thinkingReady = true
+				}
+			}
+			if !thinkingReady || snap.PromptBusy {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			if snap.HistoryError != nil || snap.PromptBusy {
+			if !seededWorkflow {
+				seededWorkflow = true
+				mygo.RunOnMain(func() {
+					state.mu.Lock()
+					draft := state.composerDraftLocked(snap.SelectedID)
+					draft.Text = "QA_WORKFLOW rich fixture"
+					draft.Attachments = nil
+					state.mu.Unlock()
+					state.submitComposer(win, sessions, draft, snap.SelectedID, workspace, false, sessions.Snapshot().ComposerHostGeneration)
+				})
+				continue
+			}
+			if len(snap.WorkflowRuns) == 0 || snap.PromptBusy {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			if snap.HistoryError != nil {
 				finish(fmt.Errorf("saved state was not an idle ready history"))
 				return
 			}
@@ -175,4 +239,82 @@ func nativeRichHistory() error {
 	case <-time.After(2 * time.Second):
 		return fmt.Errorf("owned native desktop exited before proof")
 	}
+}
+
+// richQaModel serves Anthropic Messages with deterministic SSE for the rich
+// fixture seed: thinking blocks, a trivial workflow script and plain replies.
+type richQaModel struct {
+	server   *http.Server
+	addr     string
+	requests atomic.Int64
+}
+
+func newRichQaModel() (*richQaModel, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, err
+	}
+	m := &richQaModel{addr: l.Addr().String()}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/anthropic/v1/messages", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		m.requests.Add(1)
+		var body struct {
+			Messages []struct {
+				Content any `json:"content"`
+			} `json:"messages"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		text := ""
+		if len(body.Messages) > 0 {
+			if raw, e := json.Marshal(body.Messages[len(body.Messages)-1].Content); e == nil {
+				text = string(raw)
+			}
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.WriteHeader(200)
+		fl, _ := w.(http.Flusher)
+		emit := func(event string, data map[string]any) {
+			data["type"] = event
+			raw, _ := json.Marshal(data)
+			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, raw)
+			fl.Flush()
+		}
+		emit("message_start", map[string]any{"message": map[string]any{"id": fmt.Sprintf("qa-%d", m.requests.Load()), "type": "message", "role": "assistant", "model": "qa", "content": []any{}, "stop_reason": nil, "stop_sequence": nil, "usage": map[string]int{"input_tokens": 1, "output_tokens": 0}}})
+		textBlock := func(index int, body string) {
+			emit("content_block_start", map[string]any{"index": index, "content_block": map[string]any{"type": "text", "text": ""}})
+			emit("content_block_delta", map[string]any{"index": index, "delta": map[string]any{"type": "text_delta", "text": body}})
+			emit("content_block_stop", map[string]any{"index": index})
+		}
+		if strings.Contains(text, "QA_WORKFLOW") {
+			// Trivial script: the run lifecycle alone projects WorkflowRuns.
+			args := map[string]any{"script": "return { ok: true }", "meta": map[string]any{"name": "qa-rich-run", "description": "rich fixture workflow"}, "args": map[string]any{}}
+			raw, _ := json.Marshal(args)
+			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "tool_use", "id": fmt.Sprintf("qa-wf-%d", m.requests.Load()), "name": "workflow", "input": map[string]any{}}})
+			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "input_json_delta", "partial_json": string(raw)}})
+			emit("content_block_stop", map[string]any{"index": 0})
+			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "tool_use", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 20}})
+			emit("message_stop", map[string]any{})
+			return
+		}
+		if strings.Contains(text, "QA_THINKING") {
+			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "thinking", "thinking": ""}})
+			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "thinking_delta", "thinking": "QA_THINKING_TRACE deterministic reasoning."}})
+			emit("content_block_stop", map[string]any{"index": 0})
+			textBlock(1, "QA_REPLY_OK deterministic reply.")
+			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 30}})
+			emit("message_stop", map[string]any{})
+			return
+		}
+		textBlock(0, "QA_REPLY_OK deterministic reply.")
+		emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 5}})
+		emit("message_stop", map[string]any{})
+	})
+	m.server = &http.Server{Handler: mux}
+	go m.server.Serve(l)
+	return m, nil
 }
