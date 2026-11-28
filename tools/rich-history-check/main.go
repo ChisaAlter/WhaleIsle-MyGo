@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	_ "embed"
@@ -287,16 +288,62 @@ func run(stage, base, native, reuse string, r *report) error {
 	}
 	if native != "" {
 		for _, row := range manifest.Rows {
+			outBase := filepath.Join(root, "native-"+row.Kind)
 			cmd := exec.Command(native, "-test.run=TestNativeRichHistory", "-test.timeout=130s")
-			cmd.Env = append(os.Environ(), "WHALEISLE_ISOLATED=1", "WHALEISLE_VENDOR="+filepath.Join(stage, "vendor"), "WHALEISLE_NODE="+node, "WHALEISLE_RICH_QA_ID="+row.ID, "WHALEISLE_RICH_QA_WORKSPACE="+cwd, "WHALEISLE_RICH_QA_OUT="+filepath.Join(root, "native-"+row.Kind))
-			output, e := cmd.CombinedOutput()
-			if writeErr := os.WriteFile(filepath.Join(root, "native-"+row.Kind+".log"), output, 0600); writeErr != nil {
+			cmd.Env = append(os.Environ(), "WHALEISLE_ISOLATED=1", "WHALEISLE_VENDOR="+filepath.Join(stage, "vendor"), "WHALEISLE_NODE="+node, "WHALEISLE_RICH_QA_ID="+row.ID, "WHALEISLE_RICH_QA_WORKSPACE="+cwd, "WHALEISLE_RICH_QA_OUT="+outBase)
+			var output bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &output, &output
+			startErr := cmd.Start()
+			if startErr != nil {
+				return fmt.Errorf("native %s start: %w", row.Kind, startErr)
+			}
+			// The proof file is the evidence contract: the hidden desktop writes
+			// it once the saved state validates, while process shutdown can hang
+			// inside Host teardown. Wait for the artifact, bound the wait, then
+			// stop the process instead of depending on a graceful exit.
+			proofDeadline := time.Now().Add(130 * time.Second)
+			proofReady := false
+			for time.Now().Before(proofDeadline) {
+				if info, statErr := os.Stat(outBase + ".json"); statErr == nil && info.Size() > 0 {
+					proofReady = true
+					break
+				}
+				if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+					break
+				}
+				time.Sleep(300 * time.Millisecond)
+			}
+			if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
+				_ = cmd.Process.Kill()
+			}
+			_ = cmd.Wait()
+			if writeErr := os.WriteFile(outBase+".log", output.Bytes(), 0600); writeErr != nil {
 				return writeErr
 			}
-			if e != nil {
-				return fmt.Errorf("native %s: %w", row.Kind, e)
+			if !proofReady {
+				return fmt.Errorf("native %s: proof artifact missing after bounded wait", row.Kind)
 			}
-			r.Results = append(r.Results, proof{ID: row.Kind, Layer: "production hidden Windows main + real Host", Pass: true, Detail: "Fresh independent process; native PNG and safe JSON beside owned seed manifest."})
+			var nativeProof struct {
+				HistoryReady                        bool `json:"historyReady"`
+				LivePendingInteractions             int  `json:"livePendingInteractions"`
+				MessageCount                        int  `json:"messageCount"`
+				ResponseInvoked                     bool `json:"nativeQuestionOrApprovalResponseInvoked"`
+				DisclosuresExpandedProgrammatically bool `json:"localDisclosuresExpandedProgrammatically"`
+			}
+			proofRaw, readErr := os.ReadFile(outBase + ".json")
+			if readErr != nil {
+				return fmt.Errorf("native %s proof read: %w", row.Kind, readErr)
+			}
+			if jsonErr := json.Unmarshal(proofRaw, &nativeProof); jsonErr != nil {
+				return fmt.Errorf("native %s proof shape: %w", row.Kind, jsonErr)
+			}
+			if !nativeProof.HistoryReady || nativeProof.LivePendingInteractions != 0 || nativeProof.ResponseInvoked {
+				return fmt.Errorf("native %s: proof contract violated", row.Kind)
+			}
+			if info, statErr := os.Stat(outBase + ".png"); statErr != nil || info.Size() == 0 {
+				return fmt.Errorf("native %s: capture missing", row.Kind)
+			}
+			r.Results = append(r.Results, proof{ID: row.Kind, Layer: "production hidden Windows main + real Host", Pass: true, Detail: fmt.Sprintf("Fresh independent process; %d projected messages; capture and safe JSON beside owned seed manifest.", nativeProof.MessageCount)})
 			fmt.Println("native", row.Kind)
 		}
 	}
