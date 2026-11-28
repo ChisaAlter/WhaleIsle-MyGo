@@ -234,6 +234,20 @@ func newQAModel() (*qaModel, error) {
 			emit("message_stop", map[string]any{})
 			return
 		}
+		if strings.Contains(text, "QA_THINKING") {
+			// Anthropic thinking block: exercises whether the Host translates
+			// reasoning-shaped content into the journal events the desktop
+			// projects as thinking-kind messages.
+			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "thinking", "thinking": ""}})
+			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "thinking_delta", "thinking": "QA_THINKING_TRACE deterministic reasoning."}})
+			emit("content_block_stop", map[string]any{"index": 0})
+			emit("content_block_start", map[string]any{"index": 1, "content_block": map[string]any{"type": "text", "text": ""}})
+			emit("content_block_delta", map[string]any{"index": 1, "delta": map[string]any{"type": "text_delta", "text": "QA_REPLY_OK deterministic reply."}})
+			emit("content_block_stop", map[string]any{"index": 1})
+			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 30}})
+			emit("message_stop", map[string]any{})
+			return
+		}
 		if strings.Contains(text, "QA_WAIT") {
 			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "text", "text": ""}})
 			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": "QA_WAIT_STREAM: awaiting real session cancellation."}})
@@ -438,10 +452,15 @@ func runComposerFlowQA() error {
 			finish(err)
 			return
 		}
+		seedText := "QA_SEED_ID1"
+		probeThinking := scenario == "probe-thinking"
+		if probeThinking {
+			seedText = "QA_SEED_ID1 QA_THINKING"
+		}
 		mygo.RunOnMain(func() {
 			state.mu.Lock()
 			draft := state.composerDraftLocked(id1)
-			draft.Text = "QA_SEED_ID1"
+			draft.Text = seedText
 			state.mu.Unlock()
 			state.submitComposer(win, sessions, draft, id1, workspace, false, sessions.Snapshot().ComposerHostGeneration)
 		})
@@ -462,6 +481,25 @@ func runComposerFlowQA() error {
 			return userCount >= 1 && replyCount >= 1 && !v.PromptBusy, nil
 		}); err != nil {
 			finish(err)
+			return
+		}
+		if probeThinking {
+			type probeMessage struct {
+				Kind string `json:"kind"`
+				Role string `json:"role"`
+				Body string `json:"body"`
+			}
+			probe := map[string]any{"messages": []probeMessage{}}
+			for _, m := range sessions.Snapshot().Messages {
+				body := m.Body
+				if len(body) > 120 {
+					body = body[:120]
+				}
+				probe["messages"] = append(probe["messages"].([]probeMessage), probeMessage{Kind: string(m.Kind), Role: m.Role, Body: body})
+			}
+			raw, _ := json.MarshalIndent(probe, "", "  ")
+			_ = os.WriteFile(out+".probe.json", raw, 0600)
+			finish(nil)
 			return
 		}
 		sessions.CreateSession(ctx)
