@@ -2212,10 +2212,12 @@ func main() {
 	// inspected from a headless run. Unset in normal operation.
 	if dump := strings.TrimSpace(os.Getenv("WHALEISLE_STACK_DUMP")); dump != "" {
 		go func() {
-			time.Sleep(8 * time.Second)
-			if f, err := os.Create(dump); err == nil {
-				_ = pprof.Lookup("goroutine").WriteTo(f, 2)
-				_ = f.Close()
+			for i := 0; i < 10; i++ {
+				time.Sleep(20 * time.Second)
+				if f, err := os.Create(fmt.Sprintf("%s.%d", dump, i)); err == nil {
+					_ = pprof.Lookup("goroutine").WriteTo(f, 2)
+					_ = f.Close()
+				}
 			}
 		}()
 	}

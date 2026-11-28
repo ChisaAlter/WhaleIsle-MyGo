@@ -511,6 +511,7 @@ func runSidebarDesktop(root, phase string) error {
 		if phase == "restart" {
 			beforeFilter = "show"
 		}
+		log.Printf("sidebar-harness: recording before state")
 		before, err := sidebarRecordCurrent(root, sessions, openRow.WorkspaceID, closedRow.WorkspaceID, beforeFilter, nil)
 		if err != nil {
 			finish(err)
@@ -520,8 +521,11 @@ func runSidebarDesktop(root, phase string) error {
 		beforeSelection := before["selectedSessionID"].(string)
 		receipt["startupSelectedSyntheticID"] = beforeSelection
 		receipt["startupSelectionPresent"] = beforeSelection != ""
+		log.Printf("sidebar-harness: before recorded, revealing main conversation")
 		state.revealMainConversation()
+		log.Printf("sidebar-harness: revealed, showing inactive")
 		win.ShowInactive()
+		log.Printf("sidebar-harness: shown, reading native handle")
 		handle := win.NativeHandle()
 		if handle == 0 {
 			finish(errors.New("owned window native handle absent"))
