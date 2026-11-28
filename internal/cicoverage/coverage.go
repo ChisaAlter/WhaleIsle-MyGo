@@ -913,3 +913,92 @@ func StaleExemptions(pkgs []string, patterns map[string]bool, exemptions map[str
 	sort.Strings(stale)
 	return stale
 }
+
+// MjsUncoveredExemptions lists *.test.mjs files that main-quality.yml
+// deliberately does not run. Every entry needs the reason the file cannot run
+// on a hosted runner. An entry whose file becomes wired into the workflow, or
+// that stops existing, is stale: the guard fails so the table stays honest.
+var MjsUncoveredExemptions = map[string]string{
+	"internal/harness/native-mcp-import.test.mjs":   "imports modules from the expanded runtime-rc4 vendor tree, which a CI checkout does not carry",
+	"internal/harness/native-skill-import.test.mjs": "imports modules from the expanded runtime-rc4 vendor tree, which a CI checkout does not carry",
+	"scripts/session-runtime.test.mjs":              "its clone/stage/verify cases are gated on WHALEISLE_SESSION_RUNTIME_STAGED_FIXTURE naming a verified staged runtime that only the manual runtime-acceptance harness provisions",
+	"scripts/windows-background-runtime.test.mjs":   "reads the expanded runtime/vendor/dsh-remote tree, which a CI checkout does not carry",
+}
+
+// MjsTestFiles walks root and returns every *.test.mjs file as sorted slash
+// paths relative to root. The same machine-noise directories as the Go scan
+// are skipped, plus runtime sibling checkouts (runtime-rc4 and friends, which
+// carry their own vendored test files) and the untracked bin output dir.
+func MjsTestFiles(root string) ([]string, error) {
+	found := map[string]bool{}
+	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if p != root {
+				base := d.Name()
+				if scanExcludedDirs[base] || strings.HasPrefix(base, ".") || strings.HasPrefix(base, "runtime") || base == "bin" {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".test.mjs") {
+			rel, err := filepath.Rel(root, p)
+			if err != nil {
+				return err
+			}
+			found[filepath.ToSlash(rel)] = true
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0, len(found))
+	for f := range found {
+		files = append(files, f)
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+// MissingMjsCoverage returns every file that is neither named in the workflow
+// text nor exempted. Matching is textual: the workflow must reference the
+// file by its repository-relative slash path. A reference that only exists
+// inside a comment still counts, which the ratchet accepts because the
+// failure it exists to catch is a file nobody ever wired.
+func MissingMjsCoverage(files []string, workflowRaw []byte, exemptions map[string]string) []string {
+	text := string(workflowRaw)
+	var missing []string
+	for _, f := range files {
+		if _, exempt := exemptions[f]; exempt {
+			continue
+		}
+		if !strings.Contains(text, f) {
+			missing = append(missing, f)
+		}
+	}
+	sort.Strings(missing)
+	return missing
+}
+
+// StaleMjsExemptions returns exemption entries whose file no longer exists or
+// is already wired into the workflow, so the table cannot hide coverage that
+// became real or pin files that were deleted.
+func StaleMjsExemptions(files []string, workflowRaw []byte, exemptions map[string]string) []string {
+	text := string(workflowRaw)
+	existing := map[string]bool{}
+	for _, f := range files {
+		existing[f] = true
+	}
+	var stale []string
+	for f := range exemptions {
+		if !existing[f] || strings.Contains(text, f) {
+			stale = append(stale, f)
+		}
+	}
+	sort.Strings(stale)
+	return stale
+}

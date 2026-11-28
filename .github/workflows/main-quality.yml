@@ -424,6 +424,7 @@ jobs:
           node scripts/installer-branding-fixture.mjs
           node scripts/package-release-inputs-fixture.mjs
           node --test scripts/session-runtime-slim.test.mjs scripts/session-runtime-composition.test.mjs scripts/runtime-fork-audit.test.mjs scripts/stage-third-party-plugins.test.mjs scripts/harness-fork/fork.test.mjs scripts/harness-fork/archive.test.mjs scripts/harness-fork/download.test.mjs scripts/harness-fork/plugin-compat.test.mjs internal/harness/proactive-tools.test.mjs
+          node --test scripts/finalize-windows-release.test.mjs scripts/package-local-recovery.test.mjs scripts/session-runtime-samples.test.mjs scripts/session-runtime-nsis.test.mjs scripts/session-runtime-acp.test.mjs scripts/session-runtime-desktop-plugins.test.mjs scripts/mobile-runtime.test.mjs scripts/mobile-model-resource.test.mjs scripts/pet-click-sound.test.mjs scripts/pet-render-chain.test.mjs scripts/pet-rig.test.mjs scripts/pet-tha4.test.mjs scripts/macos-preview-bundle.test.mjs scripts/build-storage.test.mjs
       # The installer replays the runtime's directory links at promotion time.
       # A release that installs the payload without them ships capabilities the
       # user cannot reach and reports nothing, so the real installer is built and
