@@ -31,6 +31,7 @@ import (
 	"whaleisle/internal/processutil"
 	"whaleisle/internal/recovery"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/composer"
 )
 
 // This optional scenario uses the existing production main twice, with one
@@ -364,6 +365,24 @@ func recoveryWait(ctx context.Context, what string, check func() (bool, error)) 
 		}
 	}
 }
+// recoveryJournalCountWait retries the follow-snapshot count because every new
+// subscription starts from a fresh durable baseline: admission journaling can
+// still be in flight when the desktop first observes ownership, so a single
+// snapshot races the write it is supposed to verify.
+func recoveryJournalCountWait(ctx context.Context, endpoint harness.Endpoint, sid, id string) (int, error) {
+	for {
+		count, err := recoveryJournalCount(ctx, endpoint, sid, id)
+		if count >= 1 {
+			return count, nil
+		}
+		select {
+		case <-ctx.Done():
+			return count, err
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
+}
+
 func recoveryJournalCount(ctx context.Context, endpoint harness.Endpoint, sid, id string) (int, error) {
 	mux := &dsh.Mux{Endpoint: dsh.Endpoint{Origin: endpoint.Origin, Cookie: endpoint.Cookie}}
 	defer mux.Close()
@@ -399,7 +418,11 @@ func recoveryJournalCount(ctx context.Context, endpoint harness.Endpoint, sid, i
 		}
 		count := 0
 		finished := false
+		seen := []string{}
 		for _, r := range snap.Records {
+			if r.Type == "event" && r.Event.Type == "user/message" {
+				seen = append(seen, r.Event.Data.Source.RPCID)
+			}
 			if r.Type == "event" && r.Event.Type == "user/message" && r.Event.Data.Source.RPCID == id {
 				count++
 				finished = false
@@ -420,6 +443,9 @@ func recoveryJournalCount(ctx context.Context, endpoint harness.Endpoint, sid, i
 				return count, err
 			}
 			if bytes.Contains(raw, []byte(`"turn/end"`)) {
+				if count == 0 && len(seen) > 0 {
+					return count, fmt.Errorf("no user/message with rpcId %s; transcript holds %v", id, seen)
+				}
 				return count, nil
 			}
 		}
@@ -536,7 +562,7 @@ func runSubmissionRecoveryDesktop(phase string) (failure error) {
 				finish(err)
 				return
 			}
-			count, err := recoveryJournalCount(ctx, status.Endpoint, expected.A, expected.RestartRequest)
+			count, err := recoveryJournalCountWait(ctx, status.Endpoint, expected.A, expected.RestartRequest)
 			report["restartJournalCount"] = count
 			if err != nil || count != 1 {
 				finish(fmt.Errorf("restart journal count=%d: %v", count, err))
@@ -585,18 +611,14 @@ func runSubmissionRecoveryDesktop(phase string) (failure error) {
 		// A second create gesture while A is still blank would correctly reuse
 		// A again and collapse the two fixture identities into one. Send one
 		// real loopback message first so the Host no longer considers A blank.
-		// The composer drops hero-state submits until the workspace roster
-		// owns the session, and workspace registration lands asynchronously
-		// after boot, so the roster membership is a hard precondition here.
-		if err = recoveryWait(ctx, "workspace roster owns A", func() (bool, error) {
-			for _, ws := range sessions.Snapshot().Workspaces {
-				for _, id := range ws.SessionIDs {
-					if id == expected.A {
-						return true, nil
-					}
-				}
-			}
-			return false, nil
+		// The composer drops hero-state submits until the workspace evidence
+		// settles, and registration lands asynchronously after boot. Gate on
+		// the exact predicate the submit path evaluates: RequiresWorkspace
+		// also exempts a session whose cwd sits under a registered workspace
+		// root, so roster row existence alone is sufficient evidence.
+		if err = recoveryWait(ctx, "workspace evidence admits A", func() (bool, error) {
+			snap := sessions.Snapshot()
+			return snap.WorkspaceReady && !composer.RequiresWorkspace(snap, true), nil
 		}); err != nil {
 			finish(err)
 			return
@@ -608,15 +630,33 @@ func runSubmissionRecoveryDesktop(phase string) (failure error) {
 			state.mu.Unlock()
 			state.submitComposer(win, sessions, draft, expected.A, workspace, false, sessions.Snapshot().ComposerHostGeneration)
 		})
-		if err = recoveryWait(ctx, "seed message confirmed in A", func() (bool, error) {
+		seedOK := func() (bool, string) {
 			v := recoveryObserve(sessions, expected)
 			snap := sessions.Snapshot()
-			// The Host list authority is the same signal the next create
-			// gesture consults: once A is non-blank there, reuse cannot fire.
-			nonBlank := snap.SelectedID == expected.A && !snap.SelectedSummaryBlank
-			return v.PendingA == 0 && v.ErrorA == "" && nonBlank, nil
+			// The persisted transcript is the direct evidence the Host owns a
+			// user message in A; once it does, blankReuse cannot fire for the
+			// next create gesture regardless of list-summary refresh timing.
+			userCount, replyCount := 0, 0
+			if snap.SelectedID == expected.A {
+				for _, m := range snap.Messages {
+					if m.Role == "user" && strings.Contains(m.Body, "QA_SEED_A") {
+						userCount++
+					}
+					if m.Role == "assistant" && strings.Contains(m.Body, "QA_REPLY_OK") {
+						replyCount++
+					}
+				}
+			}
+			detail := fmt.Sprintf("pending=%d err=%q user=%d reply=%d busy=%v sel=%q wantA=%q", v.PendingA, v.ErrorA, userCount, replyCount, snap.PromptBusy, snap.SelectedID, expected.A)
+			return v.PendingA == 0 && v.ErrorA == "" && userCount >= 1 && replyCount >= 1 && !snap.PromptBusy, detail
+		}
+		var seedDetail string
+		if err = recoveryWait(ctx, "seed message confirmed in A", func() (bool, error) {
+			ok, detail := seedOK()
+			seedDetail = detail
+			return ok, nil
 		}); err != nil {
-			finish(err)
+			finish(fmt.Errorf("%w (%s)", err, seedDetail))
 			return
 		}
 		if expected.B, err = create(); err != nil {
@@ -667,7 +707,7 @@ func runSubmissionRecoveryDesktop(phase string) (failure error) {
 			return
 		}
 		report["beforeReconnect"] = recoveryObserve(sessions, expected)
-		count, err := recoveryJournalCount(ctx, status.Endpoint, expected.A, expected.FirstRequest)
+		count, err := recoveryJournalCountWait(ctx, status.Endpoint, expected.A, expected.FirstRequest)
 		report["acceptedBeforeReconnectJournalCount"] = count
 		if err != nil || count != 1 {
 			finish(fmt.Errorf("accepted journal count=%d: %v", count, err))
