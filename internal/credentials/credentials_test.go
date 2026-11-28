@@ -398,3 +398,45 @@ func TestLoadMissingLocalState(t *testing.T) {
 		t.Fatalf("want missing-Local-State error, got: %v", err)
 	}
 }
+
+func TestSaveIfAbsentNeverReplacesAnExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	first := sampleCreds()
+	created, err := SaveIfAbsent(dir, first)
+	if err != nil {
+		if strings.Contains(err.Error(), "DPAPI") {
+			t.Skipf("DPAPI protect unavailable in this environment: %v", err)
+		}
+		t.Fatalf("SaveIfAbsent: %v", err)
+	}
+	if !created {
+		t.Fatal("SaveIfAbsent did not create on a fresh directory")
+	}
+	before, err := os.ReadFile(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := sampleCreds()
+	second.APIKey = "sk-replacement-marker"
+	created, err = SaveIfAbsent(dir, second)
+	if err != nil {
+		t.Fatalf("SaveIfAbsent over existing: %v", err)
+	}
+	if created {
+		t.Fatal("SaveIfAbsent reported creation over an existing file")
+	}
+	after, err := os.ReadFile(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("existing credentials file bytes changed under SaveIfAbsent")
+	}
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.APIKey == "sk-replacement-marker" {
+		t.Fatal("replacement credentials reached the store")
+	}
+}

@@ -155,6 +155,16 @@ func loadLocationLocked() {
 		log.Printf("data location: recorded directory %s is not usable (%v); using %s", record.DataDir, statErr, DefaultUserDataDir())
 		return
 	}
+	// The writability probe is part of the same cached decision: a directory
+	// that exists but rejects writes is as unusable as a missing one. Caching
+	// it as the active location would make every later "continue with the
+	// default" answer keep writing to the very directory the warning named.
+	locationProbed = true
+	if probeErr := probeDir(record.DataDir); probeErr != nil {
+		locationNotWritable = true
+		log.Printf("data location: recorded directory %s rejected a write (%v); using %s", record.DataDir, probeErr, DefaultUserDataDir())
+		return
+	}
 	locationDir = record.DataDir
 }
 
@@ -198,8 +208,8 @@ func RecordedDataLocationIssue() (DataLocationIssue, bool) {
 }
 
 // CachedDataLocationIssue is RecordedDataLocationIssue from the process cache,
-// for frames that must not re-read the record. The write probe runs once per
-// process, on the first frame that asks.
+// for frames that must not re-read the record. The write probe is part of the
+// cached location decision, so this never blocks a frame on the directory.
 func CachedDataLocationIssue() (DataLocationIssue, bool) {
 	locationMu.Lock()
 	defer locationMu.Unlock()
@@ -211,14 +221,9 @@ func CachedDataLocationIssue() (DataLocationIssue, bool) {
 		return DataLocationIssue{}, false
 	}
 	if locationDir == "" {
-		return DataLocationIssue{Path: locationRecorded}, true
-	}
-	if !locationProbed {
-		locationProbed = true
-		locationNotWritable = probeDir(locationRecorded) != nil
-	}
-	if locationNotWritable {
-		return DataLocationIssue{Path: locationRecorded, NotWritable: true}, true
+		// The load already probed: locationNotWritable distinguishes a
+		// directory that rejects writes from one that is not there at all.
+		return DataLocationIssue{Path: locationRecorded, NotWritable: locationNotWritable}, true
 	}
 	return DataLocationIssue{}, false
 }

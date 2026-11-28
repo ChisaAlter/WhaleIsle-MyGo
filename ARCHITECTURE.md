@@ -59,7 +59,7 @@ Go 应用装配与生命周期
   │     └─ pluginslots.Gateway → 显式兼容工作台按需呈现
   └─ 桌面能力：Git / 文件 / 系统集成 / 更新 / 数据兼容
                          ↓
-                选定版本的 DSH Host（0.2.1-rc.4）
+                选定版本的 DSH Host（pin 单一来源 scripts/runtime-pin.json，当前 0.2.2-rc.5）
                 模型 / 工具 / 插件 / MCP / Skill / 权限 / 持久会话
 ```
 

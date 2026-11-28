@@ -693,3 +693,39 @@ func TestTestPackagesFindsAndSkips(t *testing.T) {
 		}
 	}
 }
+
+// TestAllMjsTestFilesCoveredByCI extends the structural guard to the Node
+// script tests: every *.test.mjs in the repository must run in
+// main-quality.yml or carry an explicit reason in MjsUncoveredExemptions.
+func TestAllMjsTestFilesCoveredByCI(t *testing.T) {
+	root := filepath.Join("..", "..")
+	files, err := MjsTestFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("scanner found no .test.mjs files; the repository root resolution is broken")
+	}
+	raw, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "main-quality.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var b strings.Builder
+	if missing := MissingMjsCoverage(files, raw, MjsUncoveredExemptions); len(missing) > 0 {
+		b.WriteString(".test.mjs files not exercised by main-quality.yml:\n")
+		for _, f := range missing {
+			b.WriteString("  " + f + "\n")
+		}
+		b.WriteString("wire each file into the offline fixtures job, or record why it cannot run on a hosted runner in internal/cicoverage MjsUncoveredExemptions\n")
+	}
+	if stale := StaleMjsExemptions(files, raw, MjsUncoveredExemptions); len(stale) > 0 {
+		b.WriteString("stale MjsUncoveredExemptions entries:\n")
+		for _, s := range stale {
+			b.WriteString("  " + s + "\n")
+		}
+	}
+	if b.Len() > 0 {
+		t.Fatal(b.String())
+	}
+}

@@ -63,7 +63,7 @@ func (s *Store) ReadAgentResource(ctx context.Context, token uint64, address Age
 	var err error
 	if id, ok := strings.CutPrefix(ref, "attachment:"); ok {
 		identity := fmt.Sprintf("%s\x00%v\x00%d\x00%s", turnFileHistoryBinding(client, address.ChildSessionID), address, token, id)
-		result.Path, err = fetchSessionAttachment(ctx, &captured, address.ChildSessionID, id, identity)
+		result.Path, err = fetchSessionAttachment(ctx, &captured, address.ChildSessionID, id, identity, nil)
 		result.EOF = true
 	} else {
 		offset, limit := float64(0), float64(2000)

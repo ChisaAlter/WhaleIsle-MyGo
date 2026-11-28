@@ -104,7 +104,10 @@ func nativeSettingsAcceptance() error {
 		state.mu.Lock()
 		win := state.win
 		state.mu.Unlock()
-		win.SetContentSize(1185, 792)
+		// The rail must fit without scrolling: entries below the fold exist in
+		// the tester tree but their coordinates are clipped away visually, so
+		// clicks on them land on the modal mask instead.
+		win.SetContentSize(1185, 1150)
 		win.ShowInactive()
 		var tt *ui.Tester
 		initialWidth, initialHeight := win.ContentSize()
@@ -126,16 +129,47 @@ func nativeSettingsAcceptance() error {
 				return fmt.Errorf("unapproved settings page %q", page)
 			}
 			return action(func() error {
-				if err := tt.Click("General"); err != nil {
-					return err
+				// Rail labels can also name background workspace controls
+				// ("Plugins" is both a rail page and a global panel). The modal
+				// paints above the shell, so the last match in paint order is
+				// the rail control. Labels follow the production rail, which
+				// uses richer names than the page keys.
+				railLabels := map[string]string{"Appearance": "Appearance", "Interface": "Interface settings", "Plugins": "Built-in plugins", "Skills": "Skills", "MCP": "MCP", "About": "About"}
+				label := railLabels[page]
+				if label == "" {
+					label = page
 				}
-				for i := 0; i < 24 && !tt.Focused(page); i++ {
-					tt.Key(0, ui.KeyTab)
+				tt.Frame()
+				matches := tt.FindAll(label)
+				if len(matches) == 0 {
+					return fmt.Errorf("rail control %q not visible", label)
 				}
-				if !tt.Focused(page) {
-					return fmt.Errorf("rail focus did not reach %s", page)
+				r := matches[len(matches)-1]
+				// Entries below the rail fold exist in the tree but their
+				// coordinates are clipped away visually, so clicking them hits
+				// whatever is actually painted there. Scroll the rail until the
+				// control sits inside the window; the wheel-sign convention is
+				// probe-and-flip so neither direction is assumed.
+				_, wh := win.ContentSize()
+				limit := float32(wh) - 24
+				dy := float32(-240)
+				for i := 0; i < 10 && r.Y+r.H > limit; i++ {
+					before := r.Y
+					tt.Scroll(230, 300, 0, dy)
+					tt.Frame()
+					matches = tt.FindAll(label)
+					if len(matches) == 0 {
+						return fmt.Errorf("rail control %q lost after scroll", label)
+					}
+					r = matches[len(matches)-1]
+					if r.Y >= before {
+						dy = -dy
+					}
 				}
-				tt.Key(0, ui.KeyEnter)
+				if r.Y+r.H > limit {
+					return fmt.Errorf("rail control %q still below fold at y=%v limit=%v", label, r.Y, limit)
+				}
+				tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
 				state.mu.Lock()
 				active := map[string]bool{"Appearance": state.settingsAppearanceActive, "Interface": state.settingsInterfaceActive, "Plugins": state.settingsPluginsActive, "Skills": state.settingsSkillsActive, "MCP": state.settingsMCPActive, "About": state.settingsAboutActive}[page]
 				open := state.settingsOpen
@@ -199,8 +233,41 @@ func nativeSettingsAcceptance() error {
 			finish(err)
 			return
 		}
-		if err = click("Settings"); err != nil {
-			finish(err)
+		// The first paint of a hidden window only starts the transition off the
+		// startup loading page; later frames show the real chrome. The production
+		// settings entry is the sidebar account menu: open it, then choose the
+		// exact "Settings" item, the same path a user takes.
+		openSettings := func() error {
+			if err := settingsQAWait("account menu visible", func() bool {
+				visible := false
+				mygo.RunOnMain(func() { tt.Frame(); _, visible = tt.Find("Settings & account") })
+				win.Invalidate()
+				return visible
+			}); err != nil {
+				return err
+			}
+			if err := click("Settings & account"); err != nil {
+				return err
+			}
+			// Menus render on their own tester surface rather than the label
+			// tree, so choose the item through the menu API once it opens.
+			var chooseErr error
+			if err := settingsQAWait("settings menu item chosen", func() bool {
+				mygo.RunOnMain(func() { chooseErr = tt.ChooseMenuItem("Settings") })
+				win.Invalidate()
+				return chooseErr == nil
+			}); err != nil {
+				if chooseErr != nil {
+					return chooseErr
+				}
+				return err
+			}
+			return nil
+		}
+		if err = openSettings(); err != nil {
+			texts := []string{}
+			mygo.RunOnMain(func() { tt.Frame(); texts = tt.Texts() })
+			finish(fmt.Errorf("%w; visible texts: %q", err, texts))
 			return
 		}
 		if err = settingsQAWait("real settings describe", func() bool {
@@ -257,7 +324,7 @@ func nativeSettingsAcceptance() error {
 		closed := !state.settingsOpen
 		state.mu.Unlock()
 		focused := false
-		mygo.RunOnMain(func() { focused = tt.Focused("Settings") })
+		mygo.RunOnMain(func() { tt.Frame(); focused = tt.Focused("Settings & account") })
 		if !closed || !focused {
 			finish(fmt.Errorf("production mainView dismissal: closed=%v openerFocus=%v", closed, focused))
 			return
@@ -267,8 +334,10 @@ func nativeSettingsAcceptance() error {
 			finish(err)
 			return
 		}
-		if err = click("Settings"); err != nil {
-			finish(err)
+		if err = openSettings(); err != nil {
+			texts := []string{}
+			mygo.RunOnMain(func() { tt.Frame(); texts = tt.Texts() })
+			finish(fmt.Errorf("reopen: %w; visible texts: %q", err, texts))
 			return
 		}
 		// The SDK minimum may clamp the requested narrow size: record actual DIP.

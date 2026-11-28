@@ -25,13 +25,28 @@ func (s *mainState) themeFontEditor(visible bool) *theme.Editor {
 				s.hostAppearance.Flush()
 			}
 		}
-		s.appearanceEditor.OnImport = func() (string, error) {
+		s.appearanceEditor.OnImport = func(deliver func(string, error)) {
 			paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: s.win, Title: i18n.T(i18n.KeyCmdImportThemeJSON), Filters: []mygo.FileFilter{{Name: i18n.T(i18n.KeyCmdThemeJSONFilter), Extensions: []string{"json"}}}})
 			if err != nil || len(paths) == 0 {
-				return "", err
+				deliver("", err)
+				return
 			}
-			data, err := os.ReadFile(paths[0])
-			return string(data), err
+			path := paths[0]
+			// The picked file is read off the UI thread: a network drive or a
+			// scanning antivirus must not freeze input and paint. The editor is
+			// only ever mutated back on it.
+			go func() {
+				data, readErr := os.ReadFile(path)
+				mygo.RunOnMain(func() {
+					deliver(string(data), readErr)
+					s.mu.Lock()
+					win := s.win
+					s.mu.Unlock()
+					if win != nil && !win.IsDestroyed() {
+						win.Invalidate()
+					}
+				})
+			}()
 		}
 		if err != nil {
 			s.appearanceEditor.Status = errcopy.Sentence(err)

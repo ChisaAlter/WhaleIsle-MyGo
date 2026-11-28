@@ -45,6 +45,20 @@ func runNativeSessionRecovery() error {
 	if !isolatedDesktopRun() || !strings.HasPrefix(id, "session-recovery-fixture-") || !filepath.IsAbs(data) || !filepath.IsAbs(workspace) || !filepath.IsAbs(out) || (phase != "save" && phase != "restore") {
 		return fmt.Errorf("explicit owned session recovery environment required")
 	}
+	// The env id is a run-scoped nonce, not the session id: session/create is
+	// Host-materialized with a Host-generated id and no seam may force one.
+	// The save phase adopts the auto-created session's real id and hands it to
+	// the restore phase through a sidecar so both phases key drafts and layout
+	// state to the session the Host actually persists. The sidecar name keys on
+	// the nonce because the two phases write distinct result files.
+	sidecar := filepath.Join(filepath.Dir(out), id+".sessionid")
+	if phase == "restore" {
+		raw, err := os.ReadFile(sidecar)
+		if err != nil || strings.TrimSpace(string(raw)) == "" {
+			return fmt.Errorf("owned session id sidecar missing; run the save phase first")
+		}
+		id = strings.TrimSpace(string(raw))
+	}
 	if phase == "save" {
 		cfg, err := config.Open(data)
 		if err != nil {
@@ -123,6 +137,24 @@ func runNativeSessionRecovery() error {
 				continue
 			}
 			if phase == "save" && !selected {
+				realID := ""
+				for _, item := range snap.Items {
+					if item.SessionID != "" {
+						realID = item.SessionID
+						break
+					}
+				}
+				if realID == "" {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				if realID != id {
+					id = realID
+					if err := os.WriteFile(sidecar, []byte(id), 0600); err != nil {
+						finish(err)
+						return
+					}
+				}
 				sessions.Select(id)
 				selected = true
 				continue
@@ -299,7 +331,12 @@ func runNativeSessionRecovery() error {
 		}
 		state.mu.Unlock()
 		finish(fmt.Errorf("owned native session recovery readiness timeout: phase=%s boot=%s mux=%v revealed=%v shown=%v rendered=%v projected=%v wsReady=%v listLoad=%v listErr=%q sel=%q want=%q histReady=%v histLoad=%v lastAction=%q resumePend=%q resumeWs=%q activeKey=%q scope=%q items=%d",
-			phase, bootSt, muxOK, revealed, shown, rendered, projected, snap.WorkspaceReady, snap.ListLoading, snap.ListErr, snap.SelectedID, id, snap.HistoryReady, snap.HistoryLoading, snap.LastAction, pendSess, resWs, activeKey, scope, len(snap.Items)))
+			phase, bootSt, muxOK, revealed, shown, rendered, projected, snap.WorkspaceReady, snap.ListLoading, func() string {
+				if snap.ListErr != nil {
+					return snap.ListErr.SentenceText()
+				}
+				return ""
+			}(), snap.SelectedID, id, snap.HistoryReady, snap.HistoryLoading, snap.LastAction, pendSess, resWs, activeKey, scope, len(snap.Items)))
 	}()
 	main()
 	select {

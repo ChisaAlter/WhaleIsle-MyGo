@@ -2198,6 +2198,21 @@ func connectionBanner(st harness.Status, muxReady, muxLost bool) string {
 }
 
 func main() {
+	// WHALEISLE_STACK_DUMP is a diagnostic hook: it periodically writes every
+	// goroutine's stack to PID-qualified files, so a wedged UI thread can be
+	// inspected from a headless run. Installed before the recovery-process
+	// branch so supervised children are covered too. Unset in normal operation.
+	if dump := strings.TrimSpace(os.Getenv("WHALEISLE_STACK_DUMP")); dump != "" {
+		go func() {
+			for i := 0; i < 10; i++ {
+				time.Sleep(20 * time.Second)
+				if f, err := os.Create(fmt.Sprintf("%s.%d.%d", dump, os.Getpid(), i)); err == nil {
+					_ = pprof.Lookup("goroutine").WriteTo(f, 2)
+					_ = f.Close()
+				}
+			}
+		}()
+	}
 	if handleNativeRecoveryProcess() {
 		return
 	}
@@ -2207,18 +2222,6 @@ func main() {
 	startUIDiagnostics()
 	startEditorProbe()
 	startRaiseTrace()
-	// WHALEISLE_STACK_DUMP is a diagnostic hook: after a few seconds it writes
-	// every goroutine's stack to the named file, so a wedged UI thread can be
-	// inspected from a headless run. Unset in normal operation.
-	if dump := strings.TrimSpace(os.Getenv("WHALEISLE_STACK_DUMP")); dump != "" {
-		go func() {
-			time.Sleep(8 * time.Second)
-			if f, err := os.Create(dump); err == nil {
-				_ = pprof.Lookup("goroutine").WriteTo(f, 2)
-				_ = f.Close()
-			}
-		}()
-	}
 	mygo.App.SetName(product.Name)
 	// A theme switch reaches the window over the interface's transition
 	// duration instead of in one frame.
@@ -5209,9 +5212,18 @@ func mainView(c *ui.Context) {
 						if path == "" {
 							return
 						}
-						if err = os.WriteFile(path, data, 0600); err != nil {
-							mygo.Dialog.Error(i18n.T(i18n.KeyCmdMarketExportErrorTitle), errcopy.Sentence(err))
-						}
+						// The write leaves the UI thread: a network drive or a
+						// scanning antivirus must not freeze input and paint.
+						go func() {
+							writeErr := os.WriteFile(path, data, 0600)
+							if writeErr != nil {
+								mygo.RunOnMain(func() {
+									if !win.IsDestroyed() {
+										mygo.Dialog.Error(i18n.T(i18n.KeyCmdMarketExportErrorTitle), errcopy.Sentence(writeErr))
+									}
+								})
+							}
+						}()
 					},
 					OnCopyInstallLog: func(log string) {
 						if strings.TrimSpace(log) != "" {
@@ -5549,9 +5561,19 @@ func mainView(c *ui.Context) {
 						if path == "" {
 							return
 						}
-						if err = os.WriteFile(path, data, 0600); err != nil {
-							*exportFailure = errcopy.Sentence(err)
-						}
+						// The write leaves the UI thread; the failure state is
+						// only ever mutated back on it.
+						go func() {
+							writeErr := os.WriteFile(path, data, 0600)
+							mygo.RunOnMain(func() {
+								if writeErr != nil {
+									*exportFailure = errcopy.Sentence(writeErr)
+								}
+								if win != nil && !win.IsDestroyed() {
+									win.Invalidate()
+								}
+							})
+						}()
 					},
 					OnOpenSession: func(id string) {
 						if sessions == nil {

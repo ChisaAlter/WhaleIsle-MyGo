@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/frame"
 )
@@ -116,6 +118,7 @@ type qaModel struct {
 	lastText  atomic.Value
 	gatedTool atomic.Value
 	toolNames atomic.Value
+	wfSchema  atomic.Value
 }
 
 func newQAModel() (*qaModel, error) {
@@ -230,6 +233,105 @@ func newQAModel() (*qaModel, error) {
 			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": "QA_NO_GATED_TOOL: session advertised no exec/write-class tool."}})
 			emit("content_block_stop", map[string]any{"index": 0})
 			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 10}})
+			emit("message_stop", map[string]any{})
+			return
+		}
+		if strings.Contains(text, "QA_WORKFLOW") {
+			// Workflow probe: invoke the agent-orchestration tool so the Host
+			// spawns a child run, emitting the tool-workflow/ journal events
+			// that project as WorkflowRuns.
+			chosenTool := -1
+			for _, want := range []string{"workflow", "agent", "task", "delegate", "spawn", "goal"} {
+				for i, tool := range body.Tools {
+					if strings.Contains(strings.ToLower(tool.Name), want) {
+						chosenTool = i
+						break
+					}
+				}
+				if chosenTool >= 0 {
+					break
+				}
+			}
+			if chosenTool < 0 {
+				names := []string{}
+				for _, t := range body.Tools {
+					names = append(names, t.Name)
+				}
+				emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "text", "text": ""}})
+				emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": "QA_NO_AGENT_TOOL: " + strings.Join(names, ",")}})
+				emit("content_block_stop", map[string]any{"index": 0})
+				emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 10}})
+				emit("message_stop", map[string]any{})
+				return
+			}
+			tool := body.Tools[chosenTool]
+			if rawSchema, e := json.Marshal(tool.InputSchema); e == nil {
+				m.wfSchema.Store(tool.Name + " " + string(rawSchema))
+			}
+			args := map[string]any{}
+			if tool.Name == "workflow" {
+				// Trivial script probe: even without delegations a completed run
+				// should emit the run lifecycle events the desktop projects.
+				args["script"] = "return { ok: true }"
+				args["meta"] = map[string]any{"name": "qa-probe-run", "description": "QA workflow probe"}
+				args["args"] = map[string]any{}
+			}
+			if tool.Name == "create_goal" {
+				// Exact replication beats shape inference: the vendor schema
+				// requires activation as an armed/disarmed enum member.
+				args["objective"] = "CHILDROUND: reply briefly and finish."
+				args["max_goal_rounds"] = 1
+				args["activation"] = "armed"
+			}
+			for key, rawProp := range tool.InputSchema.Properties {
+				if _, preset := args[key]; preset {
+					continue
+				}
+				propType := ""
+				var enumVals []any
+				if prop, ok := rawProp.(map[string]any); ok {
+					propType, _ = prop["type"].(string)
+					enumVals, _ = prop["enum"].([]any)
+				}
+				if len(enumVals) > 0 {
+					// Enum-shaped knobs (goal activation among them) must be a
+					// valid member; the first member is the affirmative one for
+					// the orchestration shapes this probe exercises.
+					args[key] = enumVals[0]
+					continue
+				}
+				switch propType {
+				case "array":
+					args[key] = []any{map[string]any{"objective": "CHILDROUND: reply briefly and finish.", "prompt": "CHILDROUND: reply briefly and finish.", "goal": "CHILDROUND: reply briefly and finish.", "task": "CHILDROUND: reply briefly and finish.", "name": "qa-phase"}}
+				case "number", "integer":
+					args[key] = 1
+				case "boolean":
+					// Activation-shaped flags must assert: a goal created
+					// inactive never orchestrates child runs.
+					args[key] = strings.Contains(strings.ToLower(key), "activ") || strings.Contains(strings.ToLower(key), "enabl") || strings.Contains(strings.ToLower(key), "start")
+				default:
+					args[key] = "CHILDROUND: reply briefly and finish."
+				}
+			}
+			raw, _ := json.Marshal(args)
+			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "tool_use", "id": fmt.Sprintf("qa-wf-%d", m.requests.Load()), "name": tool.Name, "input": map[string]any{}}})
+			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "input_json_delta", "partial_json": string(raw)}})
+			emit("content_block_stop", map[string]any{"index": 0})
+			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "tool_use", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 20}})
+			emit("message_stop", map[string]any{})
+			return
+		}
+		if strings.Contains(text, "QA_THINKING") {
+			// Anthropic thinking block: exercises whether the Host translates
+			// reasoning-shaped content into the journal events the desktop
+			// projects as thinking-kind messages.
+			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "thinking", "thinking": ""}})
+			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "thinking_delta", "thinking": "QA_THINKING_TRACE deterministic reasoning."}})
+			emit("content_block_stop", map[string]any{"index": 0})
+			emit("content_block_start", map[string]any{"index": 1, "content_block": map[string]any{"type": "text", "text": ""}})
+			emit("content_block_delta", map[string]any{"index": 1, "delta": map[string]any{"type": "text_delta", "text": "QA_REPLY_OK deterministic reply."}})
+			emit("content_block_stop", map[string]any{"index": 1})
+			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 30}})
 			emit("message_stop", map[string]any{})
 			return
 		}
@@ -414,12 +516,109 @@ func runComposerFlowQA() error {
 		baseID := sessions.Snapshot().SelectedID
 		if err := waitStore(deadline, "session 1 created", func() (bool, error) {
 			watch()
-			return sessions.Snapshot().SelectedID != baseID, nil
+			v := sessions.Snapshot()
+			// Blank-reuse is a correct create outcome over an untouched blank
+			// session: the gesture adopts it instead of proliferating empty
+			// identities, so the selected id legitimately stays put.
+			reused := v.SelectedID == baseID && v.LastAction == "blank session reused"
+			return v.SelectedID != "" && (v.SelectedID != baseID || reused), nil
 		}); err != nil {
 			finish(err)
 			return
 		}
 		id1 := sessions.Snapshot().SelectedID
+		// A second create gesture while id1 is still blank would correctly
+		// reuse it and collapse the two fixture identities into one. Send one
+		// real loopback message first so the Host no longer considers id1
+		// blank. Hero-state submits are dropped until the workspace evidence
+		// settles, so gate on the exact predicate the submit path consults.
+		if err := waitStore(deadline, "workspace evidence admits id1", func() (bool, error) {
+			snap := sessions.Snapshot()
+			return snap.WorkspaceReady && !composer.RequiresWorkspace(snap, true), nil
+		}); err != nil {
+			finish(err)
+			return
+		}
+		seedText := "QA_SEED_ID1"
+		probeThinking := scenario == "probe-thinking"
+		probeWorkflow := scenario == "probe-workflow"
+		probeThinking = probeThinking || probeWorkflow
+		if probeWorkflow {
+			seedText = "QA_SEED_ID1 QA_WORKFLOW"
+		} else if probeThinking {
+			seedText = "QA_SEED_ID1 QA_THINKING"
+		}
+		mygo.RunOnMain(func() {
+			state.mu.Lock()
+			draft := state.composerDraftLocked(id1)
+			draft.Text = seedText
+			if probeThinking {
+				// Path-based image attachment: the prepare chain loads the bytes,
+				// detects the media type and stamps session/host scope itself.
+				pngPath := filepath.Join(workspace, "qa-probe.png")
+				pngRaw, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+				_ = os.MkdirAll(workspace, 0755)
+				_ = os.WriteFile(pngPath, pngRaw, 0600)
+				draft.Attachments = []session.ComposerAttachment{{Path: pngPath, Name: "qa-probe.png"}}
+			}
+			state.mu.Unlock()
+			state.submitComposer(win, sessions, draft, id1, workspace, false, sessions.Snapshot().ComposerHostGeneration)
+		})
+		if err := waitStore(deadline, "seed message in id1", func() (bool, error) {
+			v := sessions.Snapshot()
+			if v.SelectedID != id1 {
+				return false, nil
+			}
+			userCount, replyCount := 0, 0
+			for _, m := range v.Messages {
+				if m.Role == "user" && strings.Contains(m.Body, "QA_SEED_ID1") {
+					userCount++
+				}
+				if m.Role == "assistant" && (strings.Contains(m.Body, "QA_REPLY_OK") || strings.Contains(m.Body, "QA_APPROVED_OK")) {
+					replyCount++
+				}
+			}
+			return userCount >= 1 && replyCount >= 1 && !v.PromptBusy, nil
+		}); err != nil {
+			finish(err)
+			return
+		}
+		if probeThinking {
+			// Goal-driven workflow runs orchestrate asynchronously past the end
+			// of the parent turn; let the child rounds settle before sampling.
+			if probeWorkflow {
+				settle := time.Now().Add(25 * time.Second)
+				for time.Now().Before(settle) {
+					if len(sessions.Snapshot().WorkflowRuns) > 0 {
+						break
+					}
+					time.Sleep(500 * time.Millisecond)
+				}
+			}
+			type probeMessage struct {
+				Kind     string `json:"kind"`
+				Role     string `json:"role"`
+				Body     string `json:"body"`
+				ImageRef string `json:"imageRef,omitempty"`
+			}
+			v := sessions.Snapshot()
+			probe := map[string]any{"messages": []probeMessage{}, "workflowRuns": len(v.WorkflowRuns)}
+			if schema, ok := model.wfSchema.Load().(string); ok {
+				probe["workflowToolSchema"] = schema
+			}
+			for _, m := range v.Messages {
+				body := m.Body
+				if len(body) > 120 {
+					body = body[:120]
+				}
+				probe["messages"] = append(probe["messages"].([]probeMessage), probeMessage{Kind: string(m.Kind), Role: m.Role, Body: body, ImageRef: m.ImageRef})
+			}
+			raw, _ := json.MarshalIndent(probe, "", "  ")
+			_ = os.WriteFile(out+".probe.json", raw, 0600)
+			finish(nil)
+			return
+		}
+		sessions.CreateSession(ctx)
 		createAttempts := 0
 		lastCreate := time.Time{}
 		if err := waitStore(deadline, "session 2 created", func() (bool, error) {

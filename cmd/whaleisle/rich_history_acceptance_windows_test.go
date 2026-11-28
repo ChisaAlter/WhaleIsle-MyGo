@@ -61,6 +61,12 @@ func nativeRichHistory() error {
 		mygo.App.Quit()
 	}
 	go func() {
+		// The recovery watchdog re-exec runs this same binary; it never boots the
+		// desktop, so its loop would sit at the boot gate forever and its copy of
+		// the run can only confuse diagnostics. Skip it there.
+		if len(os.Args) >= 2 && os.Args[1] == nativeRecoveryFlag {
+			return
+		}
 		deadline := time.Now().Add(105 * time.Second)
 		selected, revealed := false, false
 		for time.Now().Before(deadline) {

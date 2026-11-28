@@ -101,12 +101,14 @@ if ($env:WHALEISLE_INCLUDE_PET_ASSETS -eq '1') {
 # Host runtime is required unless explicitly producing a shell-only development package.
 if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     # Refuse incomplete phone runtime before copying or writing .runtime-staged.
+    # The pin file owns the runtime contract: newest staged pin runtime wins,
+    # later entries stay the fallback so a machine that has only an older
+    # stage keeps packaging.
+    $Pin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'runtime-pin.json') -Raw | ConvertFrom-Json
     $VendorSrc = $env:WHALEISLE_VENDOR
     if ($RuntimeRoot) { $VendorSrc = Join-Path ([System.IO.Path]::GetFullPath($RuntimeRoot)) 'vendor' }
     if (-not $VendorSrc) {
-        # Newest staged 0.2.2 runtime wins; rc.2 stays the fallback so a machine
-        # that has only the older stage keeps packaging.
-        foreach ($name in @('runtime-0.2.2-rc5', 'runtime-0.2.2-rc2')) {
+        foreach ($name in $Pin.stageDirNames) {
             $candidate = Join-Path $ProjectRoot $name
             if (Test-Path -LiteralPath (Join-Path $candidate 'vendor') -PathType Container) { $VendorSrc = Join-Path $candidate 'vendor'; break }
         }
@@ -171,7 +173,9 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     }
     if (-not $NodeSrc) {
         $pathNode = Get-Command node -ErrorAction SilentlyContinue
+        $pinNodeCandidates = @($Pin.stageDirNames) | ForEach-Object { Join-Path (Join-Path $ProjectRoot $_) 'node' }
         $NodeSrc = @(
+            $pinNodeCandidates,
             (Join-Path $ProjectRoot 'runtime-rc4\node'),
             (Join-Path $ProjectRoot 'runtime\node'),
             (Join-Path $ProjectRoot '.toolchain\node'),
@@ -242,7 +246,7 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 
 1. Build the installed rc.4 runtime with `scripts/build-harness.ps1 -RuntimeSourceResources <resources> -RuntimeDestination <fresh-runtime> -DesktopSourceRoot <desktop-source>`. This includes phone resources, retained dshbot and the pinned main plugins.
 2. Select that exact runtime for packaging: `scripts/package.ps1 -RuntimeRoot <fresh-runtime> -OutputRoot <fresh-output>`. Existing rc.2 inputs remain available through the original defaults.
-3. `mygo.json` `identifier` is **`ai.deepseek.harness.gui.mygo`** (independent side-by-side install under `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo` while sharing `%APPDATA%\Deepseek-Harness-Desktop` userData).
+3. `mygo.json` `identifier` is **`ai.deepseek.harness.gui.mygo`** (independent side-by-side install under `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo`; user data lives in MyGo's own `%APPDATA%\WhaleIsle-MyGo\data` and is never written to the original `%APPDATA%\Deepseek-Harness-Desktop` userData — legacy data is only copied in, once, by the explicit first-run import).
 4. NSIS script: `scripts/nsis/whaleisle.nsi` installs exe, resources, and optional `runtime/` trees.
 5. Windows releases are unsigned by default. Finalize emits SHA-256 and blockmap metadata from the final installer bytes. Optional -RequireSignature, WHALEISLE_UPDATE_REQUIRE_SIGNATURE, an expected publisher or a supplied WHALEISLE_SIGNING_SCRIPT enforces the requested signature before metadata is emitted. Hashes verify file integrity; an unsigned package has no verified platform publisher.
 

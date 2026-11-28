@@ -305,6 +305,12 @@ func TestRecordedLocationThatRejectsWritesReportsAnIssue(t *testing.T) {
 	if _, ok := CachedDataLocationIssue(); !ok {
 		t.Fatal("the cached issue forgot a directory that rejects writes")
 	}
+	if got := UserDataDir(); strings.EqualFold(got, recorded) {
+		t.Fatalf("UserDataDir() = %q, the unwritable recorded directory; continuing with the default must not write there", got)
+	}
+	if got := StoredDataDir(); strings.EqualFold(got, recorded) {
+		t.Fatalf("StoredDataDir() = %q, the unwritable recorded directory", got)
+	}
 }
 
 func TestDefaultIsNotTheElectronDirectory(t *testing.T) {

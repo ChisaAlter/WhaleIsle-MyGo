@@ -166,12 +166,10 @@ func identity(o operation, meta any) (string, bool, error) {
 	if view.Status != "credential-stored" {
 		return "", false, errors.New("unknown account state")
 	}
-	if view.Attempt != nil {
-		switch view.Attempt.Phase {
-		case "initializing", "waiting-browser", "exchanging", "committing":
-			return "", false, errors.New("account sign-in is active")
-		}
-	}
+	// An active sign-in attempt never blocks sign-out: the Host's signOut
+	// cancels it atomically (non-committing phases) or waits out the commit
+	// before deleting the grant. The attempt id stays in the identity key, so
+	// a newer attempt still invalidates an open review as account-changed.
 	key := view.Status
 	if view.Attempt != nil {
 		key += ":" + view.Attempt.ID

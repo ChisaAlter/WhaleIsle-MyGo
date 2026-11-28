@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/url"
 	"os"
@@ -498,11 +499,20 @@ func runSidebarDesktop(root, phase string) error {
 			if !sessions.Snapshot().WorkspaceLayout.Collapsed[closedRow.WorkspaceID] {
 				sessions.ToggleWorkspaceGroup(closedRow.WorkspaceID)
 			}
+			err = sidebarWait(ctx, func() (bool, error) {
+				layout := sessions.Snapshot().WorkspaceLayout
+				return !layout.Collapsed[openRow.WorkspaceID] && layout.Collapsed[closedRow.WorkspaceID], nil
+			})
+			if err != nil {
+				finish(fmt.Errorf("workspace fold settle: %w", err))
+				return
+			}
 		}
 		beforeFilter := "default"
 		if phase == "restart" {
 			beforeFilter = "show"
 		}
+		log.Printf("sidebar-harness: recording before state")
 		before, err := sidebarRecordCurrent(root, sessions, openRow.WorkspaceID, closedRow.WorkspaceID, beforeFilter, nil)
 		if err != nil {
 			finish(err)
@@ -512,8 +522,11 @@ func runSidebarDesktop(root, phase string) error {
 		beforeSelection := before["selectedSessionID"].(string)
 		receipt["startupSelectedSyntheticID"] = beforeSelection
 		receipt["startupSelectionPresent"] = beforeSelection != ""
+		log.Printf("sidebar-harness: before recorded, revealing main conversation")
 		state.revealMainConversation()
+		log.Printf("sidebar-harness: revealed, showing inactive")
 		win.ShowInactive()
+		log.Printf("sidebar-harness: shown, reading native handle")
 		handle := win.NativeHandle()
 		if handle == 0 {
 			finish(errors.New("owned window native handle absent"))

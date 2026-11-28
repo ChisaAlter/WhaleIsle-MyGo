@@ -211,6 +211,20 @@ func TestAccountSignOutFixture(t *testing.T) {
 			t.Fatal("unknown local account state admitted")
 		}
 	})
+	t.Run("active sign-in attempt does not block sign-out", func(t *testing.T) {
+		for _, phase := range []string{"initializing", "waiting-browser", "exchanging", "committing"} {
+			f, c := newLogoutFixture()
+			c.attemptPhase = phase
+			f.Request(ctx, meta)
+			if s := f.Snapshot(); !s.Open || s.Error != "" {
+				t.Fatalf("%s: active attempt blocked review: %+v", phase, s)
+			}
+			f.Confirm(ctx, meta, f.Snapshot().ReviewID)
+			if s := f.Snapshot(); !s.Completed || s.Error != "" || c.exits() != 1 {
+				t.Fatalf("%s: active attempt blocked sign-out: %+v exits=%d", phase, s, c.exits())
+			}
+		}
+	})
 	t.Run("local credentials allow sign-out without an online profile", func(t *testing.T) {
 		f, c := newLogoutFixture()
 		c.attemptID = ""

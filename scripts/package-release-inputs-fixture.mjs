@@ -29,6 +29,10 @@ assert.ok(windows.indexOf('Packaged Host node.exe is missing or changed.') < win
 assert.ok(windows.indexOf('Packaged mobile runtime verification failed') < windows.indexOf("Set-Content -Path $Marker"));
 assert.match(windows, /throw 'Host Node runtime missing/);
 assert.doesNotMatch(windows, /Note: Node directory not found/);
+// The staged README is user-facing release copy: it must describe the current
+// independent data directory, never the retired shared-userData contract.
+assert.doesNotMatch(windows, /sharing `%APPDATA%\\Deepseek-Harness-Desktop` userData/);
+assert.match(windows, /%APPDATA%\\WhaleIsle-MyGo\\data/);
 assert.doesNotMatch(windows, /Remove-Item -Recurse -Force \$Stage/);
 assert.match(windows, /Package stage already exists; choose a fresh -OutputRoot/);
 assert.match(windows, /session-runtime\.mjs'\) release/);
@@ -59,3 +63,20 @@ try {
   assert.equal(fs.existsSync(path.join(stage, 'pet-render-assets')), false);
 } finally { fs.rmSync(temporary, {recursive: true, force: true}); }
 console.log('Release-input source contract and missing-THA4 staging fixture passed; Windows/native packaging not exercised.');
+
+// Runtime pin single-source contract: the pin file is the only place that
+// names the product runtime version, the scripted consumers read it instead
+// of hardcoding stage directories, and the staging tool's pin table must
+// actually know the pinned version.
+const pin = JSON.parse(read('scripts/runtime-pin.json'));
+assert.match(pin.version, /^0\.2\.2-rc\./);
+assert.ok(Array.isArray(pin.stageDirNames) && pin.stageDirNames.length >= 1);
+const sessionRuntime = read('scripts/session-runtime.mjs');
+assert.ok(sessionRuntime.includes(`'${pin.version}'`), `session-runtime.mjs pin table does not know ${pin.version}`);
+const perf = read('scripts/perf-interaction.ps1');
+const uiCompare = read('scripts/ui-compare/run.mjs');
+assert.match(perf, /runtime-pin\.json/);
+assert.match(uiCompare, /runtime-pin\.json/);
+assert.match(windows, /runtime-pin\.json/);
+assert.doesNotMatch(windows, /@\('runtime-0\.2\.2-rc5', 'runtime-0\.2\.2-rc2'\)/);
+console.log('Runtime pin single-source contract passed.');

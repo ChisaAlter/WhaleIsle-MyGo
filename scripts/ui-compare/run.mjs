@@ -15,7 +15,10 @@ import http from 'node:http';
 
 const REPO = process.cwd();
 const TOOL_DIR = new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
-const RUNTIME = join(REPO, 'runtime-rc4');
+// The runtime being compared must be the pinned shipping runtime, not a
+// hardcoded historical stage: runtime-pin.json owns the contract.
+const PIN = JSON.parse(readFileSync(join(TOOL_DIR, '..', 'runtime-pin.json'), 'utf8'));
+const RUNTIME = (PIN.stageDirNames.map(n => join(REPO, n)).find(d => existsSync(join(d, 'vendor'))) || join(REPO, 'runtime-rc4'));
 // A worktree may carry runtime-rc4 as a directory junction to the shared
 // checkout: Node and Chrome resolve it transparently, but the native shell
 // EvalSymlinks each plugin source while mounting profile junctions and

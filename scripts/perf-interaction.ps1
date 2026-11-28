@@ -32,8 +32,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $Exe = (Resolve-Path -LiteralPath $Exe).Path
-if (-not $Vendor) { $Vendor = Join-Path $root 'runtime-rc4\vendor' }
-if (-not $NodeDir) { $NodeDir = Join-Path $root 'runtime-rc4\node' }
+# Performance numbers mean nothing unless they measure the pinned shipping
+# runtime: resolve vendor/node from runtime-pin.json before any legacy path.
+$pin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'runtime-pin.json') -Raw | ConvertFrom-Json
+$pinStage = @($pin.stageDirNames) | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'vendor') -PathType Container } | Select-Object -First 1
+if (-not $Vendor) { $Vendor = $(if ($pinStage) { Join-Path $pinStage 'vendor' } else { Join-Path $root 'runtime-rc4\vendor' }) }
+if (-not $NodeDir) { $NodeDir = $(if ($pinStage -and (Test-Path (Join-Path $pinStage 'node\node.exe') -PathType Leaf)) { Join-Path $pinStage 'node' } else { Join-Path $root 'runtime-rc4\node' }) }
 if (-not $OutDir) { $OutDir = Join-Path $root ('tmp\perf\' + (Get-Date -Format 'yyyyMMdd-HHmmss') + $(if ($Label) { '-' + $Label } else { '' })) }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $OutDir = (Resolve-Path -LiteralPath $OutDir).Path
