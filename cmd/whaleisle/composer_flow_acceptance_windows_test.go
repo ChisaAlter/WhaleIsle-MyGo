@@ -263,8 +263,17 @@ func newQAModel() (*qaModel, error) {
 			args := map[string]any{}
 			for key, rawProp := range tool.InputSchema.Properties {
 				propType := ""
+				var enumVals []any
 				if prop, ok := rawProp.(map[string]any); ok {
 					propType, _ = prop["type"].(string)
+					enumVals, _ = prop["enum"].([]any)
+				}
+				if len(enumVals) > 0 {
+					// Enum-shaped knobs (goal activation among them) must be a
+					// valid member; the first member is the affirmative one for
+					// the orchestration shapes this probe exercises.
+					args[key] = enumVals[0]
+					continue
 				}
 				switch propType {
 				case "number", "integer":
