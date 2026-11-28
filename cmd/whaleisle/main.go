@@ -2198,6 +2198,21 @@ func connectionBanner(st harness.Status, muxReady, muxLost bool) string {
 }
 
 func main() {
+	// WHALEISLE_STACK_DUMP is a diagnostic hook: it periodically writes every
+	// goroutine's stack to PID-qualified files, so a wedged UI thread can be
+	// inspected from a headless run. Installed before the recovery-process
+	// branch so supervised children are covered too. Unset in normal operation.
+	if dump := strings.TrimSpace(os.Getenv("WHALEISLE_STACK_DUMP")); dump != "" {
+		go func() {
+			for i := 0; i < 10; i++ {
+				time.Sleep(20 * time.Second)
+				if f, err := os.Create(fmt.Sprintf("%s.%d.%d", dump, os.Getpid(), i)); err == nil {
+					_ = pprof.Lookup("goroutine").WriteTo(f, 2)
+					_ = f.Close()
+				}
+			}
+		}()
+	}
 	if handleNativeRecoveryProcess() {
 		return
 	}
@@ -2207,20 +2222,6 @@ func main() {
 	startUIDiagnostics()
 	startEditorProbe()
 	startRaiseTrace()
-	// WHALEISLE_STACK_DUMP is a diagnostic hook: after a few seconds it writes
-	// every goroutine's stack to the named file, so a wedged UI thread can be
-	// inspected from a headless run. Unset in normal operation.
-	if dump := strings.TrimSpace(os.Getenv("WHALEISLE_STACK_DUMP")); dump != "" {
-		go func() {
-			for i := 0; i < 10; i++ {
-				time.Sleep(20 * time.Second)
-				if f, err := os.Create(fmt.Sprintf("%s.%d", dump, i)); err == nil {
-					_ = pprof.Lookup("goroutine").WriteTo(f, 2)
-					_ = f.Close()
-				}
-			}
-		}()
-	}
 	mygo.App.SetName(product.Name)
 	// A theme switch reaches the window over the interface's transition
 	// duration instead of in one frame.
