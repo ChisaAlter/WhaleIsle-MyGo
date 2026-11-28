@@ -19,6 +19,16 @@
 - 放弃的工作关闭 PR 并删除分支。确需留档的，用 `git bundle` 或补丁存到仓库外并写明恢复方法，不靠保留分支或工作树留档。
 - 交付或结束会话前运行 `git worktree list` 和 `git branch`，确认只剩仍在使用的条目，并在报告里写明保留原因。
 
+## 实机验收 harness 合同
+
+`cmd/whaleisle/*_acceptance_windows_test.go` 各套件用专属构建 tag（如 `composerflowacceptance`、`sessionrecovery`）编译 `go test -c` 二进制，在隔离环境实机运行。跨会话反复踩过的坑，先读再改：
+
+- 环境合同：`WHALEISLE_ISOLATED=1` + 绝对路径 `WHALEISLE_USER_DATA`，`WHALEISLE_VENDOR`/`WHALEISLE_NODE` 指向发货 runtime 根（含 `node/`、`vendor/` 的目录本身，不是 vendor 子目录），输出 env 是文件路径不是目录。端口固定（各套件不同），跑前确认无僵尸 Host 占用。
+- 空白会话复用：选中会话为空白时 `CreateSession` 正确复用它（`LastAction="blank session reused"`），选中 ID 不变。harness 等待"ID 变化"逻辑上永不成立；需要两个不同会话时，先在第一个会话用 loopback QA 模型真发一条消息使其非空白，再创建第二个。
+- RequiresWorkspace：hero 态提交在工作区证据未就绪时被正确丢弃。harness 发送前的前置等待必须镜像 `composer.RequiresWorkspace` 的精确判定（`WorkspaceReady` 正面就绪 + 工作区行/路径匹配，不要求 SessionIDs 链接）。
+- journal 计数：接纳写入（admission journaling）在桌面首次观察所有权时仍在飞行中，单次 follow 快照必然与写入竞争。计数断言要在全新订阅基线上重试；流式续读里 user/message 事件需要显式解析，不能只在初始快照扫描。
+- 会话持久化证据优先级：transcript（`Snapshot().Messages`）> Host 列表 blank 标志（滞后）。journal 文件是多帧 zstd（首帧仅会话头），离线取证用 runtime 的 node `zlib.zstdDecompressSync` 逐帧解码，帧迭代参考 `internal/desktop/importer/catalog.go`。
+
 <!-- project-build-storage:start -->
 ## 构建产物与磁盘约束
 
