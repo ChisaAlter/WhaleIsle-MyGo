@@ -498,6 +498,14 @@ func runSidebarDesktop(root, phase string) error {
 			if !sessions.Snapshot().WorkspaceLayout.Collapsed[closedRow.WorkspaceID] {
 				sessions.ToggleWorkspaceGroup(closedRow.WorkspaceID)
 			}
+			err = sidebarWait(ctx, func() (bool, error) {
+				layout := sessions.Snapshot().WorkspaceLayout
+				return !layout.Collapsed[openRow.WorkspaceID] && layout.Collapsed[closedRow.WorkspaceID], nil
+			})
+			if err != nil {
+				finish(fmt.Errorf("workspace fold settle: %w", err))
+				return
+			}
 		}
 		beforeFilter := "default"
 		if phase == "restart" {
