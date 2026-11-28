@@ -27,6 +27,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/frame"
 )
@@ -414,12 +415,56 @@ func runComposerFlowQA() error {
 		baseID := sessions.Snapshot().SelectedID
 		if err := waitStore(deadline, "session 1 created", func() (bool, error) {
 			watch()
-			return sessions.Snapshot().SelectedID != baseID, nil
+			v := sessions.Snapshot()
+			// Blank-reuse is a correct create outcome over an untouched blank
+			// session: the gesture adopts it instead of proliferating empty
+			// identities, so the selected id legitimately stays put.
+			reused := v.SelectedID == baseID && v.LastAction == "blank session reused"
+			return v.SelectedID != "" && (v.SelectedID != baseID || reused), nil
 		}); err != nil {
 			finish(err)
 			return
 		}
 		id1 := sessions.Snapshot().SelectedID
+		// A second create gesture while id1 is still blank would correctly
+		// reuse it and collapse the two fixture identities into one. Send one
+		// real loopback message first so the Host no longer considers id1
+		// blank. Hero-state submits are dropped until the workspace evidence
+		// settles, so gate on the exact predicate the submit path consults.
+		if err := waitStore(deadline, "workspace evidence admits id1", func() (bool, error) {
+			snap := sessions.Snapshot()
+			return snap.WorkspaceReady && !composer.RequiresWorkspace(snap, true), nil
+		}); err != nil {
+			finish(err)
+			return
+		}
+		mygo.RunOnMain(func() {
+			state.mu.Lock()
+			draft := state.composerDraftLocked(id1)
+			draft.Text = "QA_SEED_ID1"
+			state.mu.Unlock()
+			state.submitComposer(win, sessions, draft, id1, workspace, false, sessions.Snapshot().ComposerHostGeneration)
+		})
+		if err := waitStore(deadline, "seed message in id1", func() (bool, error) {
+			v := sessions.Snapshot()
+			if v.SelectedID != id1 {
+				return false, nil
+			}
+			userCount, replyCount := 0, 0
+			for _, m := range v.Messages {
+				if m.Role == "user" && strings.Contains(m.Body, "QA_SEED_ID1") {
+					userCount++
+				}
+				if m.Role == "assistant" && strings.Contains(m.Body, "QA_REPLY_OK") {
+					replyCount++
+				}
+			}
+			return userCount >= 1 && replyCount >= 1 && !v.PromptBusy, nil
+		}); err != nil {
+			finish(err)
+			return
+		}
+		sessions.CreateSession(ctx)
 		createAttempts := 0
 		lastCreate := time.Time{}
 		if err := waitStore(deadline, "session 2 created", func() (bool, error) {
