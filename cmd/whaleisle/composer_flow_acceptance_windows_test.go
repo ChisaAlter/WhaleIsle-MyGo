@@ -261,7 +261,17 @@ func newQAModel() (*qaModel, error) {
 			}
 			tool := body.Tools[chosenTool]
 			args := map[string]any{}
+			if tool.Name == "create_goal" {
+				// Exact replication beats shape inference: the vendor schema
+				// requires activation as an armed/disarmed enum member.
+				args["objective"] = "CHILDROUND: reply briefly and finish."
+				args["max_goal_rounds"] = 1
+				args["activation"] = "armed"
+			}
 			for key, rawProp := range tool.InputSchema.Properties {
+				if _, preset := args[key]; preset {
+					continue
+				}
 				propType := ""
 				var enumVals []any
 				if prop, ok := rawProp.(map[string]any); ok {
