@@ -919,6 +919,7 @@ func StaleExemptions(pkgs []string, patterns map[string]bool, exemptions map[str
 // on a hosted runner. An entry whose file becomes wired into the workflow, or
 // that stops existing, is stale: the guard fails so the table stays honest.
 var MjsUncoveredExemptions = map[string]string{
+	"scripts/build-storage.test.mjs":                "requires the pinned local NSIS installation for real packaging verification, which a hosted runner deliberately does not carry",
 	"internal/harness/native-mcp-import.test.mjs":   "imports modules from the expanded runtime-rc4 vendor tree, which a CI checkout does not carry",
 	"internal/harness/native-skill-import.test.mjs": "imports modules from the expanded runtime-rc4 vendor tree, which a CI checkout does not carry",
 	"scripts/session-runtime.test.mjs":              "its clone/stage/verify cases are gated on WHALEISLE_SESSION_RUNTIME_STAGED_FIXTURE naming a verified staged runtime that only the manual runtime-acceptance harness provisions",

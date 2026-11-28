@@ -404,6 +404,9 @@ func TestSaveIfAbsentNeverReplacesAnExistingFile(t *testing.T) {
 	first := sampleCreds()
 	created, err := SaveIfAbsent(dir, first)
 	if err != nil {
+		if strings.Contains(err.Error(), "DPAPI") {
+			t.Skipf("DPAPI protect unavailable in this environment: %v", err)
+		}
 		t.Fatalf("SaveIfAbsent: %v", err)
 	}
 	if !created {
