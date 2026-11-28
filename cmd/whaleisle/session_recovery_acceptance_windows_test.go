@@ -45,6 +45,20 @@ func runNativeSessionRecovery() error {
 	if !isolatedDesktopRun() || !strings.HasPrefix(id, "session-recovery-fixture-") || !filepath.IsAbs(data) || !filepath.IsAbs(workspace) || !filepath.IsAbs(out) || (phase != "save" && phase != "restore") {
 		return fmt.Errorf("explicit owned session recovery environment required")
 	}
+	// The env id is a run-scoped nonce, not the session id: session/create is
+	// Host-materialized with a Host-generated id and no seam may force one.
+	// The save phase adopts the auto-created session's real id and hands it to
+	// the restore phase through a sidecar so both phases key drafts and layout
+	// state to the session the Host actually persists. The sidecar name keys on
+	// the nonce because the two phases write distinct result files.
+	sidecar := filepath.Join(filepath.Dir(out), id+".sessionid")
+	if phase == "restore" {
+		raw, err := os.ReadFile(sidecar)
+		if err != nil || strings.TrimSpace(string(raw)) == "" {
+			return fmt.Errorf("owned session id sidecar missing; run the save phase first")
+		}
+		id = strings.TrimSpace(string(raw))
+	}
 	if phase == "save" {
 		cfg, err := config.Open(data)
 		if err != nil {
@@ -123,6 +137,24 @@ func runNativeSessionRecovery() error {
 				continue
 			}
 			if phase == "save" && !selected {
+				realID := ""
+				for _, item := range snap.Items {
+					if item.SessionID != "" {
+						realID = item.SessionID
+						break
+					}
+				}
+				if realID == "" {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				if realID != id {
+					id = realID
+					if err := os.WriteFile(sidecar, []byte(id), 0600); err != nil {
+						finish(err)
+						return
+					}
+				}
 				sessions.Select(id)
 				selected = true
 				continue
