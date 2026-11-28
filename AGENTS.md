@@ -28,6 +28,9 @@
 - RequiresWorkspace：hero 态提交在工作区证据未就绪时被正确丢弃。harness 发送前的前置等待必须镜像 `composer.RequiresWorkspace` 的精确判定（`WorkspaceReady` 正面就绪 + 工作区行/路径匹配，不要求 SessionIDs 链接）。
 - journal 计数：接纳写入（admission journaling）在桌面首次观察所有权时仍在飞行中，单次 follow 快照必然与写入竞争。计数断言要在全新订阅基线上重试；流式续读里 user/message 事件需要显式解析，不能只在初始快照扫描。
 - 会话持久化证据优先级：transcript（`Snapshot().Messages`）> Host 列表 blank 标志（滞后）。journal 文件是多帧 zstd（首帧仅会话头），离线取证用 runtime 的 node `zlib.zstdDecompressSync` 逐帧解码，帧迭代参考 `internal/desktop/importer/catalog.go`。
+- rich-history 合成持久化验收：`tools/rich-history-check` 是唯一入口（`go build -o rhc.exe ./tools/rich-history-check`，搭配 `-tags richhistoryacceptance` 编译的 cmd/whaleisle 测试二进制作 `-native`）。seed.mjs 用 runtime 自己的 Session/目录编码直接写合成 v4 journal，流水线双层判定：进程内 production Host follow + Go Store 投影 + UI tester 只读控件，加每 fixture 一个隐藏 Windows 实机进程。native 证据合同是 proof JSON+PNG 文件，不是进程退出码——宿主机停机可悬挂，流水线按 artifact 判定并有界等待后杀进程。
+- `session/attachment` 边界校验要求完整 ImageAttachmentRef（mediaType/bytes/width/height 与存储字节一致性验证），id-only 请求结构性失败；客户端从投影消息 Raw 内容块扫描完整 ref（`imageAttachmentRef`）。
+- 陈旧二进制假象：go build 报告 rc=0 不保证输出含最新源码的罕见情形下，验收失败字符串可能来自旧构建。对工具二进制做标记字符串取证（`node -e` 搜二进制字节）再信失败归因。
 
 <!-- project-build-storage:start -->
 ## 构建产物与磁盘约束
