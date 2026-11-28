@@ -369,8 +369,8 @@ func readOnlyControls(kind string, v session.ViewState) error {
 		if m.Kind == session.MessageKindThinking {
 			open := map[string]bool{}
 			tt := ui.NewTester(func(c *ui.Context) { chat.ThinkingBlockView(c, m.ID, m.Body, &open, chat.ThinkingStyle{}) }, 900, 500)
-			if err := tt.Click("\u25b8 " + i18n.T(i18n.KeyChatThinking)); err != nil {
-				return err
+			if err := tt.Click(i18n.T(i18n.KeyChatThinking)); err != nil {
+				return fmt.Errorf("wdiag target=%q texts=%q: %w", i18n.T(i18n.KeyChatThinking), tt.Texts(), err)
 			}
 			if !open[m.ID] {
 				return errors.New("saved reasoning disclosure did not open")

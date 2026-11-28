@@ -85,6 +85,9 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 					bodyStyle.Compact = true
 					markdown.View(c, body, bodyStyle)
 				}
+				if strings.TrimSpace(body) != "" && stdButton(c, theme.Colors{}, i18n.T(i18n.KeyChatCopy), buttonGhost, false).Label("Copy reasoning "+msgID).Clicked() {
+					c.WriteClipboard(body)
+				}
 			})
 	})
 }
