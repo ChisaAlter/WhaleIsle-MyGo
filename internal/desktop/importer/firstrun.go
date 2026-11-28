@@ -233,9 +233,13 @@ func RunFirstRun(ctx context.Context, plan FirstRunPlan) (FirstRunResult, error)
 		if entryExists(dst, false) {
 			result.Skipped++
 			note("config.json: skipped (already present)")
-		} else if err := copyFileAtomic(src, dst); err != nil {
+		} else if created, err := copyFileCreateOnly(src, dst); err != nil {
 			result.Failed++
 			note("config.json: failed: " + err.Error())
+		} else if !created {
+			// A concurrent creator won the publish race; its bytes survive.
+			result.Skipped++
+			note("config.json: skipped (appeared during copy)")
 		} else {
 			result.Copied++
 			note("config.json: copied")
@@ -246,7 +250,7 @@ func RunFirstRun(ctx context.Context, plan FirstRunPlan) (FirstRunResult, error)
 		if entryExists(dst, false) {
 			result.Skipped++
 			note("credentials.json: skipped (already present)")
-		} else if err := migrateCredentials(plan.Source, plan.Dest); err != nil {
+		} else if created, err := migrateCredentials(plan.Source, plan.Dest); err != nil {
 			// A credentials write right the platform refuses, or an envelope
 			// only the original could read, is permanent for this run: the
 			// user signs in again instead. Counting it as skipped rather than
@@ -254,6 +258,11 @@ func RunFirstRun(ctx context.Context, plan FirstRunPlan) (FirstRunResult, error)
 			// something that cannot succeed.
 			result.Skipped++
 			note("credentials.json: skipped: " + err.Error())
+		} else if !created {
+			// The destination appeared between the precheck and the locked
+			// create-only publish; the concurrent creator keeps its bytes.
+			result.Skipped++
+			note("credentials.json: skipped (appeared during import)")
 		} else {
 			result.Copied++
 			note("credentials.json: copied")
@@ -311,48 +320,68 @@ func firstRunMarkerFor(result FirstRunResult, runErr error) firstRunMarker {
 
 // migrateCredentials reads the source profile's secrets and writes them into
 // the destination through the credentials package, so the destination seals
-// them with its own key. The source file is only read.
-func migrateCredentials(source, dest string) error {
+// them with its own key. The source file is only read. The publish never
+// replaces an existing destination: it reports created=false instead.
+func migrateCredentials(source, dest string) (bool, error) {
 	creds, err := credentials.Load(source)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return credentials.Save(dest, creds)
+	return credentials.SaveIfAbsent(dest, creds)
 }
 
-// copyFileAtomic publishes src at dst through a private temporary file, so a
-// failure never leaves a half-written destination file.
-func copyFileAtomic(src, dst string) error {
+// copyFileCreateOnly publishes src at dst through a private temporary file, so
+// a failure never leaves a half-written destination file, and the final link
+// never replaces an existing file: a concurrent creator keeps its own bytes
+// and this copy reports created=false.
+func copyFileCreateOnly(src, dst string) (bool, error) {
 	in, err := os.Open(src)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer in.Close()
 	dir := filepath.Dir(dst)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
+		return false, err
 	}
 	tmp, err := os.CreateTemp(dir, "."+filepath.Base(dst)+".*.tmp")
 	if err != nil {
-		return err
+		return false, err
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
 	if _, err := io.Copy(tmp, in); err != nil {
 		tmp.Close()
-		return err
+		return false, err
 	}
 	if err := tmp.Sync(); err != nil {
 		tmp.Close()
-		return err
+		return false, err
 	}
 	if err := tmp.Close(); err != nil {
-		return err
+		return false, err
 	}
 	if err := os.Chmod(tmpName, 0o600); err != nil {
-		return err
+		return false, err
 	}
-	return os.Rename(tmpName, dst)
+	return publishCreateOnly(tmpName, dst)
+}
+
+// publishCreateOnly moves tmp onto dst without ever replacing an existing
+// file. The hard link fails when dst exists, and because both names live in
+// one directory the same-volume requirement is met by construction. On a
+// filesystem without hard-link support the plain rename fallback keeps the
+// best atomicity that filesystem offers instead of failing the import.
+func publishCreateOnly(tmp, dst string) (bool, error) {
+	if err := os.Link(tmp, dst); err != nil {
+		if _, statErr := os.Lstat(dst); statErr == nil {
+			return false, nil
+		}
+		if renameErr := os.Rename(tmp, dst); renameErr != nil {
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 func writeFirstRunMarker(dest string, marker firstRunMarker) error {

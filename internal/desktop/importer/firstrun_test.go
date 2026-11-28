@@ -413,3 +413,61 @@ func TestRecordedMarkerBytesDecideBothOffers(t *testing.T) {
 		}
 	}
 }
+
+func TestPublishCreateOnlyNeverReplacesAnExistingDestination(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "config.json")
+	original := []byte("concurrent creator bytes")
+	if err := os.WriteFile(dst, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tmp := filepath.Join(dir, ".config.json.1.tmp")
+	if err := os.WriteFile(tmp, []byte("importer bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	created, err := publishCreateOnly(tmp, dst)
+	if err != nil {
+		t.Fatalf("publishCreateOnly: %v", err)
+	}
+	if created {
+		t.Fatal("publishCreateOnly reported creation over an existing file")
+	}
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(original) {
+		t.Fatalf("destination bytes replaced: %q", got)
+	}
+}
+
+func TestCopyFileCreateOnlyPublishesAndReportsCreation(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "source.json")
+	if err := os.WriteFile(src, []byte(`{"a":1}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(dir, "config.json")
+	created, err := copyFileCreateOnly(src, dst)
+	if err != nil {
+		t.Fatalf("copyFileCreateOnly: %v", err)
+	}
+	if !created {
+		t.Fatal("copyFileCreateOnly did not report creation on a fresh destination")
+	}
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != `{"a":1}` {
+		t.Fatalf("copied bytes differ: %q", got)
+	}
+	// A second copy onto the same destination neither replaces nor errors.
+	created, err = copyFileCreateOnly(src, dst)
+	if err != nil {
+		t.Fatalf("copyFileCreateOnly over existing: %v", err)
+	}
+	if created {
+		t.Fatal("copyFileCreateOnly reported creation over an existing file")
+	}
+}

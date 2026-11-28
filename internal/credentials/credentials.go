@@ -601,3 +601,60 @@ func writeAtomic(path string, data []byte, rename func(oldpath, newpath string) 
 	}
 	return errRename
 }
+
+// SaveIfAbsent writes creds only when the destination has no credentials file
+// at all, reporting whether this call created it. The existence decision and
+// the publish both happen inside the profile directory lock, and the publish
+// itself never replaces an existing file: a concurrent creator always keeps
+// its own bytes. First-run import uses this so the "never overwrite" contract
+// is a fact of the write path rather than a caller precheck.
+func SaveIfAbsent(dir string, creds Credentials) (bool, error) {
+	created := false
+	err := withProfileDirLock(dir, true, false, func() error {
+		path := filepath.Join(dir, FileName)
+		if _, err := os.Lstat(path); err == nil {
+			return nil
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		merged, err := mergeCredentialsIntoRaw(map[string]json.RawMessage{}, creds)
+		if err != nil {
+			return err
+		}
+		defer clearRawMap(merged)
+		if err := sealAndWriteRaw(dir, merged, true, linkCreateOnly); err != nil {
+			if errors.Is(err, errCreateOnlyExists) {
+				return nil
+			}
+			return err
+		}
+		created = true
+		return nil
+	})
+	return created, err
+}
+
+// errCreateOnlyExists marks a create-only publish that lost to a concurrent
+// creator. It is internal because callers only care whether they created.
+var errCreateOnlyExists = errors.New("credentials: destination appeared during create-only publish")
+
+// linkCreateOnly is a writeAtomic rename primitive that never replaces an
+// existing file: the hard link fails when newpath exists, and the temporary
+// file is unlinked by writeAtomic's deferred remove, leaving only the
+// destination name. Hard links always resolve inside one directory, so the
+// same-volume requirement is met by construction. On a filesystem without
+// hard-link support the link fails while no destination exists; falling back
+// to os.Rename keeps the best atomicity that filesystem offers rather than
+// failing the write outright.
+func linkCreateOnly(oldpath, newpath string) error {
+	if err := os.Link(oldpath, newpath); err != nil {
+		if _, statErr := os.Lstat(newpath); statErr == nil {
+			return errCreateOnlyExists
+		}
+		if renameErr := os.Rename(oldpath, newpath); renameErr == nil {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
