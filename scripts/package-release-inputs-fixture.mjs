@@ -29,6 +29,10 @@ assert.ok(windows.indexOf('Packaged Host node.exe is missing or changed.') < win
 assert.ok(windows.indexOf('Packaged mobile runtime verification failed') < windows.indexOf("Set-Content -Path $Marker"));
 assert.match(windows, /throw 'Host Node runtime missing/);
 assert.doesNotMatch(windows, /Note: Node directory not found/);
+// The staged README is user-facing release copy: it must describe the current
+// independent data directory, never the retired shared-userData contract.
+assert.doesNotMatch(windows, /sharing `%APPDATA%\\Deepseek-Harness-Desktop` userData/);
+assert.match(windows, /%APPDATA%\\WhaleIsle-MyGo\\data/);
 assert.doesNotMatch(windows, /Remove-Item -Recurse -Force \$Stage/);
 assert.match(windows, /Package stage already exists; choose a fresh -OutputRoot/);
 assert.match(windows, /session-runtime\.mjs'\) release/);

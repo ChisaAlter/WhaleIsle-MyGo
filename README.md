@@ -122,7 +122,7 @@ Project 把一个本地代码库或目录变成可持续推进的项目。你在
 
 ## 从源码运行
 
-需要 Git、Go `1.25+` 以及 Node.js `22.19+` 或 `24+`（用于运行本地 DeepSeek Harness 服务）。Windows 下仓库提供了自动配置脚本：
+需要 Git、Go `1.27+` 以及 Node.js `22.19+` 或 `24+`（用于运行本地 DeepSeek Harness 服务）。Windows 下仓库提供了自动配置脚本：
 
 ```powershell
 git clone https://github.com/ChisaAlter/WhaleIsle-MyGo.git
