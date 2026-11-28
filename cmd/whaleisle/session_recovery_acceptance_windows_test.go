@@ -299,7 +299,12 @@ func runNativeSessionRecovery() error {
 		}
 		state.mu.Unlock()
 		finish(fmt.Errorf("owned native session recovery readiness timeout: phase=%s boot=%s mux=%v revealed=%v shown=%v rendered=%v projected=%v wsReady=%v listLoad=%v listErr=%q sel=%q want=%q histReady=%v histLoad=%v lastAction=%q resumePend=%q resumeWs=%q activeKey=%q scope=%q items=%d",
-			phase, bootSt, muxOK, revealed, shown, rendered, projected, snap.WorkspaceReady, snap.ListLoading, snap.ListErr, snap.SelectedID, id, snap.HistoryReady, snap.HistoryLoading, snap.LastAction, pendSess, resWs, activeKey, scope, len(snap.Items)))
+			phase, bootSt, muxOK, revealed, shown, rendered, projected, snap.WorkspaceReady, snap.ListLoading, func() string {
+				if snap.ListErr != nil {
+					return snap.ListErr.SentenceText()
+				}
+				return ""
+			}(), snap.SelectedID, id, snap.HistoryReady, snap.HistoryLoading, snap.LastAction, pendSess, resWs, activeKey, scope, len(snap.Items)))
 	}()
 	main()
 	select {
