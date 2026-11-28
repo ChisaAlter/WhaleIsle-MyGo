@@ -39,7 +39,14 @@ var seedScript string
 
 type seedManifest struct {
 	Rows       []struct{ ID, Kind string }
-	Attachment struct{ AttachmentID string }
+	Attachment struct {
+		AttachmentID string
+		MediaType    string
+		Width        float64
+		Height       float64
+		Bytes        float64
+		Name         string
+	}
 }
 type proof struct {
 	ID, Layer string
@@ -249,10 +256,10 @@ func run(stage, base, native, reuse string, r *report) error {
 			return e
 		}
 		if err = checkState(row.Kind, v); err != nil {
-			return err
+			return fmt.Errorf("checkstate %s: %w", row.Kind, err)
 		}
 		if err = readOnlyControls(row.Kind, v); err != nil {
-			return err
+			return fmt.Errorf("readonly %s: %w", row.Kind, err)
 		}
 		if row.Kind == "media" {
 			local, e := s.FetchAttachment(ctx, manifest.Attachment.AttachmentID)

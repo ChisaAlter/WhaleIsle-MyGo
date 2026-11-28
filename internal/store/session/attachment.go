@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,13 +60,63 @@ func (s *Store) FetchAttachment(ctx context.Context, attachmentID string) (strin
 	return read.Fetch(ctx, attachmentID)
 }
 
+// imageAttachmentRef scans durable message rows for the image content block
+// carrying attachmentID and returns its full provider-owned reference. The
+// Host verifies media type, byte length and dimensions against the stored
+// bytes, so an id-only request fails boundary validation; the reference is
+// only complete inside the projected journal content.
+func imageAttachmentRef(messages []Message, attachmentID string) map[string]any {
+	for i := range messages {
+		raw := messages[i].Raw
+		if len(raw) == 0 {
+			continue
+		}
+		var ev struct {
+			Data struct {
+				Content []json.RawMessage `json:"content"`
+				Message struct {
+					Content []json.RawMessage `json:"content"`
+				} `json:"message"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(raw, &ev); err != nil {
+			continue
+		}
+		blocks := ev.Data.Content
+		if len(blocks) == 0 {
+			blocks = ev.Data.Message.Content
+		}
+		for _, block := range blocks {
+			var blk struct {
+				Type       string          `json:"type"`
+				Attachment json.RawMessage `json:"attachment"`
+			}
+			if err := json.Unmarshal(block, &blk); err != nil || blk.Type != "image" || len(blk.Attachment) == 0 {
+				continue
+			}
+			var ref map[string]any
+			if err := json.Unmarshal(blk.Attachment, &ref); err != nil {
+				continue
+			}
+			if id, _ := ref["attachmentId"].(string); id == attachmentID {
+				return ref
+			}
+		}
+	}
+	return nil
+}
+
 // fetchSessionAttachment shares decoding and storage while callers choose the cache namespace.
-func fetchSessionAttachment(ctx context.Context, client *dsh.Client, sessionID, attachmentID, identity string) (string, error) {
+func fetchSessionAttachment(ctx context.Context, client *dsh.Client, sessionID, attachmentID, identity string, ref map[string]any) (string, error) {
 	var out api.SessionAttachmentValue
+	attachment := map[string]any{"attachmentId": attachmentID}
+	for k, v := range ref {
+		attachment[k] = v
+	}
 	err := client.Call(ctx, "session/attachment", map[string]any{
-		"request": api.SessionAttachmentRequest{
-			SessionId:  sessionID,
-			Attachment: api.SessionAttachmentRequestAttachment{AttachmentId: attachmentID},
+		"request": map[string]any{
+			"sessionId":  sessionID,
+			"attachment": attachment,
 		},
 	}, &out)
 	if err != nil {

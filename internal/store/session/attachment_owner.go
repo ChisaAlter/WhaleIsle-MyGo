@@ -53,7 +53,10 @@ func (s *Store) CaptureAttachmentRead(binding, sessionID string) AttachmentRead 
 				return path, nil
 			}
 		}
-		path, err := fetchSessionAttachment(ctx, &captured, sessionID, id, key+"\x00"+id)
+		s.mu.Lock()
+		ref := imageAttachmentRef(s.messages, id)
+		s.mu.Unlock()
+		path, err := fetchSessionAttachment(ctx, &captured, sessionID, id, key+"\x00"+id, ref)
 		if !current() {
 			return "", context.Canceled
 		}
@@ -84,7 +87,7 @@ func (s *Store) CaptureAgentAttachmentRead(token uint64, address AgentSessionAdd
 				return path, nil
 			}
 		}
-		path, err := fetchSessionAttachment(ctx, &captured, address.ChildSessionID, id, key+"\x00"+id)
+		path, err := fetchSessionAttachment(ctx, &captured, address.ChildSessionID, id, key+"\x00"+id, nil)
 		if !current() {
 			return "", context.Canceled
 		}
