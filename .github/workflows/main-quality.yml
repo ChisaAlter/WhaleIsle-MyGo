@@ -417,7 +417,7 @@ jobs:
         run: ./scripts/build-release.ps1 -Package cmd/whaleisle -Output "$env:RUNNER_TEMP\whaleisle.exe"
       - name: Run WorkbenchOnly Zero-WebView2 Gate
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/qa-gate-zero-webview.ps1 -Executable "$env:RUNNER_TEMP\whaleisle.exe" -WorkbenchOnly -WarmupSeconds 8
+        run: pwsh -NoProfile -File scripts/qa-gate-zero-webview.ps1 -Executable "$env:RUNNER_TEMP\whaleisle.exe" -WorkbenchOnly -WarmupSeconds 8 -RequireProcessStartEvents
       - name: Run packaging and branding offline fixtures
         shell: pwsh
         run: |
