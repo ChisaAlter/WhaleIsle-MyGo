@@ -270,9 +270,11 @@ func newQAModel() (*qaModel, error) {
 				case "number", "integer":
 					args[key] = 1
 				case "boolean":
-					args[key] = false
+					// Activation-shaped flags must assert: a goal created
+					// inactive never orchestrates child runs.
+					args[key] = strings.Contains(strings.ToLower(key), "activ") || strings.Contains(strings.ToLower(key), "enabl") || strings.Contains(strings.ToLower(key), "start")
 				default:
-					args[key] = "QA_WORKFLOW_CHILD: reply briefly and finish."
+					args[key] = "CHILDROUND: reply briefly and finish."
 				}
 			}
 			raw, _ := json.Marshal(args)
