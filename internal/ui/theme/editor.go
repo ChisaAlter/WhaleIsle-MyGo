@@ -10,13 +10,13 @@ import (
 )
 
 type Editor struct {
-	Draft             Preferences
-	Saved             Preferences
-	Selected          string
-	Status            string
-	StatusDetail      string
-	Preview           bool
-	OnSave func(Preferences) error
+	Draft        Preferences
+	Saved        Preferences
+	Selected     string
+	Status       string
+	StatusDetail string
+	Preview      bool
+	OnSave       func(Preferences) error
 	// OnImport starts a theme-file import and must call deliver exactly once
 	// on the UI thread: reading the picked file is disk I/O, which never runs
 	// inside the click handler itself. Empty content with a nil error means
