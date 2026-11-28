@@ -235,6 +235,54 @@ func newQAModel() (*qaModel, error) {
 			emit("message_stop", map[string]any{})
 			return
 		}
+		if strings.Contains(text, "QA_WORKFLOW") {
+			// Workflow probe: invoke the agent-orchestration tool so the Host
+			// spawns a child run, emitting the tool-workflow/ journal events
+			// that project as WorkflowRuns.
+			chosenTool := -1
+			for i, tool := range body.Tools {
+				n := strings.ToLower(tool.Name)
+				if strings.Contains(n, "agent") || strings.Contains(n, "task") || strings.Contains(n, "delegate") || strings.Contains(n, "spawn") || strings.Contains(n, "goal") {
+					chosenTool = i
+					break
+				}
+			}
+			if chosenTool < 0 {
+				names := []string{}
+				for _, t := range body.Tools {
+					names = append(names, t.Name)
+				}
+				emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "text", "text": ""}})
+				emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": "QA_NO_AGENT_TOOL: " + strings.Join(names, ",")}})
+				emit("content_block_stop", map[string]any{"index": 0})
+				emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 10}})
+				emit("message_stop", map[string]any{})
+				return
+			}
+			tool := body.Tools[chosenTool]
+			args := map[string]any{}
+			for key, rawProp := range tool.InputSchema.Properties {
+				propType := ""
+				if prop, ok := rawProp.(map[string]any); ok {
+					propType, _ = prop["type"].(string)
+				}
+				switch propType {
+				case "number", "integer":
+					args[key] = 1
+				case "boolean":
+					args[key] = false
+				default:
+					args[key] = "QA_WORKFLOW_CHILD: reply briefly and finish."
+				}
+			}
+			raw, _ := json.Marshal(args)
+			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "tool_use", "id": fmt.Sprintf("qa-wf-%d", m.requests.Load()), "name": tool.Name, "input": map[string]any{}}})
+			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "input_json_delta", "partial_json": string(raw)}})
+			emit("content_block_stop", map[string]any{"index": 0})
+			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "tool_use", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 20}})
+			emit("message_stop", map[string]any{})
+			return
+		}
 		if strings.Contains(text, "QA_THINKING") {
 			// Anthropic thinking block: exercises whether the Host translates
 			// reasoning-shaped content into the journal events the desktop
@@ -455,7 +503,11 @@ func runComposerFlowQA() error {
 		}
 		seedText := "QA_SEED_ID1"
 		probeThinking := scenario == "probe-thinking"
-		if probeThinking {
+		probeWorkflow := scenario == "probe-workflow"
+		probeThinking = probeThinking || probeWorkflow
+		if probeWorkflow {
+			seedText = "QA_SEED_ID1 QA_WORKFLOW"
+		} else if probeThinking {
 			seedText = "QA_SEED_ID1 QA_THINKING"
 		}
 		mygo.RunOnMain(func() {
@@ -484,7 +536,7 @@ func runComposerFlowQA() error {
 				if m.Role == "user" && strings.Contains(m.Body, "QA_SEED_ID1") {
 					userCount++
 				}
-				if m.Role == "assistant" && strings.Contains(m.Body, "QA_REPLY_OK") {
+				if m.Role == "assistant" && (strings.Contains(m.Body, "QA_REPLY_OK") || strings.Contains(m.Body, "QA_APPROVED_OK")) {
 					replyCount++
 				}
 			}
@@ -494,6 +546,17 @@ func runComposerFlowQA() error {
 			return
 		}
 		if probeThinking {
+			// Goal-driven workflow runs orchestrate asynchronously past the end
+			// of the parent turn; let the child rounds settle before sampling.
+			if probeWorkflow {
+				settle := time.Now().Add(25 * time.Second)
+				for time.Now().Before(settle) {
+					if len(sessions.Snapshot().WorkflowRuns) > 0 {
+						break
+					}
+					time.Sleep(500 * time.Millisecond)
+				}
+			}
 			type probeMessage struct {
 				Kind     string `json:"kind"`
 				Role     string `json:"role"`
