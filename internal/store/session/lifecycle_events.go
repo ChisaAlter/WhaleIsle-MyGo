@@ -3,6 +3,8 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"log"
+	"runtime"
 	"strings"
 
 	"whaleisle/internal/dsh"
@@ -335,6 +337,22 @@ func sessionListItems(rows []api.SessionListValueItemsItem) []Item {
 // follow catches up; same-workspace switches also retain workspace-scoped
 // skills and slash commands instead of flashing empty.
 func (s *Store) selectSessionLocked(sessionID string) {
+	if viewTraceOn && sessionID != "" {
+		var pcs [8]uintptr
+		n := runtime.Callers(2, pcs[:])
+		frames := runtime.CallersFrames(pcs[:n])
+		var parts []string
+		for len(parts) < 5 {
+			f, more := frames.Next()
+			if f.Function != "" && !strings.HasPrefix(f.Function, "runtime.") {
+				parts = append(parts, shortFuncName(f.Function))
+			}
+			if !more {
+				break
+			}
+		}
+		log.Printf("[session] select %q <- %s", sessionID, strings.Join(parts, " <- "))
+	}
 	s.selectedAuto = false
 	s.invalidateViewLocked()
 	s.mainConversationReadID = ""

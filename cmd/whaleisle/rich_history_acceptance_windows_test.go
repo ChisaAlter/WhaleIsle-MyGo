@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -36,6 +37,22 @@ func TestNativeRichHistory(t *testing.T) {
 }
 
 func nativeRichHistory() error {
+	// The recovery watchdog re-exec runs this same binary with the watchdog
+	// flag; it must not race the real app's seeding loop, dump or hard exit.
+	watchdogExec := len(os.Args) >= 2 && os.Args[1] == nativeRecoveryFlag
+	if !watchdogExec {
+		go func() {
+			time.Sleep(70 * time.Second)
+			dump, derr := os.Create(os.Getenv("WHALEISLE_RICH_QA_OUT") + ".goroutines")
+			if derr == nil {
+				_ = pprof.Lookup("goroutine").WriteTo(dump, 2)
+				dump.Close()
+			}
+			log.Printf("rich-qa: hard watchdog fired, goroutine dump written")
+			time.Sleep(2 * time.Second)
+			os.Exit(3)
+		}()
+	}
 	id, workspace, out := os.Getenv("WHALEISLE_RICH_QA_ID"), os.Getenv("WHALEISLE_RICH_QA_WORKSPACE"), os.Getenv("WHALEISLE_RICH_QA_OUT")
 	data := os.Getenv(paths.EnvUserData)
 	if !isolatedDesktopRun() || !strings.HasPrefix(id, "rich-history-fixture-") || !filepath.IsAbs(data) || !filepath.IsAbs(workspace) || !filepath.IsAbs(out) {
@@ -77,9 +94,13 @@ func nativeRichHistory() error {
 		mygo.App.Quit()
 	}
 	go func() {
+		if watchdogExec {
+			return
+		}
 		deadline := time.Now().Add(105 * time.Second)
 		selected, revealed, seededThinking, seededWorkflow := false, false, false, false
 		iter := 0
+		createIssued := false
 		ctx := context.Background()
 		for time.Now().Before(deadline) {
 			state.mu.Lock()
@@ -90,6 +111,9 @@ func nativeRichHistory() error {
 				return
 			}
 			if win == nil || status.State != harness.Ready || sessions == nil || !ready {
+				if iter > 0 {
+					log.Printf("rich-qa: boot gate regressed winNil=%v status=%v sessionsNil=%v ready=%v", win == nil, status.State, sessions == nil, ready)
+				}
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
@@ -99,7 +123,7 @@ func nativeRichHistory() error {
 			}
 			snap := sessions.Snapshot()
 			iter++
-			if iter%50 == 0 {
+			if iter%20 == 0 {
 				log.Printf("rich-qa heartbeat: iter=%d listLoading=%v wsReady=%v sel=%q requiresWs=%v seededT=%v seededW=%v msgs=%d wfruns=%d busy=%v", iter, snap.ListLoading, snap.WorkspaceReady, snap.SelectedID, composer.RequiresWorkspace(snap, true), seededThinking, seededWorkflow, len(snap.Messages), len(snap.WorkflowRuns), snap.PromptBusy)
 			}
 			if snap.ListLoading || snap.ListErr != nil || !snap.WorkspaceReady {
@@ -113,9 +137,12 @@ func nativeRichHistory() error {
 				// evidence is downstream of having a session at all. Only the
 				// seed submit is gated, mirroring the composer flow order.
 				if snap.SelectedID == "" {
-					log.Printf("rich-qa: issuing create session")
-					sessions.CreateSession(ctx)
-					time.Sleep(300 *time.Millisecond)
+					if !createIssued {
+						createIssued = true
+						log.Printf("rich-qa: issuing create session")
+						sessions.CreateSession(ctx)
+					}
+					time.Sleep(200 * time.Millisecond)
 					continue
 				}
 				if !snap.HistoryReady || snap.HistoryLoading {
@@ -132,7 +159,7 @@ func nativeRichHistory() error {
 			}
 			if !seededThinking {
 				seededThinking = true
-				mygo.RunOnMain(func() {
+				go mygo.RunOnMain(func() {
 					state.mu.Lock()
 					draft := state.composerDraftLocked(snap.SelectedID)
 					draft.Text = "QA_THINKING rich fixture"
@@ -158,7 +185,7 @@ func nativeRichHistory() error {
 			}
 			if !seededWorkflow {
 				seededWorkflow = true
-				mygo.RunOnMain(func() {
+				go mygo.RunOnMain(func() {
 					state.mu.Lock()
 					draft := state.composerDraftLocked(snap.SelectedID)
 					draft.Text = "QA_WORKFLOW rich fixture"
@@ -169,6 +196,9 @@ func nativeRichHistory() error {
 				continue
 			}
 			if len(snap.WorkflowRuns) == 0 || snap.PromptBusy {
+				if iter%20 == 0 {
+					log.Printf("rich-qa: waiting workflow settle wfruns=%d busy=%v modelReqs=%d", len(snap.WorkflowRuns), snap.PromptBusy, model.requests.Load())
+				}
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
@@ -176,14 +206,17 @@ func nativeRichHistory() error {
 				finish(fmt.Errorf("saved state was not an idle ready history"))
 				return
 			}
+			log.Printf("rich-qa: seeds settled, validation phase msgs=%d wfruns=%d busy=%v modelReqs=%d", len(snap.Messages), len(snap.WorkflowRuns), snap.PromptBusy, model.requests.Load())
 			kind := strings.TrimPrefix(id, "rich-history-fixture-")
 			if kind == "media" {
 				for _, message := range snap.Messages {
 					for _, ref := range session.ImageRefs(message.Body) {
 						if attachmentID, ok := strings.CutPrefix(ref, "attachment:"); ok {
 							ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+							log.Printf("rich-qa: fetching attachment %q", attachmentID)
 							_, err := sessions.FetchAttachment(ctx, attachmentID)
 							cancel()
+							log.Printf("rich-qa: fetch returned err=%v", err)
 							if err != nil {
 								finish(err)
 								return
@@ -194,6 +227,7 @@ func nativeRichHistory() error {
 			}
 			// Expanding a saved disclosure changes only local view state; no
 			// question/approval/workflow mutation callback is installed or called.
+			log.Printf("rich-qa: expanding disclosures")
 			done := make(chan struct{}, 1)
 			win.Update(func() {
 				state.mu.Lock()
@@ -216,6 +250,7 @@ func nativeRichHistory() error {
 				done <- struct{}{}
 			})
 			<-done
+			log.Printf("rich-qa: capturing page")
 			png, err := win.CapturePage()
 			if err != nil {
 				finish(err)
@@ -241,6 +276,7 @@ func nativeRichHistory() error {
 				return
 			}
 			proof := map[string]any{"kind": kind, "layer": "production hidden Windows mainView + real Host on synthetic persisted state", "historyReady": true, "messageCount": len(snap.Messages), "workflowRuns": len(snap.WorkflowRuns), "promptBusy": snap.PromptBusy, "modelRequests": 0, "nativeQuestionOrApprovalResponseInvoked": false, "livePendingInteractions": livePending, "localDisclosuresExpandedProgrammatically": true, "windowHidden": true, "originalPixelParityClaim": false}
+			log.Printf("rich-qa: writing proof")
 			raw, _ := json.MarshalIndent(proof, "", "  ")
 			finish(os.WriteFile(out+".json", append(raw, '\n'), 0600))
 			return
