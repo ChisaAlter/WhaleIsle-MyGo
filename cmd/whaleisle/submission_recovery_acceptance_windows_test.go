@@ -729,7 +729,7 @@ func runSubmissionRecoveryDesktop(phase string) (failure error) {
 			return
 		}
 		report["beforeRestart"] = recoveryObserve(sessions, expected)
-		count, err = recoveryJournalCount(ctx, status.Endpoint, expected.A, expected.RestartRequest)
+		count, err = recoveryJournalCountWait(ctx, status.Endpoint, expected.A, expected.RestartRequest)
 		report["acceptedBeforeRestartJournalCount"] = count
 		if err != nil || count != 1 {
 			finish(fmt.Errorf("restart accepted journal count=%d: %v", count, err))
