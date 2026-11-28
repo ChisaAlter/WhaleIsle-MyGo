@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -461,6 +462,15 @@ func runComposerFlowQA() error {
 			state.mu.Lock()
 			draft := state.composerDraftLocked(id1)
 			draft.Text = seedText
+			if probeThinking {
+				// Path-based image attachment: the prepare chain loads the bytes,
+				// detects the media type and stamps session/host scope itself.
+				pngPath := filepath.Join(workspace, "qa-probe.png")
+				pngRaw, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+				_ = os.MkdirAll(workspace, 0755)
+				_ = os.WriteFile(pngPath, pngRaw, 0600)
+				draft.Attachments = []session.ComposerAttachment{{Path: pngPath, Name: "qa-probe.png"}}
+			}
 			state.mu.Unlock()
 			state.submitComposer(win, sessions, draft, id1, workspace, false, sessions.Snapshot().ComposerHostGeneration)
 		})
@@ -485,17 +495,19 @@ func runComposerFlowQA() error {
 		}
 		if probeThinking {
 			type probeMessage struct {
-				Kind string `json:"kind"`
-				Role string `json:"role"`
-				Body string `json:"body"`
+				Kind     string `json:"kind"`
+				Role     string `json:"role"`
+				Body     string `json:"body"`
+				ImageRef string `json:"imageRef,omitempty"`
 			}
-			probe := map[string]any{"messages": []probeMessage{}}
-			for _, m := range sessions.Snapshot().Messages {
+			v := sessions.Snapshot()
+			probe := map[string]any{"messages": []probeMessage{}, "workflowRuns": len(v.WorkflowRuns)}
+			for _, m := range v.Messages {
 				body := m.Body
 				if len(body) > 120 {
 					body = body[:120]
 				}
-				probe["messages"] = append(probe["messages"].([]probeMessage), probeMessage{Kind: string(m.Kind), Role: m.Role, Body: body})
+				probe["messages"] = append(probe["messages"].([]probeMessage), probeMessage{Kind: string(m.Kind), Role: m.Role, Body: body, ImageRef: m.ImageRef})
 			}
 			raw, _ := json.MarshalIndent(probe, "", "  ")
 			_ = os.WriteFile(out+".probe.json", raw, 0600)
